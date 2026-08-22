@@ -21,7 +21,7 @@ jobs:
         run: dotnet build PersonnelPlatform.sln --configuration Release --no-restore
       - name: Test
         working-directory: backend
-        run: dotnet test PersonnelPlatform.sln --configuration Release --no-build
+        run: dotnet test --solution PersonnelPlatform.sln --configuration Release --no-build
 
   frontend:
     runs-on: ubuntu-latest
