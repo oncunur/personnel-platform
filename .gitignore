@@ -1,0 +1,28 @@
+# .NET
+**/bin/
+**/obj/
+*.user
+*.suo
+
+# Node / Next.js
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+**/appsettings.Local.json
+
+# IDE
+.vscode/
+.idea/
+.DS_Store
+
+# Test / coverage
+TestResults/
+coverage/
+
+# Local runtime
+*.log

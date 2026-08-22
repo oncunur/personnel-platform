@@ -1,0 +1,38 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Restore
+        working-directory: backend
+        run: dotnet restore PersonnelPlatform.sln
+      - name: Build
+        working-directory: backend
+        run: dotnet build PersonnelPlatform.sln --configuration Release --no-restore
+      - name: Test
+        working-directory: backend
+        run: dotnet test --solution PersonnelPlatform.sln --configuration Release --no-build
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install
+        working-directory: frontend
+        run: npm install
+      - name: Build
+        working-directory: frontend
+        run: npm run build
