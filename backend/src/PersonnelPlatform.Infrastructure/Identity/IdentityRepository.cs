@@ -1,0 +1,27 @@
+using Microsoft.EntityFrameworkCore;
+using PersonnelPlatform.Application.Identity;
+using PersonnelPlatform.Domain.Identity;
+using PersonnelPlatform.Infrastructure.Persistence;
+
+namespace PersonnelPlatform.Infrastructure.Identity;
+
+public sealed class IdentityRepository(ApplicationDbContext dbContext) : IIdentityRepository
+{
+    public Task<User?> FindUserByIdAsync(Guid userId, CancellationToken cancellationToken) =>
+        dbContext.Users.FirstOrDefaultAsync(x => x.Id == userId && x.DeletedAt == null, cancellationToken);
+
+    public Task<User?> FindUserByNormalizedUsernameAsync(string normalizedUsername, CancellationToken cancellationToken) =>
+        dbContext.Users.FirstOrDefaultAsync(
+            x => x.NormalizedUsername == normalizedUsername && x.DeletedAt == null,
+            cancellationToken);
+
+    public Task<RefreshToken?> FindRefreshTokenByHashAsync(string tokenHash, CancellationToken cancellationToken) =>
+        dbContext.RefreshTokens.FirstOrDefaultAsync(x => x.TokenHash == tokenHash, cancellationToken);
+
+    public void AddUser(User user) => dbContext.Users.Add(user);
+
+    public void AddRefreshToken(RefreshToken refreshToken) => dbContext.RefreshTokens.Add(refreshToken);
+
+    public Task<int> SaveChangesAsync(CancellationToken cancellationToken) =>
+        dbContext.SaveChangesAsync(cancellationToken);
+}

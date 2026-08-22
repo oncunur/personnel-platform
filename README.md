@@ -1,6 +1,6 @@
 # Personnel & Administrative Affairs Platform
 
-Sprint 0 implementation scaffold for the Personnel & Administrative Affairs platform.
+Personnel & Administrative Affairs platform implemented as a modular monolith.
 
 ## Baseline stack
 
@@ -10,6 +10,22 @@ Sprint 0 implementation scaffold for the Personnel & Administrative Affairs plat
 - Cache: Redis 8.2
 - Runtime: Docker Compose
 - Architecture: Modular Monolith
+
+## Current implementation
+
+Sprint 0 platform foundation is complete. Sprint 1 identity work currently includes:
+
+- User and refresh-token persistence
+- PBKDF2-SHA512 password hashing
+- Login with failed-attempt lockout
+- HMAC-SHA256 JWT access tokens
+- Rotating refresh tokens stored as SHA-256 hashes
+- HttpOnly refresh-token cookie for the web client
+- `/api/v1/auth/login`, `/refresh`, `/logout`, `/me`
+- Development-only bootstrap admin
+- Login and authenticated dashboard screens
+
+Role, permission and scope authorization will be added next in Sprint 1.
 
 ## Repository layout
 
@@ -34,27 +50,38 @@ personnel-platform/
 
 ```bash
 cp .env.example .env
+# Change the development JWT and bootstrap-admin values in .env before starting.
 docker compose up --build
 ```
 
 Then open:
 
 - Web: http://localhost:3000
+- Login: http://localhost:3000/login
 - API ping: http://localhost:8080/api/v1/system/ping
 - API readiness: http://localhost:8080/health/ready
 - OpenAPI document (Development): http://localhost:8080/openapi/v1.json
 
-> The credentials in `.env.example` are local-development defaults only. Never reuse them in production.
+The development bootstrap username comes from `BOOTSTRAP_ADMIN_USERNAME` (default example: `admin`).
+The password comes from `BOOTSTRAP_ADMIN_PASSWORD` and is hashed before it is stored in PostgreSQL.
+
+> Values in `.env.example` are local-development examples only. Do not reuse them in production.
 
 ## Local backend development
 
 Requires .NET 10 SDK and PostgreSQL/Redis (or the Docker services).
+The API also requires a JWT signing key with at least 32 UTF-8 bytes.
 
 ```bash
+export Jwt__SigningKey='replace-this-with-a-long-development-key-at-least-32-bytes'
+export BootstrapAdmin__Username='admin'
+export BootstrapAdmin__Password='Admin123!ChangeMe'
+export BootstrapAdmin__Email='admin@local.test'
+
 cd backend
 dotnet restore PersonnelPlatform.sln
 dotnet build PersonnelPlatform.sln
-dotnet test PersonnelPlatform.sln
+dotnet test --solution PersonnelPlatform.sln
 ```
 
 ## Local frontend development
@@ -67,6 +94,7 @@ npm install
 npm run dev
 ```
 
-## Sprint 0 status
+## Sprint status
 
-See [`docs/sprint-0-status.md`](docs/sprint-0-status.md).
+- [`docs/sprint-0-status.md`](docs/sprint-0-status.md)
+- [`docs/sprint-1-status.md`](docs/sprint-1-status.md)

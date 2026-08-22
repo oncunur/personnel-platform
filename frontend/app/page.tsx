@@ -13,14 +13,15 @@ export default function Home() {
   return (
     <main className="shell">
       <section className="hero">
-        <span className="eyebrow">SPRINT 0 · IMPLEMENTATION STARTED</span>
+        <span className="eyebrow">SPRINT 1 · IDENTITY IN PROGRESS</span>
         <h1>Personel & İdari İşler Platformu</h1>
         <p>
-          Teknik temel oluşturuldu. Bir sonraki kod dilimi kimlik doğrulama, kullanıcı,
-          rol, yetki ve scope altyapısıdır.
+          Platform temeli tamamlandı. Kimlik doğrulama, güvenli parola saklama,
+          JWT access token ve refresh token rotation geliştirmesi başladı.
         </p>
-        <div className="actions">
-          <a className="primary" href="/api-health">API sağlık durumunu kontrol et</a>
+        <div className="actions action-row">
+          <a className="primary" href="/login">Platforma giriş yap</a>
+          <a className="ghost-link" href="/api-health">API sağlık durumunu kontrol et</a>
         </div>
       </section>
 
