@@ -99,6 +99,21 @@ public sealed class User : AuditableEntity
         Version++;
     }
 
+    public void Activate(DateTimeOffset now)
+    {
+        if (IsActive)
+        {
+            return;
+        }
+
+        IsActive = true;
+        FailedLoginCount = 0;
+        LockedUntil = null;
+        SecurityVersion++;
+        UpdatedAt = now;
+        Version++;
+    }
+
     public void Deactivate(DateTimeOffset now)
     {
         if (!IsActive)
