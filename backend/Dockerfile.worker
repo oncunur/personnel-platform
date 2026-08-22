@@ -1,0 +1,15 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+COPY Directory.Build.props Directory.Packages.props PersonnelPlatform.sln ./
+COPY src/PersonnelPlatform.Worker/PersonnelPlatform.Worker.csproj src/PersonnelPlatform.Worker/
+COPY src/PersonnelPlatform.Application/PersonnelPlatform.Application.csproj src/PersonnelPlatform.Application/
+COPY src/PersonnelPlatform.Domain/PersonnelPlatform.Domain.csproj src/PersonnelPlatform.Domain/
+COPY src/PersonnelPlatform.Infrastructure/PersonnelPlatform.Infrastructure.csproj src/PersonnelPlatform.Infrastructure/
+RUN dotnet restore src/PersonnelPlatform.Worker/PersonnelPlatform.Worker.csproj
+COPY . .
+RUN dotnet publish src/PersonnelPlatform.Worker/PersonnelPlatform.Worker.csproj -c Release -o /app/publish --no-restore
+
+FROM mcr.microsoft.com/dotnet/runtime:10.0 AS runtime
+WORKDIR /app
+COPY --from=build /app/publish .
+ENTRYPOINT ["dotnet", "PersonnelPlatform.Worker.dll"]
