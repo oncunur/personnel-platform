@@ -17,7 +17,7 @@ public interface IAdministrativeAffairsRepository
     Task<IReadOnlyList<AdministrativeContractSummary>> ListContractsAsync(bool globalAccess, IReadOnlyCollection<Guid> companyIds, Guid? companyId, Guid? responsibleUserId, string? status, DateOnly today, CancellationToken cancellationToken);
     void AddContract(AdministrativeContract contract);
 
-    Task<IReadOnlyList<AdministrativeReminderCandidate>> BuildReminderCandidatesAsync(DateOnly today, int vehicleDateHorizonDays, int taskDefaultHorizonDays, int maintenanceKmThreshold, CancellationToken cancellationToken);
+    Task<IReadOnlyList<AdministrativeReminderCandidate>> BuildReminderCandidatesAsync(DateOnly today, IReadOnlyCollection<Guid>? companyIds, int vehicleDateHorizonDays, int taskDefaultHorizonDays, int maintenanceKmThreshold, CancellationToken cancellationToken);
     Task<bool> TryInsertReminderAsync(AdministrativeReminderCandidate candidate, DateTimeOffset createdAt, CancellationToken cancellationToken);
     Task<IReadOnlyList<AdministrativeReminderSummary>> ListRemindersAsync(bool globalAccess, IReadOnlyCollection<Guid> companyIds, Guid? companyId, string? eventType, DateTimeOffset? from, int take, CancellationToken cancellationToken);
 
