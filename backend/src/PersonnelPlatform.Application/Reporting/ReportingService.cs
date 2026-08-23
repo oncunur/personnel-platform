@@ -159,7 +159,7 @@ public sealed class ReportExportProcessor(
             foreach (var c in p.Costs) rows.Add([$"Cost {c.Currency}", $"Payroll={c.PayrollCost:0.00}; Meal={c.MealCost:0.00}; Accommodation={c.AccommodationCost:0.00}; Total={c.TotalCost:0.00}"]);
             return new ReportTable("Project 360", ["Metric","Value"], rows);
         }
-        if (reportType == ReportTypes.MANAGEMENT) throw new InvalidOperationException("Invalid report type constant.");
+        if (reportType != ReportTypes.Management) throw new InvalidOperationException("Report type is invalid.");
         var management = await reportingRepository.ListManagementAsync(filters.CompanyId, filters.From, filters.To, ct);
         return new ReportTable("Management Dashboard",
             ["Project","Headcount","Man-days","Worked Hours","OT Hours","Meals","Nights","Costs"],
