@@ -5,6 +5,7 @@ using PersonnelPlatform.Domain.Camp;
 using PersonnelPlatform.Domain.Documents;
 using PersonnelPlatform.Domain.Identity;
 using PersonnelPlatform.Domain.Leave;
+using PersonnelPlatform.Domain.Meal;
 using PersonnelPlatform.Domain.Organization;
 using PersonnelPlatform.Domain.Personnel;
 
@@ -60,6 +61,10 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<CampBed> CampBeds => Set<CampBed>();
     public DbSet<AccommodationRate> AccommodationRates => Set<AccommodationRate>();
     public DbSet<AccommodationStay> AccommodationStays => Set<AccommodationStay>();
+
+    public DbSet<MealType> MealTypes => Set<MealType>();
+    public DbSet<MealRate> MealRates => Set<MealRate>();
+    public DbSet<MealConsumption> MealConsumptions => Set<MealConsumption>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
