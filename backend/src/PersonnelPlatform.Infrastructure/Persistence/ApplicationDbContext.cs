@@ -115,6 +115,12 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<ExternalEntityMapping> ExternalEntityMappings => Set<ExternalEntityMapping>();
     public DbSet<IntegrationStagingRecord> IntegrationStagingRecords => Set<IntegrationStagingRecord>();
     public DbSet<IntegrationStagingHistory> IntegrationStagingHistories => Set<IntegrationStagingHistory>();
+    public DbSet<ImportJob> ImportJobs => Set<ImportJob>();
+    public DbSet<ImportRow> ImportRows => Set<ImportRow>();
+    public DbSet<ErpAccountMapping> ErpAccountMappings => Set<ErpAccountMapping>();
+    public DbSet<ErpExportBatch> ErpExportBatches => Set<ErpExportBatch>();
+    public DbSet<ErpExportLine> ErpExportLines => Set<ErpExportLine>();
+    public DbSet<ErpReconciliationEvent> ErpReconciliationEvents => Set<ErpReconciliationEvent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
