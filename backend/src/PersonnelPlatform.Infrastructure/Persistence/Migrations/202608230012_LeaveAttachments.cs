@@ -64,6 +64,14 @@ public sealed class LeaveAttachments : Migration
             BEFORE UPDATE OF status ON hr.leaves
             FOR EACH ROW
             EXECUTE FUNCTION hr.validate_required_leave_attachment();
+
+            INSERT INTO system.permissions (id, code, name, module, description, is_active) VALUES
+                ('20000000-0000-0000-0000-000000000050', 'leave.attachment.view', 'View Leave Attachments', 'Leave', 'View supporting files attached to leave requests in authorized scope.', TRUE),
+                ('20000000-0000-0000-0000-000000000051', 'leave.attachment.upload', 'Upload Leave Attachments', 'Leave', 'Upload supporting files to draft leave requests in authorized scope.', TRUE);
+
+            INSERT INTO system.role_permissions (id, role_id, permission_id, granted_at) VALUES
+                ('30000000-0000-0000-0000-000000000050', '10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000050', '2026-08-23T00:00:00Z'),
+                ('30000000-0000-0000-0000-000000000051', '10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000051', '2026-08-23T00:00:00Z');
             """);
     }
 
@@ -72,6 +80,10 @@ public sealed class LeaveAttachments : Migration
         migrationBuilder.Sql("""
             DROP TRIGGER IF EXISTS trg_00_validate_required_leave_attachment ON hr.leaves;
             DROP FUNCTION IF EXISTS hr.validate_required_leave_attachment();
+            DELETE FROM system.role_permissions WHERE id IN (
+                '30000000-0000-0000-0000-000000000050','30000000-0000-0000-0000-000000000051');
+            DELETE FROM system.permissions WHERE id IN (
+                '20000000-0000-0000-0000-000000000050','20000000-0000-0000-0000-000000000051');
             DROP TABLE IF EXISTS hr.leave_attachments;
             """);
     }
