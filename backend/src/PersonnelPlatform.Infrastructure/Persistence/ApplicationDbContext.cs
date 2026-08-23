@@ -40,6 +40,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
 
     public DbSet<EmployeeType> EmployeeTypes => Set<EmployeeType>();
     public DbSet<Employee> Employees => Set<Employee>();
+    public DbSet<EmployeeSensitiveProfile> EmployeeSensitiveProfiles => Set<EmployeeSensitiveProfile>();
     public DbSet<EmployeeProjectAssignment> EmployeeProjectAssignments => Set<EmployeeProjectAssignment>();
     public DbSet<EmployeeUserLink> EmployeeUserLinks => Set<EmployeeUserLink>();
 
