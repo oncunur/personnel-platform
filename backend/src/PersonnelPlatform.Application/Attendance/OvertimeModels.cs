@@ -43,3 +43,4 @@ public sealed record OvertimeInboxItem(
     int Version);
 
 public sealed record OvertimeQuery(Guid? EmployeeId, Guid? CompanyId, string? Status, DateOnly? From, DateOnly? To, int Page, int PageSize);
+public sealed record OvertimePagedResult<T>(IReadOnlyList<T> Items, int Page, int PageSize, int TotalCount);
