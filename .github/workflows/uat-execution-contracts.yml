@@ -1,0 +1,70 @@
+name: uat-execution-contracts
+
+on:
+  pull_request:
+    paths:
+      - "docs/uat/**"
+      - "scripts/uat/**"
+      - ".github/workflows/uat-execution-contracts.yml"
+      - ".gitignore"
+  push:
+    branches: [main]
+    paths:
+      - "docs/uat/**"
+      - "scripts/uat/**"
+      - ".github/workflows/uat-execution-contracts.yml"
+      - ".gitignore"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-uat-execution-contracts:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Validate empty execution templates
+        run: python scripts/uat/validate_execution.py
+
+      - name: Run execution contract tests
+        working-directory: scripts/uat
+        run: python -m unittest -v test_execution_contracts.py
+
+      - name: Validate synthetic execution fixture
+        run: >-
+          python scripts/uat/validate_execution.py
+          --executions scripts/uat/fixtures/synthetic-executions.csv
+          --defects scripts/uat/fixtures/synthetic-defects.csv
+          --strict
+
+      - name: Generate synthetic readiness summary
+        run: >-
+          python scripts/uat/summarize_execution.py
+          --executions scripts/uat/fixtures/synthetic-executions.csv
+          --defects scripts/uat/fixtures/synthetic-defects.csv
+          --output uat-output/synthetic-summary.json
+
+      - name: Assert synthetic fixture cannot claim real UAT readiness
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          summary = json.loads(Path("uat-output/synthetic-summary.json").read_text(encoding="utf-8"))
+          assert summary["verdict"] == "NOT_READY"
+          assert summary["gates"]["zeroOpenS1S2"] is True
+          assert summary["p0"]["fail"] == 0
+          assert summary["p0"]["blocked"] == 1
+          assert summary["p0"]["notRun"] > 0
+          PY
+
+      - name: Upload sanitized synthetic summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: uat-002-synthetic-summary
+          path: uat-output/synthetic-summary.json
+          retention-days: 14
