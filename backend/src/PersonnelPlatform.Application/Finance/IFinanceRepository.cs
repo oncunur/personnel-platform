@@ -12,6 +12,7 @@ public sealed record PayrollCostSource(PayrollPeriod Period, PayrollEmployeeResu
 public interface IFinanceRepository
 {
     Task<PayrollPeriod?> FindPayrollPeriodAsync(Guid payrollPeriodId, CancellationToken ct);
+    Task<PayrollEmployeeResult?> FindPayrollResultAsync(Guid payrollPeriodId, Guid employeeId, CancellationToken ct);
     Task<IReadOnlyList<PayrollCostAllocationOverride>> ListManualAllocationsAsync(Guid payrollPeriodId, Guid employeeId, CancellationToken ct);
     Task ReplaceManualAllocationsAsync(Guid payrollPeriodId, Guid companyId, Guid employeeId, IReadOnlyList<PayrollCostAllocationOverride> rows, CancellationToken ct);
     Task<IReadOnlyList<PayrollAllocationSummary>> ListManualAllocationSummariesAsync(Guid payrollPeriodId, Guid employeeId, CancellationToken ct);
