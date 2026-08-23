@@ -7,6 +7,7 @@ using PersonnelPlatform.Domain.Identity;
 using PersonnelPlatform.Domain.Leave;
 using PersonnelPlatform.Domain.Meal;
 using PersonnelPlatform.Domain.Organization;
+using PersonnelPlatform.Domain.Payroll;
 using PersonnelPlatform.Domain.Personnel;
 
 namespace PersonnelPlatform.Infrastructure.Persistence;
@@ -65,6 +66,10 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<MealType> MealTypes => Set<MealType>();
     public DbSet<MealRate> MealRates => Set<MealRate>();
     public DbSet<MealConsumption> MealConsumptions => Set<MealConsumption>();
+
+    public DbSet<EmployeeCompensation> EmployeeCompensations => Set<EmployeeCompensation>();
+    public DbSet<PayrollPeriod> PayrollPeriods => Set<PayrollPeriod>();
+    public DbSet<PayrollEmployeeResult> PayrollEmployeeResults => Set<PayrollEmployeeResult>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
