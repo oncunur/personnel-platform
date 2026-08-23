@@ -7,6 +7,7 @@ using PersonnelPlatform.Domain.Documents;
 using PersonnelPlatform.Domain.Identity;
 using PersonnelPlatform.Domain.Leave;
 using PersonnelPlatform.Domain.Meal;
+using PersonnelPlatform.Domain.Notification;
 using PersonnelPlatform.Domain.Organization;
 using PersonnelPlatform.Domain.Payroll;
 using PersonnelPlatform.Domain.Personnel;
@@ -96,6 +97,11 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<WorkflowRequestApproval> WorkflowRequestApprovals => Set<WorkflowRequestApproval>();
     public DbSet<WorkflowRequestHistory> WorkflowRequestHistories => Set<WorkflowRequestHistory>();
     public DbSet<WorkflowSlaEvent> WorkflowSlaEvents => Set<WorkflowSlaEvent>();
+
+    public DbSet<NotificationTemplate> NotificationTemplates => Set<NotificationTemplate>();
+    public DbSet<NotificationRule> NotificationRules => Set<NotificationRule>();
+    public DbSet<UserNotification> UserNotifications => Set<UserNotification>();
+    public DbSet<NotificationHistory> NotificationHistories => Set<NotificationHistory>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
