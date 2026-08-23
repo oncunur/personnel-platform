@@ -64,20 +64,21 @@ public sealed class RawAttendanceEvent : Entity
             throw new ArgumentException("External event id is required for non-manual sources.", nameof(externalEventId));
 
         var payload = Normalize(rawPayloadJson, 20_000);
+        var sourceLocalDateTime = eventAt.DateTime;
         return new RawAttendanceEvent
         {
             CompanyId = companyId,
             EmployeeId = employeeId,
             Source = normalizedSource,
             Direction = normalizedDirection,
-            EventAt = eventAt,
-            LocalDate = DateOnly.FromDateTime(eventAt.DateTime),
-            LocalTime = TimeOnly.FromDateTime(eventAt.DateTime),
+            EventAt = eventAt.ToUniversalTime(),
+            LocalDate = DateOnly.FromDateTime(sourceLocalDateTime),
+            LocalTime = TimeOnly.FromDateTime(sourceLocalDateTime),
             UtcOffsetMinutes = checked((int)eventAt.Offset.TotalMinutes),
             DeviceCode = Normalize(deviceCode, 100),
             ExternalEventId = externalId,
             RawPayloadJson = payload,
-            ReceivedAt = receivedAt,
+            ReceivedAt = receivedAt.ToUniversalTime(),
             ReceivedBy = receivedBy
         };
     }
@@ -183,12 +184,12 @@ public sealed class DailyAttendance : AuditableEntity
             LateMinutes = lateMinutes,
             EarlyLeaveMinutes = earlyLeaveMinutes,
             OvertimeCandidateMinutes = overtimeCandidateMinutes,
-            FirstInAt = firstInAt,
-            LastOutAt = lastOutAt,
+            FirstInAt = firstInAt?.ToUniversalTime(),
+            LastOutAt = lastOutAt?.ToUniversalTime(),
             SourceSnapshotJson = sourceSnapshotJson,
             CalculationMessage = NormalizeMessage(calculationMessage),
-            CalculatedAt = now,
-            CreatedAt = now,
+            CalculatedAt = now.ToUniversalTime(),
+            CreatedAt = now.ToUniversalTime(),
             CreatedBy = actorUserId
         };
     }
@@ -228,12 +229,12 @@ public sealed class DailyAttendance : AuditableEntity
         LateMinutes = lateMinutes;
         EarlyLeaveMinutes = earlyLeaveMinutes;
         OvertimeCandidateMinutes = overtimeCandidateMinutes;
-        FirstInAt = firstInAt;
-        LastOutAt = lastOutAt;
+        FirstInAt = firstInAt?.ToUniversalTime();
+        LastOutAt = lastOutAt?.ToUniversalTime();
         SourceSnapshotJson = sourceSnapshotJson;
         CalculationMessage = NormalizeMessage(calculationMessage);
-        CalculatedAt = now;
-        UpdatedAt = now;
+        CalculatedAt = now.ToUniversalTime();
+        UpdatedAt = now.ToUniversalTime();
         UpdatedBy = actorUserId;
         Version++;
     }
