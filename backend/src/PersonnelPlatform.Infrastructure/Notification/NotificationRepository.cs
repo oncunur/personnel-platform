@@ -139,7 +139,7 @@ public sealed class NotificationRepository(ApplicationDbContext db) : INotificat
             {
                 Guid? responsible = e.SourceType == "ADMIN_TASK" && taskOwners.TryGetValue(e.SourceId, out var taskOwner) ? taskOwner
                     : e.SourceType == "ADMIN_CONTRACT" && contractOwners.TryGetValue(e.SourceId, out var contractOwner) ? contractOwner : null;
-                var dueAt = e.DueDate is { } d ? new DateTimeOffset(d.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc)) : null;
+                DateTimeOffset? dueAt = e.DueDate is { } d ? new DateTimeOffset(d.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc)) : null;
                 result.Add(new NotificationSourceEvent(e.Id, e.CompanyId, "ADMINISTRATION", e.EventType, e.Severity, e.SourceId, null, responsible, null, null, dueAt, e.Message, e.MetadataJson, e.CreatedAt));
             }
         }
