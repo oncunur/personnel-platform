@@ -11,6 +11,9 @@ type Employee = { id: string; employeeNo: string; firstName: string; lastName: s
 type Assignment = { id: string; projectId: string; costCenterId: string | null; validFrom: string; validUntil: string | null; allocationPercent: number; status: string };
 type Named = { id: string; code: string; name: string };
 type AuthResponse = { accessToken: string; accessTokenExpiresAt: string };
+type DocumentType = { id: string; code: string; name: string; fileRequired: boolean; documentNumberRequired: boolean; expirationRequired: boolean; multipleAllowed: boolean };
+type EmployeeDocument = { id: string; employeeId: string; documentTypeId: string; documentTypeCode: string; documentTypeName: string; documentNumber: string | null; issueDate: string | null; validFrom: string | null; validUntil: string | null; status: string; fileName: string | null; contentType: string | null; fileSizeBytes: number | null; replacesDocumentId: string | null; version: number };
+type MissingDocument = { documentTypeId: string; code: string; name: string; fileRequired: boolean; documentNumberRequired: boolean; expirationRequired: boolean };
 
 export default function Personel360Page() {
   const params = useParams<{ id: string }>();
@@ -25,6 +28,9 @@ export default function Personel360Page() {
   const [projects, setProjects] = useState<Named[]>([]);
   const [costCenters, setCostCenters] = useState<Named[]>([]);
   const [types, setTypes] = useState<Named[]>([]);
+  const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([]);
+  const [documents, setDocuments] = useState<EmployeeDocument[]>([]);
+  const [missingDocuments, setMissingDocuments] = useState<MissingDocument[]>([]);
   const [message, setMessage] = useState("Personel 360 yükleniyor…");
   const [busy, setBusy] = useState(false);
 
@@ -35,16 +41,33 @@ export default function Personel360Page() {
 
   async function initialize() {
     const [current, person, typeRows, companyRows] = await Promise.all([
-      json<Me>("/api/v1/auth/me"), json<Employee>(`/api/v1/personnel/employees/${employeeId}`), json<Named[]>("/api/v1/personnel/employee-types"), json<Named[]>("/api/v1/organization/companies"),
+      json<Me>("/api/v1/auth/me"),
+      json<Employee>(`/api/v1/personnel/employees/${employeeId}`),
+      json<Named[]>("/api/v1/personnel/employee-types"),
+      json<Named[]>("/api/v1/organization/companies"),
     ]);
     if (!current || !person) { setMessage("Personel bulunamadı veya erişim yok."); return; }
     setMe(current); setEmployee(person); setTypes(typeRows ?? []); setCompanies(companyRows ?? []);
+
     const [branchRows, departmentRows, projectRows, costRows] = await Promise.all([
-      json<Named[]>(`/api/v1/organization/branches?companyId=${person.companyId}`), json<Named[]>(`/api/v1/organization/departments?companyId=${person.companyId}`), json<Named[]>(`/api/v1/organization/projects?companyId=${person.companyId}`), json<Named[]>(`/api/v1/organization/cost-centers?companyId=${person.companyId}`),
+      json<Named[]>(`/api/v1/organization/branches?companyId=${person.companyId}`),
+      json<Named[]>(`/api/v1/organization/departments?companyId=${person.companyId}`),
+      json<Named[]>(`/api/v1/organization/projects?companyId=${person.companyId}`),
+      json<Named[]>(`/api/v1/organization/cost-centers?companyId=${person.companyId}`),
     ]);
     setBranches(branchRows ?? []); setDepartments(departmentRows ?? []); setProjects(projectRows ?? []); setCostCenters(costRows ?? []);
     setPositions((await json<Named[]>(`/api/v1/organization/positions?departmentId=${person.departmentId}`)) ?? []);
-    if (current.permissions.some(x => x.code === "personnel.project.view")) setAssignments((await json<Assignment[]>(`/api/v1/personnel/employees/${employeeId}/project-assignments`)) ?? []);
+
+    if (current.permissions.some(x => x.code === "personnel.project.view"))
+      setAssignments((await json<Assignment[]>(`/api/v1/personnel/employees/${employeeId}/project-assignments`)) ?? []);
+
+    if (current.permissions.some(x => x.code === "documents.employee.view"))
+      setDocuments((await json<EmployeeDocument[]>(`/api/v1/documents/employees/${employeeId}`)) ?? []);
+    if (current.permissions.some(x => x.code === "documents.type.view"))
+      setDocumentTypes((await json<DocumentType[]>("/api/v1/documents/types")) ?? []);
+    if (current.permissions.some(x => x.code === "documents.missing.view"))
+      setMissingDocuments((await json<MissingDocument[]>(`/api/v1/documents/employees/${employeeId}/missing`)) ?? []);
+
     setMessage("Personel 360 güncel.");
   }
 
@@ -62,10 +85,36 @@ export default function Personel360Page() {
     try {
       const fd = new FormData(event.currentTarget);
       const response = await authFetch(`/api/v1/personnel/employees/${employeeId}/project-assignments`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ projectId: fd.get("projectId"), costCenterId: fd.get("costCenterId") || null, validFrom: fd.get("validFrom"), validUntil: fd.get("validUntil") || null, allocationPercent: Number(fd.get("allocationPercent")) }) });
-      if (!response?.ok) {
-        const error = response ? await response.json().catch(() => null) as { error?: { message?: string } } | null : null; setMessage(error?.error?.message ?? "Proje atanamadı."); return;
-      }
+      if (!response?.ok) { const error = response ? await response.json().catch(() => null) as { error?: { message?: string } } | null : null; setMessage(error?.error?.message ?? "Proje atanamadı."); return; }
       const row = await response.json() as Assignment; setAssignments(current => [row, ...current]); event.currentTarget.reset(); setMessage("Proje ataması oluşturuldu.");
+    } finally { setBusy(false); }
+  }
+
+  async function uploadDocument(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setBusy(true);
+    try {
+      const form = new FormData(event.currentTarget);
+      const response = await authFetch(`/api/v1/documents/employees/${employeeId}`, { method: "POST", body: form });
+      if (!response?.ok) {
+        const error = response ? await response.json().catch(() => null) as { error?: { message?: string } } | null : null;
+        setMessage(error?.error?.message ?? "Belge yüklenemedi."); return;
+      }
+      const row = await response.json() as EmployeeDocument;
+      setDocuments(current => [row, ...current]);
+      if (permissions.has("documents.missing.view")) setMissingDocuments((await json<MissingDocument[]>(`/api/v1/documents/employees/${employeeId}/missing`)) ?? []);
+      event.currentTarget.reset(); setMessage("Belge güvenli depolama alanına kaydedildi.");
+    } finally { setBusy(false); }
+  }
+
+  async function openDocument(documentId: string) {
+    setBusy(true);
+    try {
+      const response = await authFetch(`/api/v1/documents/employee-documents/${documentId}/file`);
+      if (!response?.ok) { setMessage("Belge dosyası açılamadı."); return; }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener,noreferrer");
+      window.setTimeout(() => URL.revokeObjectURL(url), 60000);
     } finally { setBusy(false); }
   }
 
@@ -89,9 +138,25 @@ export default function Personel360Page() {
       <article className="panel"><div className="panel-heading"><div><span className="eyebrow dark">İŞ / ORGANİZASYON</span><h2>Organizasyon</h2></div></div><div className="detail-grid"><Item label="Şirket" value={lookup(companies, employee.companyId)}/><Item label="Şube" value={lookup(branches, employee.branchId)}/><Item label="Departman" value={lookup(departments, employee.departmentId)}/><Item label="Pozisyon" value={lookup(positions, employee.positionId)}/></div></article>
     </section>
 
+    {permissions.has("documents.employee.view") ? <section className="panel audit-panel">
+      <div className="panel-heading"><div><span className="eyebrow dark">ÖZLÜK / BELGELER</span><h2>Dijital Özlük Dosyası</h2></div><strong>{documents.length}</strong></div>
+      {permissions.has("documents.missing.view") && missingDocuments.length > 0 ? <div className="missing-strip"><strong>Eksik zorunlu belgeler: {missingDocuments.length}</strong><span>{missingDocuments.map(x => x.name).join(" · ")}</span></div> : null}
+      {permissions.has("documents.employee.upload") && permissions.has("documents.type.view") ? <form className="inline-form document-form" onSubmit={uploadDocument}>
+        <label className="field-label">Belge Türü<select name="documentTypeId" required><option value="">Seçin</option>{documentTypes.map(x => <option key={x.id} value={x.id}>{x.code} · {x.name}</option>)}</select></label>
+        <label className="field-label">Belge No<input name="documentNumber" maxLength={150}/></label>
+        <label className="field-label">Düzenlenme<input name="issueDate" type="date"/></label>
+        <label className="field-label">Geçerli Başlangıç<input name="validFrom" type="date"/></label>
+        <label className="field-label">Geçerli Bitiş<input name="validUntil" type="date"/></label>
+        <label className="field-label">Ülke<input name="countryCode" maxLength={3} placeholder="TR"/></label>
+        <label className="field-label">Dosya<input name="file" type="file" accept="application/pdf,image/jpeg,image/png"/></label>
+        <button className="primary-button" disabled={busy}>Belge Ekle</button>
+      </form> : null}
+      <div className="table-wrap"><table className="data-table"><thead><tr><th>Belge</th><th>No</th><th>Geçerlilik</th><th>Durum</th><th>Dosya</th></tr></thead><tbody>{documents.length === 0 ? <tr><td colSpan={5}>Henüz belge bulunmuyor.</td></tr> : documents.map(x => <tr key={x.id}><td><strong>{x.documentTypeName}</strong><small>{x.documentTypeCode}</small></td><td>{x.documentNumber ?? "—"}</td><td>{x.validFrom ?? x.issueDate ?? "—"} → {x.validUntil ?? "Süresiz"}</td><td><span className={`status-badge ${x.status === "EXPIRED" ? "danger" : "success"}`}>{x.status}</span></td><td>{x.fileName ? <>{x.fileName}{permissions.has("documents.file.view") ? <button className="table-button document-open" disabled={busy} onClick={() => void openDocument(x.id)}>Aç</button> : null}</> : "—"}</td></tr>)}</tbody></table></div>
+    </section> : null}
+
     {permissions.has("personnel.project.view") ? <section className="panel audit-panel"><div className="panel-heading"><div><span className="eyebrow dark">PROJE</span><h2>Proje Atamaları</h2></div><strong>{assignments.length}</strong></div>{permissions.has("personnel.project.assign") ? <form className="inline-form" onSubmit={assignProject}><label className="field-label">Proje<select name="projectId" required><option value="">Seçin</option>{projects.map(x => <option key={x.id} value={x.id}>{x.code} · {x.name}</option>)}</select></label><label className="field-label">Cost Center<select name="costCenterId"><option value="">—</option>{costCenters.map(x => <option key={x.id} value={x.id}>{x.code} · {x.name}</option>)}</select></label><Field name="validFrom" label="Başlangıç" type="date"/><Field name="validUntil" label="Bitiş" type="date"/><Field name="allocationPercent" label="Allocation %" type="number"/><button className="primary-button" disabled={busy}>Ata</button></form> : null}<div className="table-wrap"><table className="data-table"><thead><tr><th>Proje</th><th>Cost Center</th><th>Tarih</th><th>Allocation</th><th>Durum</th></tr></thead><tbody>{assignments.map(x => <tr key={x.id}><td>{lookup(projects, x.projectId)}</td><td>{lookup(costCenters, x.costCenterId)}</td><td>{x.validFrom} → {x.validUntil ?? "Devam"}</td><td>%{x.allocationPercent}</td><td>{x.status}</td></tr>)}</tbody></table></div></section> : null}
 
-    <section className="grid"><article className="card"><span>Yakında</span><h2>Özlük</h2></article><article className="card"><span>Yakında</span><h2>İzin</h2></article><article className="card"><span>Yakında</span><h2>Puantaj</h2></article><article className="card"><span>Yakında</span><h2>Kamp & Yemek</h2></article><article className="card"><span>Yakında</span><h2>Bordro</h2></article></section>
+    <section className="grid"><article className="card"><span>Aktif</span><h2>Özlük & Belgeler</h2></article><article className="card"><span>Yakında</span><h2>İzin</h2></article><article className="card"><span>Yakında</span><h2>Puantaj</h2></article><article className="card"><span>Yakında</span><h2>Kamp & Yemek</h2></article><article className="card"><span>Yakında</span><h2>Bordro</h2></article></section>
   </main>;
 }
 

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using PersonnelPlatform.Domain.Audit;
+using PersonnelPlatform.Domain.Documents;
 using PersonnelPlatform.Domain.Identity;
 using PersonnelPlatform.Domain.Organization;
 using PersonnelPlatform.Domain.Personnel;
@@ -27,6 +28,11 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<EmployeeType> EmployeeTypes => Set<EmployeeType>();
     public DbSet<Employee> Employees => Set<Employee>();
     public DbSet<EmployeeProjectAssignment> EmployeeProjectAssignments => Set<EmployeeProjectAssignment>();
+
+    public DbSet<StoredFile> StoredFiles => Set<StoredFile>();
+    public DbSet<DocumentType> DocumentTypes => Set<DocumentType>();
+    public DbSet<DocumentTypeEmployeeTypeRequirement> DocumentTypeEmployeeTypeRequirements => Set<DocumentTypeEmployeeTypeRequirement>();
+    public DbSet<EmployeeDocument> EmployeeDocuments => Set<EmployeeDocument>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
