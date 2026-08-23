@@ -65,6 +65,7 @@ public static class DependencyInjection
         services.AddScoped<ICampRepository, CampRepository>();
         services.AddScoped<IMealRepository, MealRepository>();
         services.AddScoped<IPayrollRepository, PayrollRepository>();
+        services.AddScoped<ISalaryProtectionRepository, SalaryProtectionRepository>();
         services.AddScoped<IAssetStockRepository, AssetStockRepository>();
         services.AddScoped<IVehicleRepository, VehicleRepository>();
         services.AddScoped<IAdministrativeAffairsRepository, AdministrativeAffairsRepository>();
