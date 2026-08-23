@@ -96,8 +96,10 @@ public sealed class AdministrativeAffairsService(
 
     public async Task<AdministrativeAffairsResult<AdministrativeReminderRunResult>> ProcessRemindersAsync(Guid userId, CancellationToken ct)
     {
-        _ = userId;
-        return AdministrativeAffairsResult<AdministrativeReminderRunResult>.Success(await reminderProcessor.RunAsync(ct));
+        var access = await ResolveAccessAsync(userId, ct);
+        if (!access.Global && access.CompanyIds.Count == 0)
+            return AdministrativeAffairsResult<AdministrativeReminderRunResult>.Failure("SCOPE_DENIED", "Reminder işlemek için şirket kapsamınız bulunmuyor.");
+        return AdministrativeAffairsResult<AdministrativeReminderRunResult>.Success(await reminderProcessor.RunAsync(access.Global ? null : access.CompanyIds, ct));
     }
 
     private async Task<AdministrativeAffairsResult<AdministrativeTask>> GetTaskForMutationAsync(Guid userId, Guid taskId, int version, CancellationToken ct)
@@ -130,11 +132,13 @@ public sealed class AdministrativeAffairsService(
 
 public sealed class AdministrativeReminderProcessor(IAdministrativeAffairsRepository repository, TimeProvider timeProvider)
 {
-    public async Task<AdministrativeReminderRunResult> RunAsync(CancellationToken ct)
+    public Task<AdministrativeReminderRunResult> RunAsync(CancellationToken ct) => RunAsync(null, ct);
+
+    public async Task<AdministrativeReminderRunResult> RunAsync(IReadOnlyCollection<Guid>? companyIds, CancellationToken ct)
     {
         var now = timeProvider.GetUtcNow();
         var today = DateOnly.FromDateTime(now.UtcDateTime);
-        var candidates = await repository.BuildReminderCandidatesAsync(today, vehicleDateHorizonDays: 30, taskDefaultHorizonDays: 7, maintenanceKmThreshold: 1000, ct);
+        var candidates = await repository.BuildReminderCandidatesAsync(today, companyIds, vehicleDateHorizonDays: 30, taskDefaultHorizonDays: 7, maintenanceKmThreshold: 1000, ct);
         var created = 0;
         foreach (var candidate in candidates)
             if (await repository.TryInsertReminderAsync(candidate, now, ct)) created++;
