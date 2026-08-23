@@ -31,7 +31,7 @@ public sealed class AttendanceSetupService(
             return AttendanceResult<WorkCalendarSummary>.Failure("DEFAULT_WORK_CALENDAR_EXISTS", "Bu şirket için zaten varsayılan çalışma takvimi bulunuyor.");
         try
         {
-            var row = WorkCalendar.Create(request.CompanyId, request.Code, request.Name, request.IsDefault, timeProvider.GetUtcNow(), userId);
+            var row = WorkCalendar.Create(request.CompanyId, code, request.Name, request.IsDefault, timeProvider.GetUtcNow(), userId);
             repository.AddCalendar(row);
             await repository.SaveChangesAsync(cancellationToken);
             return AttendanceResult<WorkCalendarSummary>.Success(ToCalendar(row));
@@ -100,7 +100,7 @@ public sealed class AttendanceSetupService(
             return AttendanceResult<ShiftSummary>.Failure("SHIFT_CODE_EXISTS", "Bu vardiya kodu zaten kullanılıyor.");
         try
         {
-            var row = ShiftDefinition.Create(request.CompanyId, request.Code, request.Name, request.StartTime, request.EndTime, request.BreakMinutes, request.GraceInMinutes, request.GraceOutMinutes, timeProvider.GetUtcNow(), userId);
+            var row = ShiftDefinition.Create(request.CompanyId, code, request.Name, request.StartTime, request.EndTime, request.BreakMinutes, request.GraceInMinutes, request.GraceOutMinutes, timeProvider.GetUtcNow(), userId);
             repository.AddShift(row);
             await repository.SaveChangesAsync(cancellationToken);
             return AttendanceResult<ShiftSummary>.Success(ToShift(row));
