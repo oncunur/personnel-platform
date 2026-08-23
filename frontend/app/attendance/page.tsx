@@ -89,7 +89,7 @@ export default function AttendancePage() {
       const response = await authFetch(`/api/v1/attendance/calendars/${calendarId}/days`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!response?.ok) { setMessage(await errorMessage(response, "Takvim günü kaydedilemedi.")); return; }
       const saved = await response.json() as CalendarDay;
-      setCalendarDays(current => [...current.filter(x => x.id !== saved.id), saved].sort((a, b) => a.date.localeCompare(b.date))));
+      setCalendarDays(current => [...current.filter(x => x.id !== saved.id), saved].sort((a, b) => a.date.localeCompare(b.date)));
       setMessage("Takvim günü güncellendi.");
     } finally { setBusy(false); }
   }
