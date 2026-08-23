@@ -13,7 +13,7 @@ Prepare the Personnel Platform for controlled legacy-data migration, business UA
 | MIG-003 | Migration staging & validation harness | DONE | Persistent encrypted staging, row errors, lineage/idempotence, reconciliation output, PostgreSQL smoke evidence |
 | MIG-004 | Migration dry run #1 | IN PROGRESS | Synthetic technical baseline, counts, duration, idempotence replay and sanitized evidence; real-source totals/defects still required |
 | MIG-005 | Migration dry run #2 / cutover rehearsal | PLANNED | Repeatable clean run, measured RTO/RPO-adjacent cutover timing, sign-off |
-| UAT-001 | UAT scenario catalog | PLANNED | Role-based and end-to-end business scenarios |
+| UAT-001 | UAT scenario catalog | DONE | Validated role-based, negative, authorization, reconciliation and end-to-end web scenarios plus execution/evidence rules |
 | UAT-002 | UAT execution & defect triage | PLANNED | Test results, severity, retest evidence |
 | UAT-003 | Payroll/attendance/meal/camp reconciliation | PLANNED | Approved cross-system totals and sample-level reconciliation |
 | CUT-001 | Cutover runbook | PLANNED | Freeze, extract, load, validate, switch, rollback steps and owners |
@@ -93,6 +93,20 @@ The expected verdict is `PASS_SYNTHETIC_TECHNICAL_BASELINE`. It intentionally se
 
 MIG-004 therefore remains `IN PROGRESS` until a representative real legacy extract is available and its counts, domain totals, defects, unresolved mappings and measured duration are reviewed by the business owner.
 
+## UAT-001 scenario catalog baseline
+
+The repository now contains:
+
+- `docs/uat/uat-scenario-catalog.csv` — reusable web UAT definitions covering Security, Organization, Personnel, Attendance, Overtime, Meal, Camp, Payroll, Assets, Workflow, Authorization and CrossDomain flows.
+- `docs/uat/uat-execution-guide.md` — environment, persona, evidence, severity, reconciliation and execution rules.
+- `scripts/uat/validate_catalog.py` — schema/coverage validator for IDs, priorities, test types, routes, required domains and minimum negative/authorization/end-to-end coverage.
+- `scripts/uat/test_validate_catalog.py` — regression tests for the canonical catalog and validator failure modes.
+- `.github/workflows/uat-catalog.yml` — CI gate for catalog validation.
+
+The catalog is intentionally bound to the current web routes rather than API-only tests. P0 scenarios cover MFA, organization setup, personnel, shift/calendar, immutable PDKS input, daily attendance calculation, overtime approval, meal and camp cost snapshots, payroll lifecycle/immutability, asset assignment, workflow approvals, authorization scope and a cross-domain employee-month-to-payroll reconciliation path.
+
+UAT-001 defines what must be tested and how evidence is recorded. Actual PASS/FAIL/BLOCKED results, defect severity, ownership and retest evidence belong to UAT-002.
+
 ## Current boundary
 
-MIG-001 defines what exists and where it should land. MIG-002 defines how approved source fields are normalized and previewed. MIG-003 provides controlled staging, lineage, idempotence, row-level validation and reconciliation evidence. MIG-004 now proves that those controls can run end-to-end and repeatably in a synthetic isolated environment, but it still does **not** authorize writes into live business tables or replace real-source/business reconciliation. Real inventory, approved mappings, representative volumes and business totals remain required before MIG-004 can close and MIG-005 cutover rehearsal can begin.
+MIG-001 defines what exists and where it should land. MIG-002 defines how approved source fields are normalized and previewed. MIG-003 provides controlled staging, lineage, idempotence, row-level validation and reconciliation evidence. MIG-004 proves that those controls can run end-to-end and repeatably in a synthetic isolated environment, but it still does **not** authorize writes into live business tables or replace real-source/business reconciliation. UAT-001 now defines the release-critical business acceptance surface; UAT-002 will execute that surface and triage defects. Real inventory, approved mappings, representative volumes and business totals remain required before migration dry-run closure and cutover rehearsal.
