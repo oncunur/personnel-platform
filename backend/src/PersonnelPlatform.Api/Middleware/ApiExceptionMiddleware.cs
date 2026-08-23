@@ -58,6 +58,7 @@ public sealed class ApiExceptionMiddleware(RequestDelegate next, ILogger<ApiExce
             case "VEHICLE_ODOMETER_REGRESSION": code = "VEHICLE_ODOMETER_REGRESSION"; message = "Araç kilometre değeri son kayıtlı değerden küçük olamaz."; return true;
             case "VEHICLE_LEDGER_IMMUTABLE": code = "VEHICLE_LEDGER_IMMUTABLE"; message = "Araç kilometre, bakım ve yakıt defteri kayıtları değiştirilemez veya silinemez. Düzeltme yeni kayıtla yapılmalıdır."; return true;
             case "ADMIN_HISTORY_IMMUTABLE": code = "ADMIN_HISTORY_IMMUTABLE"; message = "İdari görev tamamlama ve reminder event geçmişi değiştirilemez veya silinemez."; return true;
+            case "WORKFLOW_HISTORY_IMMUTABLE": code = "WORKFLOW_HISTORY_IMMUTABLE"; message = "Talep timeline ve SLA event geçmişi değiştirilemez veya silinemez."; return true;
             default: return false;
         }
     }
@@ -100,6 +101,10 @@ public sealed class ApiExceptionMiddleware(RequestDelegate next, ILogger<ApiExce
             case "ux_vehicle_fuel_company_source_external" when p.SqlState == PostgresErrorCodes.UniqueViolation: code = "VEHICLE_FUEL_EXTERNAL_EVENT_DUPLICATE"; message = "Aynı harici yakıt kaydı daha önce işlenmiş."; return true;
             case "ux_administrative_tasks_company_code" when p.SqlState == PostgresErrorCodes.UniqueViolation: code = "ADMIN_TASK_CODE_EXISTS"; message = "Bu şirket için idari görev kodu zaten kullanılıyor."; return true;
             case "ux_administrative_contracts_company_no" when p.SqlState == PostgresErrorCodes.UniqueViolation: code = "ADMIN_CONTRACT_NO_EXISTS"; message = "Bu şirket için kontrat numarası zaten kullanılıyor."; return true;
+            case "ux_workflow_request_types_company_code" when p.SqlState == PostgresErrorCodes.UniqueViolation: code = "WORKFLOW_REQUEST_TYPE_CODE_EXISTS"; message = "Bu şirket için talep türü kodu zaten kullanılıyor."; return true;
+            case "ux_workflow_steps_type_order" when p.SqlState == PostgresErrorCodes.UniqueViolation: code = "WORKFLOW_STEP_ORDER_EXISTS"; message = "Talep türünde aynı sıra numarasına sahip onay adımı zaten bulunuyor."; return true;
+            case "ux_workflow_requests_company_no" when p.SqlState == PostgresErrorCodes.UniqueViolation: code = "WORKFLOW_REQUEST_NO_EXISTS"; message = "Talep numarası başka bir işlem tarafından kullanıldı. İşlemi tekrar deneyin."; return true;
+            case "ux_workflow_approvals_request_step" when p.SqlState == PostgresErrorCodes.UniqueViolation: code = "WORKFLOW_APPROVAL_ALREADY_EXISTS"; message = "Talebin bu onay adımı zaten oluşturulmuş."; return true;
             default: return false;
         }
     }
