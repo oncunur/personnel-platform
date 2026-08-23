@@ -10,6 +10,8 @@ public static class LeavePermissions
     public const string BalanceView = "leave.balance.view";
     public const string BalanceManage = "leave.balance.manage";
     public const string Approve = "leave.approve";
+    public const string ManagerApprove = "leave.manager.approve";
+    public const string ApproverManage = "leave.approver.manage";
 }
 
 public sealed record LeaveTypeSummary(
