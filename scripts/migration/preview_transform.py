@@ -24,7 +24,7 @@ def truthy(value: str) -> bool:
 def load_mapping(path: Path, source_system: str, source_object: str, allow_review: bool) -> list[dict[str, str]]:
     with path.open("r", encoding="utf-8-sig", newline="") as handle:
         reader = csv.DictReader(handle)
-        if (reader.fieldnames or [] != MAPPING_COLUMNS:
+        if (reader.fieldnames or []) != MAPPING_COLUMNS:
             raise ValueError("field-mapping.csv header does not match the migration contract")
         allowed_status = {"APPROVED"}
         if allow_review:
