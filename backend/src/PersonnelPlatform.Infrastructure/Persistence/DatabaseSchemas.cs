@@ -11,5 +11,6 @@ public static class DatabaseSchemas
     public const string Payroll = "payroll";
     public const string Administration = "administration";
     public const string Workflow = "workflow";
+    public const string Notification = "notification";
     public const string Audit = "audit";
 }
