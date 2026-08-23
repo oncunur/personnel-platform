@@ -53,6 +53,15 @@ public sealed class Vehicle : AuditableEntity
         Status = normalized; UpdatedAt = now.ToUniversalTime(); UpdatedBy = actorUserId; Version++;
     }
 
+    public void UpdateComplianceDates(DateOnly? insuranceValidUntil, DateOnly? inspectionValidUntil, DateTimeOffset now, Guid actorUserId)
+    {
+        if (actorUserId == Guid.Empty) throw new ArgumentException("Actor is required.", nameof(actorUserId));
+        if (InsuranceValidUntil == insuranceValidUntil && InspectionValidUntil == inspectionValidUntil) return;
+        InsuranceValidUntil = insuranceValidUntil;
+        InspectionValidUntil = inspectionValidUntil;
+        UpdatedAt = now.ToUniversalTime(); UpdatedBy = actorUserId; Version++;
+    }
+
     private static string NormalizePlate(string value) => Required(value, 30).Replace(" ", string.Empty, StringComparison.Ordinal).ToUpperInvariant();
     private static string Required(string value, int max) { ArgumentException.ThrowIfNullOrWhiteSpace(value); var v = value.Trim(); if (v.Length > max) throw new ArgumentException("Value is too long."); return v; }
     private static string? Optional(string? value, int max) { if (string.IsNullOrWhiteSpace(value)) return null; var v = value.Trim(); if (v.Length > max) throw new ArgumentException("Value is too long."); return v; }
