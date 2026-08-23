@@ -1,0 +1,49 @@
+name: performance-smoke
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  api-performance-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start API stack
+        run: docker compose up -d --build postgres redis api
+
+      - name: Wait for API readiness
+        shell: bash
+        run: |
+          for attempt in {1..60}; do
+            if curl --fail --silent http://127.0.0.1:8080/health/ready >/dev/null; then
+              echo "API is ready."
+              exit 0
+            fi
+            sleep 2
+          done
+
+          echo "API did not become ready." >&2
+          docker compose ps
+          docker compose logs api
+          exit 1
+
+      - name: Run API performance smoke
+        env:
+          REQUESTS: '500'
+          CONCURRENCY: '25'
+          MAX_ERROR_RATE: '0.01'
+          MAX_P95_MS: '500'
+        run: bash scripts/perf/http-load.sh http://127.0.0.1:8080/api/v1/system/ping
+
+      - name: Show API logs on failure
+        if: failure()
+        run: docker compose logs api
+
+      - name: Stop stack
+        if: always()
+        run: docker compose down -v --remove-orphans
