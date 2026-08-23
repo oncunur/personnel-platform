@@ -11,6 +11,7 @@ public sealed class VehicleCore : Migration
     {
         migrationBuilder.Sql("""
             CREATE EXTENSION IF NOT EXISTS btree_gist;
+            CREATE UNIQUE INDEX IF NOT EXISTS ux_employees_company_id ON hr.employees(company_id, id);
 
             CREATE TABLE administration.vehicles (
                 id uuid NOT NULL CONSTRAINT pk_vehicles PRIMARY KEY,
@@ -114,9 +115,7 @@ public sealed class VehicleCore : Migration
                 RETURN NEW;
             END;
             $$;
-            CREATE TRIGGER trg_vehicle_odometer_monotonic
-            BEFORE INSERT ON administration.vehicle_odometer_events
-            FOR EACH ROW EXECUTE FUNCTION administration.guard_vehicle_odometer_insert();
+            CREATE TRIGGER trg_vehicle_odometer_monotonic BEFORE INSERT ON administration.vehicle_odometer_events FOR EACH ROW EXECUTE FUNCTION administration.guard_vehicle_odometer_insert();
 
             CREATE OR REPLACE FUNCTION administration.prevent_vehicle_ledger_mutation()
             RETURNS trigger LANGUAGE plpgsql AS $$
@@ -223,6 +222,7 @@ public sealed class VehicleCore : Migration
             DROP TABLE IF EXISTS administration.vehicle_odometer_events;
             DROP TABLE IF EXISTS administration.vehicle_assignments;
             DROP TABLE IF EXISTS administration.vehicles;
+            DROP INDEX IF EXISTS hr.ux_employees_company_id;
             """);
     }
 }
