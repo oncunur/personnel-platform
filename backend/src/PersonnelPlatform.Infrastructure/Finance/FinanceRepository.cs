@@ -1,8 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using PersonnelPlatform.Application.Finance;
+using PersonnelPlatform.Domain.Attendance;
 using PersonnelPlatform.Domain.Camp;
 using PersonnelPlatform.Domain.Finance;
+using PersonnelPlatform.Domain.Meal;
 using PersonnelPlatform.Domain.Payroll;
+using PersonnelPlatform.Domain.Personnel;
 using PersonnelPlatform.Infrastructure.Persistence;
 
 namespace PersonnelPlatform.Infrastructure.Finance;
@@ -43,13 +46,13 @@ public sealed class FinanceRepository(ApplicationDbContext db) : IFinanceReposit
         return rows.Select(x => new PayrollCostSource(x.period, x.result)).ToArray();
     }
 
-    public async Task<IReadOnlyList<Domain.Attendance.DailyAttendance>> ListDailyAttendanceAsync(Guid employeeId, DateOnly from, DateOnly toExclusive, CancellationToken ct) =>
+    public async Task<IReadOnlyList<DailyAttendance>> ListDailyAttendanceAsync(Guid employeeId, DateOnly from, DateOnly toExclusive, CancellationToken ct) =>
         await db.DailyAttendances.AsNoTracking().Where(x => x.EmployeeId == employeeId && x.DeletedAt == null && x.AttendanceDate >= from && x.AttendanceDate < toExclusive).OrderBy(x => x.AttendanceDate).ToListAsync(ct);
 
-    public async Task<IReadOnlyList<Domain.Personnel.EmployeeProjectAssignment>> ListProjectAssignmentsAsync(Guid employeeId, DateOnly from, DateOnly toExclusive, CancellationToken ct) =>
-        await db.EmployeeProjectAssignments.AsNoTracking().Where(x => x.EmployeeId == employeeId && x.DeletedAt == null && x.Status == Domain.Personnel.ProjectAssignmentStatuses.Active && x.ValidFrom < toExclusive && (x.ValidUntil == null || x.ValidUntil >= from)).OrderBy(x => x.ValidFrom).ToListAsync(ct);
+    public async Task<IReadOnlyList<EmployeeProjectAssignment>> ListProjectAssignmentsAsync(Guid employeeId, DateOnly from, DateOnly toExclusive, CancellationToken ct) =>
+        await db.EmployeeProjectAssignments.AsNoTracking().Where(x => x.EmployeeId == employeeId && x.DeletedAt == null && x.Status == ProjectAssignmentStatuses.Active && x.ValidFrom < toExclusive && (x.ValidUntil == null || x.ValidUntil >= from)).OrderBy(x => x.ValidFrom).ToListAsync(ct);
 
-    public async Task<IReadOnlyList<Domain.Meal.MealConsumption>> ListMealSourcesAsync(IReadOnlyCollection<Guid>? companyIds, CancellationToken ct)
+    public async Task<IReadOnlyList<MealConsumption>> ListMealSourcesAsync(IReadOnlyCollection<Guid>? companyIds, CancellationToken ct)
     {
         var q = db.MealConsumptions.AsNoTracking().Where(x => x.DeletedAt == null);
         if (companyIds is not null) q = q.Where(x => companyIds.Contains(x.CompanyId));
