@@ -33,6 +33,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<DocumentType> DocumentTypes => Set<DocumentType>();
     public DbSet<DocumentTypeEmployeeTypeRequirement> DocumentTypeEmployeeTypeRequirements => Set<DocumentTypeEmployeeTypeRequirement>();
     public DbSet<EmployeeDocument> EmployeeDocuments => Set<EmployeeDocument>();
+    public DbSet<EmployeeDocumentHistory> EmployeeDocumentHistories => Set<EmployeeDocumentHistory>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
