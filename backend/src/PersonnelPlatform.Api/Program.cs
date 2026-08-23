@@ -26,6 +26,7 @@ builder.Services.AddScoped<OrganizationService>();
 builder.Services.AddScoped<PersonnelService>();
 builder.Services.AddScoped<DocumentService>();
 builder.Services.AddScoped<DocumentIntelligenceService>();
+builder.Services.AddScoped<DocumentHistoryService>();
 builder.Services.AddPlatformAuthentication(builder.Configuration);
 builder.Services.AddPlatformPermissionAuthorization();
 builder.Services.AddCors(options => options.AddPolicy("development", policy => policy.WithOrigins("http://localhost:3000").AllowAnyHeader().AllowAnyMethod().AllowCredentials()));
