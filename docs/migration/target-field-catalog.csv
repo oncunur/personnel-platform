@@ -1,10 +1,10 @@
 target_domain,target_entity,target_field,target_type,target_required,reference_entity,sensitivity,normalization,validation,notes
 Organization,Company,Code,string,TRUE,,INTERNAL,TRIM|UPPER,NONEMPTY|max:100,Natural migration key candidate
 Organization,Company,Name,string,TRUE,,INTERNAL,TRIM,NONEMPTY|max:200,
-Organization,Company,TaxNumber,string,FALSE,,SENSITIVE-HR,TRIM|max:50,,
-Organization,Company,Phone,string,FALSE,,PERSONAL,PHONE_TR|max:50,,
-Organization,Company,Email,string,FALSE,,PERSONAL,TRIM|LOWER|max:320,,
-Organization,Company,Address,string,FALSE,,PERSONAL,TRIM|max:1000,,
+Organization,Company,TaxNumber,string,FALSE,,SENSITIVE-HR,TRIM,max:50,
+Organization,Company,Phone,string,FALSE,,PERSONAL,PHONE_TR,max:50,
+Organization,Company,Email,string,FALSE,,PERSONAL,TRIM|LOWER,max:320,
+Organization,Company,Address,string,FALSE,,PERSONAL,TRIM,max:1000,
 Organization,Company,DefaultCurrency,string,TRUE,,FINANCIAL,TRIM|UPPER,CURRENCY3,Default TRY when legacy source has no currency
 Organization,Branch,CompanyId,guid,TRUE,Company,INTERNAL,LOOKUP,REFERENCE_REQUIRED,Resolve from company legacy key
 Organization,Branch,Code,string,TRUE,,INTERNAL,TRIM|UPPER,NONEMPTY,
