@@ -43,14 +43,16 @@ jobs:
       - name: Verify migration schema and permissions
         shell: bash
         run: |
-          psql_cmd="docker compose exec -T postgres psql -U personnel -d personnel_platform -Atc"
-          test "$($psql_cmd \"SELECT to_regclass('migration.runs') IS NOT NULL;\")" = "t"
-          test "$($psql_cmd \"SELECT to_regclass('migration.stage_rows') IS NOT NULL;\")" = "t"
-          test "$($psql_cmd \"SELECT to_regclass('migration.lineage_records') IS NOT NULL;\")" = "t"
-          test "$($psql_cmd \"SELECT to_regclass('migration.reconciliations') IS NOT NULL;\")" = "t"
-          test "$($psql_cmd \"SELECT count(*) FROM system.permissions WHERE code IN ('migration.view','migration.manage','migration.reconcile');\")" = "3"
-          test "$($psql_cmd \"SELECT count(*) FROM pg_trigger WHERE tgname IN ('trg_migration_stage_row_immutable','trg_migration_reconciliation_immutable') AND NOT tgisinternal;\")" = "2"
-          test "$($psql_cmd \"SELECT count(*) FROM system.__ef_migrations_history WHERE migration_id='202608230028_MigrationStaging';\")" = "1"
+          query() {
+            docker compose exec -T postgres psql -U personnel -d personnel_platform -Atc "$1"
+          }
+          test "$(query "SELECT to_regclass('migration.runs') IS NOT NULL;")" = "t"
+          test "$(query "SELECT to_regclass('migration.stage_rows') IS NOT NULL;")" = "t"
+          test "$(query "SELECT to_regclass('migration.lineage_records') IS NOT NULL;")" = "t"
+          test "$(query "SELECT to_regclass('migration.reconciliations') IS NOT NULL;")" = "t"
+          test "$(query "SELECT count(*) FROM system.permissions WHERE code IN ('migration.view','migration.manage','migration.reconcile');")" = "3"
+          test "$(query "SELECT count(*) FROM pg_trigger WHERE tgname IN ('trg_migration_stage_row_immutable','trg_migration_reconciliation_immutable') AND NOT tgisinternal;")" = "2"
+          test "$(query "SELECT count(*) FROM system.__ef_migrations_history WHERE migration_id='202608230028_MigrationStaging';")" = "1"
 
       - name: Show logs on failure
         if: failure()
