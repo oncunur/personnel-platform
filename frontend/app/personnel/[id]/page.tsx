@@ -17,6 +17,10 @@ type MissingDocument = { documentTypeId: string; code: string; name: string; fil
 type LeaveRow = { id: string; employeeId: string; employeeNo: string; employeeName: string; leaveTypeId: string; leaveTypeCode: string; leaveTypeName: string; startDate: string; endDate: string; startDayPart: string; endDayPart: string; requestedDays: number; reason: string | null; status: string; submittedAt: string | null; version: number };
 type LeavePage = { items: LeaveRow[]; totalCount: number };
 type LeaveBalance = { id: string; employeeId: string; leaveTypeId: string; leaveTypeCode: string; leaveTypeName: string; periodStart: string; periodEnd: string; entitledDays: number; carryOverDays: number; adjustmentDays: number; reservedDays: number; usedDays: number; availableDays: number; version: number };
+type WorkflowRequest = { id: string; requestNo: string; requestTypeCode: string; requestTypeName: string; requesterUsername: string; employeeId: string | null; priority: string; requestDataJson: string; status: string; currentStepOrder: number; submittedAt: string | null; dueAt: string | null; resolvedAt: string | null; version: number };
+type WorkflowTimeline = { id: string; eventType: string; fromStatus: string | null; toStatus: string; actorUsername: string; occurredAt: string; detailsJson: string };
+type WorkflowApproval = { id: string; stepOrder: number; stepName: string; targetKind: string; approverUsername: string | null; approverRoleCode: string | null; status: string; actionByUsername: string | null; actionAt: string | null; comment: string | null };
+type WorkflowRequestDetail = { request: WorkflowRequest; approvals: WorkflowApproval[]; timeline: WorkflowTimeline[] };
 
 export default function Personel360Page() {
   const params = useParams<{ id: string }>();
@@ -36,6 +40,8 @@ export default function Personel360Page() {
   const [missingDocuments, setMissingDocuments] = useState<MissingDocument[]>([]);
   const [leaveRows, setLeaveRows] = useState<LeaveRow[]>([]);
   const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([]);
+  const [workflowRequests, setWorkflowRequests] = useState<WorkflowRequest[]>([]);
+  const [workflowDetail, setWorkflowDetail] = useState<WorkflowRequestDetail | null>(null);
   const [message, setMessage] = useState("Personel 360 yükleniyor…");
   const [busy, setBusy] = useState(false);
 
@@ -79,6 +85,13 @@ export default function Personel360Page() {
     }
     if (current.permissions.some(x => x.code === "leave.balance.view"))
       setLeaveBalances((await json<LeaveBalance[]>(`/api/v1/leave/employees/${employeeId}/balances`)) ?? []);
+
+    if (current.permissions.some(x => x.code === "workflow.request.view")) {
+      const requestRows = (await json<WorkflowRequest[]>(`/api/v1/workflow/requests?employeeId=${employeeId}&take=100`)) ?? [];
+      setWorkflowRequests(requestRows);
+      if (requestRows.length > 0) setWorkflowDetail(await json<WorkflowRequestDetail>(`/api/v1/workflow/requests/${requestRows[0].id}`));
+      else setWorkflowDetail(null);
+    }
 
     setMessage("Personel 360 güncel.");
   }
@@ -130,6 +143,15 @@ export default function Personel360Page() {
     } finally { setBusy(false); }
   }
 
+  async function loadWorkflowDetail(requestId: string) {
+    setBusy(true);
+    try {
+      const detail = await json<WorkflowRequestDetail>(`/api/v1/workflow/requests/${requestId}`);
+      if (!detail) { setMessage("Talep timeline bilgisi alınamadı."); return; }
+      setWorkflowDetail(detail); setMessage(`${detail.request.requestNo} timeline yüklendi.`);
+    } finally { setBusy(false); }
+  }
+
   async function json<T>(path: string): Promise<T | null> { const response = await authFetch(path); return response?.ok ? await response.json() as T : null; }
   async function authFetch(path: string, init?: RequestInit): Promise<Response | null> {
     let token = sessionStorage.getItem("pp_access_token") ?? await refresh(); if (!token) return null;
@@ -172,9 +194,18 @@ export default function Personel360Page() {
       {permissions.has("leave.balance.view") ? <div className="table-wrap"><table className="data-table"><thead><tr><th>Bakiye Türü</th><th>Dönem</th><th>Hakediş + Devir</th><th>Rezerve</th><th>Kullanılan</th><th>Kullanılabilir</th></tr></thead><tbody>{leaveBalances.length === 0 ? <tr><td colSpan={6}>Bakiye kaydı bulunmuyor.</td></tr> : leaveBalances.map(x => <tr key={x.id}><td><strong>{x.leaveTypeName}</strong><small>{x.leaveTypeCode}</small></td><td>{x.periodStart} → {x.periodEnd}</td><td>{x.entitledDays} + {x.carryOverDays}{x.adjustmentDays !== 0 ? ` (${x.adjustmentDays > 0 ? "+" : ""}${x.adjustmentDays})` : ""}</td><td>{x.reservedDays}</td><td>{x.usedDays}</td><td><strong>{x.availableDays}</strong></td></tr>)}</tbody></table></div> : null}
     </section> : null}
 
+    {permissions.has("workflow.request.view") ? <section className="panel audit-panel">
+      <div className="panel-heading"><div><span className="eyebrow dark">TALEPLER / WORKFLOW</span><h2>Personel Talep Timeline</h2></div><div className="actions action-row"><strong>{workflowRequests.length} kayıt</strong><a className="table-button" href="/workflow">Workflow Merkezi</a></div></div>
+      <div className="table-wrap"><table className="data-table"><thead><tr><th>Talep No</th><th>Tür</th><th>Talep Eden</th><th>Öncelik</th><th>Durum</th><th>SLA</th><th></th></tr></thead><tbody>{workflowRequests.length === 0 ? <tr><td colSpan={7}>Bu personele bağlı talep bulunmuyor.</td></tr> : workflowRequests.map(x => <tr key={x.id}><td><strong>{x.requestNo}</strong></td><td>{x.requestTypeName}<small>{x.requestTypeCode}</small></td><td>{x.requesterUsername}</td><td>{x.priority}</td><td><span className={`status-badge ${x.status === "APPROVED" ? "success" : x.status === "REJECTED" || x.status === "CANCELLED" ? "danger" : ""}`}>{x.status}</span></td><td>{x.dueAt ? new Date(x.dueAt).toLocaleString() : "—"}</td><td><button className="table-button" disabled={busy} onClick={() => void loadWorkflowDetail(x.id)}>Timeline</button></td></tr>)}</tbody></table></div>
+      {workflowDetail ? <div className="security-grid">
+        <article className="panel"><div className="panel-heading"><div><span className="eyebrow dark">ONAY ADIMLARI</span><h3>{workflowDetail.request.requestNo}</h3></div><strong>{workflowDetail.request.status}</strong></div><div className="compact-list">{workflowDetail.approvals.length === 0 ? <div>Onay adımı bulunmuyor.</div> : workflowDetail.approvals.map(x => <div key={x.id}><strong>{x.stepOrder}. {x.stepName}</strong> · {x.status} · {x.approverUsername ?? x.approverRoleCode ?? x.targetKind}{x.actionByUsername ? ` · ${x.actionByUsername}` : ""}{x.comment ? ` · ${x.comment}` : ""}</div>)}</div></article>
+        <article className="panel"><div className="panel-heading"><div><span className="eyebrow dark">APPEND-ONLY TIMELINE</span><h3>Durum geçmişi</h3></div><strong>{workflowDetail.timeline.length}</strong></div><div className="compact-list">{workflowDetail.timeline.map(x => <div key={x.id}><strong>{x.eventType}</strong> · {x.fromStatus ?? "—"} → {x.toStatus}<small>{new Date(x.occurredAt).toLocaleString()} · {x.actorUsername}</small></div>)}</div></article>
+      </div> : null}
+    </section> : null}
+
     {permissions.has("personnel.project.view") ? <section className="panel audit-panel"><div className="panel-heading"><div><span className="eyebrow dark">PROJE</span><h2>Proje Atamaları</h2></div><strong>{assignments.length}</strong></div>{permissions.has("personnel.project.assign") ? <form className="inline-form" onSubmit={assignProject}><label className="field-label">Proje<select name="projectId" required><option value="">Seçin</option>{projects.map(x => <option key={x.id} value={x.id}>{x.code} · {x.name}</option>)}</select></label><label className="field-label">Cost Center<select name="costCenterId"><option value="">—</option>{costCenters.map(x => <option key={x.id} value={x.id}>{x.code} · {x.name}</option>)}</select></label><Field name="validFrom" label="Başlangıç" type="date"/><Field name="validUntil" label="Bitiş" type="date"/><Field name="allocationPercent" label="Allocation %" type="number"/><button className="primary-button" disabled={busy}>Ata</button></form> : null}<div className="table-wrap"><table className="data-table"><thead><tr><th>Proje</th><th>Cost Center</th><th>Tarih</th><th>Allocation</th><th>Durum</th></tr></thead><tbody>{assignments.map(x => <tr key={x.id}><td>{lookup(projects, x.projectId)}</td><td>{lookup(costCenters, x.costCenterId)}</td><td>{x.validFrom} → {x.validUntil ?? "Devam"}</td><td>%{x.allocationPercent}</td><td>{x.status}</td></tr>)}</tbody></table></div></section> : null}
 
-    <section className="grid"><article className="card"><span>Aktif</span><h2>Özlük & Belgeler</h2></article><article className="card"><span>Aktif</span><h2>İzin</h2></article><article className="card"><span>Yakında</span><h2>Puantaj</h2></article><article className="card"><span>Yakında</span><h2>Kamp & Yemek</h2></article><article className="card"><span>Yakında</span><h2>Bordro</h2></article></section>
+    <section className="grid"><article className="card"><span>Aktif</span><h2>Özlük & Belgeler</h2></article><article className="card"><span>Aktif</span><h2>İzin</h2></article><article className="card"><span>Aktif</span><h2>Talep & Workflow</h2></article><article className="card"><span>Yakında</span><h2>Puantaj</h2></article><article className="card"><span>Yakında</span><h2>Kamp & Yemek</h2></article><article className="card"><span>Yakında</span><h2>Bordro</h2></article></section>
   </main>;
 }
 
