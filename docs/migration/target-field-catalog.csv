@@ -1,0 +1,64 @@
+target_domain,target_entity,target_field,target_type,target_required,reference_entity,sensitivity,normalization,validation,notes
+Organization,Company,Code,string,TRUE,,INTERNAL,TRIM|UPPER,NONEMPTY|max:100,Natural migration key candidate
+Organization,Company,Name,string,TRUE,,INTERNAL,TRIM,NONEMPTY|max:200,
+Organization,Company,TaxNumber,string,FALSE,,SENSITIVE-HR,TRIM,max:50,
+Organization,Company,Phone,string,FALSE,,PERSONAL,PHONE_TR,max:50,
+Organization,Company,Email,string,FALSE,,PERSONAL,TRIM|LOWER,max:320,
+Organization,Company,Address,string,FALSE,,PERSONAL,TRIM,max:1000,
+Organization,Company,DefaultCurrency,string,TRUE,,FINANCIAL,TRIM|UPPER,CURRENCY3,Default TRY when legacy source has no currency
+Organization,Branch,CompanyId,guid,TRUE,Company,INTERNAL,LOOKUP,REFERENCE_REQUIRED,Resolve from company legacy key
+Organization,Branch,Code,string,TRUE,,INTERNAL,TRIM|UPPER,NONEMPTY,
+Organization,Branch,Name,string,TRUE,,INTERNAL,TRIM,NONEMPTY,
+Organization,Department,CompanyId,guid,TRUE,Company,INTERNAL,LOOKUP,REFERENCE_REQUIRED,
+Organization,Department,BranchId,guid,FALSE,Branch,INTERNAL,LOOKUP,REFERENCE_OPTIONAL,
+Organization,Department,ParentDepartmentId,guid,FALSE,Department,INTERNAL,LOOKUP,REFERENCE_OPTIONAL,Resolve after first department pass
+Organization,Department,Code,string,TRUE,,INTERNAL,TRIM|UPPER,NONEMPTY,
+Organization,Department,Name,string,TRUE,,INTERNAL,TRIM,NONEMPTY,
+Organization,Position,DepartmentId,guid,TRUE,Department,INTERNAL,LOOKUP,REFERENCE_REQUIRED,
+Organization,Position,Code,string,TRUE,,INTERNAL,TRIM|UPPER,NONEMPTY,
+Organization,Position,Name,string,TRUE,,INTERNAL,TRIM,NONEMPTY,
+Organization,Project,CompanyId,guid,TRUE,Company,INTERNAL,LOOKUP,REFERENCE_REQUIRED,
+Organization,Project,Code,string,TRUE,,INTERNAL,TRIM|UPPER,NONEMPTY,
+Organization,Project,Name,string,TRUE,,INTERNAL,TRIM,NONEMPTY,
+Organization,Project,CountryCode,string,FALSE,,INTERNAL,TRIM|UPPER,COUNTRY2OR3,
+Organization,Project,StartDate,date,FALSE,,INTERNAL,DATE_AUTO,DATE_ISO,
+Organization,Project,PlannedEndDate,date,FALSE,,INTERNAL,DATE_AUTO,DATE_ISO|GTE:StartDate,
+Organization,CostCenter,CompanyId,guid,TRUE,Company,INTERNAL,LOOKUP,REFERENCE_REQUIRED,
+Organization,CostCenter,ProjectId,guid,FALSE,Project,INTERNAL,LOOKUP,REFERENCE_OPTIONAL,
+Organization,CostCenter,ParentCostCenterId,guid,FALSE,CostCenter,INTERNAL,LOOKUP,REFERENCE_OPTIONAL,
+Organization,CostCenter,Code,string,TRUE,,INTERNAL,TRIM|UPPER,NONEMPTY,
+Organization,CostCenter,Name,string,TRUE,,INTERNAL,TRIM,NONEMPTY,
+Personnel,Employee,CompanyId,guid,TRUE,Company,INTERNAL,LOOKUP,REFERENCE_REQUIRED,
+Personnel,Employee,BranchId,guid,FALSE,Branch,INTERNAL,LOOKUP,REFERENCE_OPTIONAL,
+Personnel,Employee,DepartmentId,guid,TRUE,Department,INTERNAL,LOOKUP,REFERENCE_REQUIRED,
+Personnel,Employee,PositionId,guid,TRUE,Position,INTERNAL,LOOKUP,REFERENCE_REQUIRED,
+Personnel,Employee,EmployeeTypeId,guid,TRUE,EmployeeType,INTERNAL,LOOKUP,REFERENCE_REQUIRED,Map legacy worker type to seeded target type
+Personnel,Employee,ManagerEmployeeId,guid,FALSE,Employee,INTERNAL,LOOKUP,REFERENCE_OPTIONAL,Resolve after base employee pass
+Personnel,Employee,EmployeeNo,string,TRUE,,SENSITIVE-HR,TRIM|UPPER,NONEMPTY|max:50,Primary duplicate detection candidate
+Personnel,Employee,FirstName,string,TRUE,,PERSONAL,TRIM,NONEMPTY|max:100,
+Personnel,Employee,LastName,string,TRUE,,PERSONAL,TRIM,NONEMPTY|max:100,
+Personnel,Employee,PreferredName,string,FALSE,,PERSONAL,TRIM,max:100,
+Personnel,Employee,BirthDate,date,FALSE,,PERSONAL,DATE_AUTO,DATE_ISO,
+Personnel,Employee,Phone,string,FALSE,,PERSONAL,PHONE_TR,max:50,
+Personnel,Employee,Email,string,FALSE,,PERSONAL,TRIM|LOWER,max:320,
+Personnel,Employee,HireDate,date,TRUE,,SENSITIVE-HR,DATE_AUTO,DATE_ISO,
+Personnel,Employee,TerminationDate,date,FALSE,,SENSITIVE-HR,DATE_AUTO,DATE_ISO|GTE:HireDate,
+Personnel,Employee,Status,string,TRUE,,SENSITIVE-HR,STATUS_EMPLOYEE,ENUM:ACTIVE|SUSPENDED|TERMINATED,Legacy inactive/left values require approved lookup rules
+Personnel,Employee,Notes,string,FALSE,,SENSITIVE-HR,TRIM,max:2000,
+Personnel,EmployeeSensitiveProfile,CompanyId,guid,TRUE,Company,SENSITIVE-HR,LOOKUP,REFERENCE_REQUIRED,
+Personnel,EmployeeSensitiveProfile,EmployeeId,guid,TRUE,Employee,SENSITIVE-HR,LOOKUP,REFERENCE_REQUIRED,
+Personnel,EmployeeSensitiveProfile,NationalId,string,FALSE,,SENSITIVE-HR,DIGITS,NATIONAL_ID_TR,Must pass through application encryption service before persistence
+Personnel,EmployeeSensitiveProfile,Iban,string,FALSE,,FINANCIAL,IBAN_TR,IBAN_TR,Must pass through application encryption service before persistence
+Personnel,EmployeeProjectAssignment,EmployeeId,guid,TRUE,Employee,INTERNAL,LOOKUP,REFERENCE_REQUIRED,
+Personnel,EmployeeProjectAssignment,ProjectId,guid,TRUE,Project,INTERNAL,LOOKUP,REFERENCE_REQUIRED,
+Personnel,EmployeeProjectAssignment,CostCenterId,guid,FALSE,CostCenter,INTERNAL,LOOKUP,REFERENCE_OPTIONAL,
+Personnel,EmployeeProjectAssignment,ValidFrom,date,TRUE,,INTERNAL,DATE_AUTO,DATE_ISO,
+Personnel,EmployeeProjectAssignment,ValidUntil,date,FALSE,,INTERNAL,DATE_AUTO,DATE_ISO|GTE:ValidFrom,
+Personnel,EmployeeProjectAssignment,AllocationPercent,decimal,TRUE,,FINANCIAL,DECIMAL_TR,RANGE:0.01..100,
+Payroll,EmployeeCompensation,CompanyId,guid,TRUE,Company,FINANCIAL,LOOKUP,REFERENCE_REQUIRED,
+Payroll,EmployeeCompensation,EmployeeId,guid,TRUE,Employee,FINANCIAL,LOOKUP,REFERENCE_REQUIRED,
+Payroll,EmployeeCompensation,ValidFrom,date,TRUE,,FINANCIAL,MONTH_START,DATE_ISO|DAY:1,
+Payroll,EmployeeCompensation,ValidUntilExclusive,date,FALSE,,FINANCIAL,MONTH_START,DATE_ISO|DAY:1|GT:ValidFrom,
+Payroll,EmployeeCompensation,MonthlyBaseSalary,decimal,TRUE,,FINANCIAL,DECIMAL_TR,GT:0,Must pass through salary protection/encryption flow before persistence
+Payroll,EmployeeCompensation,Currency,string,TRUE,,FINANCIAL,TRIM|UPPER,CURRENCY3,
+Payroll,EmployeeCompensation,OvertimeMultiplier,decimal,TRUE,,FINANCIAL,DECIMAL_TR,RANGE:1..5,
