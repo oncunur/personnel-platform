@@ -44,21 +44,34 @@ public sealed class AuthorizationRepository(ApplicationDbContext dbContext) : IA
 
     public async Task<AuthorizationSnapshot> GetSnapshotAsync(Guid userId, DateTimeOffset now, CancellationToken cancellationToken)
     {
-        var roles = await (
+        var roleRows = await (
             from userRole in dbContext.UserRoles
             join role in dbContext.Roles on userRole.RoleId equals role.Id
             where userRole.UserId == userId && role.IsActive && role.DeletedAt == null
-            select new RoleSummary(role.Id, role.Code, role.Name))
-            .Distinct().OrderBy(x => x.Code).ToListAsync(cancellationToken);
+            select new { role.Id, role.Code, role.Name })
+            .Distinct()
+            .OrderBy(x => x.Code)
+            .ToListAsync(cancellationToken);
 
-        var permissions = await (
+        var roles = roleRows
+            .Select(x => new RoleSummary(x.Id, x.Code, x.Name))
+            .ToList();
+
+        var permissionRows = await (
             from userRole in dbContext.UserRoles
             join role in dbContext.Roles on userRole.RoleId equals role.Id
             join rolePermission in dbContext.RolePermissions on role.Id equals rolePermission.RoleId
             join permission in dbContext.Permissions on rolePermission.PermissionId equals permission.Id
             where userRole.UserId == userId && role.IsActive && role.DeletedAt == null && permission.IsActive
-            select new PermissionSummary(permission.Id, permission.Code, permission.Name, permission.Module))
-            .Distinct().OrderBy(x => x.Module).ThenBy(x => x.Code).ToListAsync(cancellationToken);
+            select new { permission.Id, permission.Code, permission.Name, permission.Module })
+            .Distinct()
+            .OrderBy(x => x.Module)
+            .ThenBy(x => x.Code)
+            .ToListAsync(cancellationToken);
+
+        var permissions = permissionRows
+            .Select(x => new PermissionSummary(x.Id, x.Code, x.Name, x.Module))
+            .ToList();
 
         var scopes = await dbContext.UserScopes
             .Where(x => x.UserId == userId && x.IsActive && x.ValidFrom <= now && (x.ValidUntil == null || x.ValidUntil > now))
