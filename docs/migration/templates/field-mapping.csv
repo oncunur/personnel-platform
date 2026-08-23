@@ -1,0 +1,1 @@
+mapping_id,source_system,source_object,source_field,source_type,source_nullable,target_domain,target_entity,target_field,target_type,target_required,transformation,lookup_dictionary,default_rule,validation_rule,sensitivity,lineage_key,owner,status,notes
