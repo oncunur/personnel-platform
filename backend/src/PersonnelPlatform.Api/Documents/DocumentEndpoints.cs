@@ -1,5 +1,4 @@
 using System.Security.Claims;
-using Microsoft.AspNetCore.Http.Features;
 using PersonnelPlatform.Api.Authorization;
 using PersonnelPlatform.Api.Contracts;
 using PersonnelPlatform.Application.Audit;
@@ -126,6 +125,9 @@ public static class DocumentEndpoints
             : StatusCodes.Status422UnprocessableEntity;
         return Error(context, status, code, result.ErrorMessage ?? "İşlem tamamlanamadı.");
     }
+
+    private static IResult Error(HttpContext context, int statusCode, string code, string message) =>
+        Results.Json(ApiErrorResponse.Create(code, message, context.TraceIdentifier), statusCode: statusCode);
 
     private static async Task AuditAsync(AuditService service, ILoggerFactory loggerFactory, ClaimsPrincipal principal, HttpContext context, string eventType, bool succeeded, string entityType, Guid? entityId, string? errorCode, string? message, CancellationToken ct)
     {
