@@ -14,5 +14,6 @@ public static class DatabaseSchemas
     public const string Notification = "notification";
     public const string Finance = "finance";
     public const string Reporting = "reporting";
+    public const string Integration = "integration";
     public const string Audit = "audit";
 }
