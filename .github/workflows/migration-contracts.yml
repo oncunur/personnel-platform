@@ -21,3 +21,8 @@ jobs:
           python-version: '3.13'
       - name: Validate migration contract schema
         run: python scripts/migration/validate-contracts.py
+      - name: Validate canonical target field catalog
+        run: python scripts/migration/validate_target_catalog.py
+      - name: Test migration transformations
+        working-directory: scripts/migration
+        run: python -m unittest -v test_transform_values.py
