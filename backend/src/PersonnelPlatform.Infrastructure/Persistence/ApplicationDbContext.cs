@@ -10,6 +10,7 @@ using PersonnelPlatform.Domain.Meal;
 using PersonnelPlatform.Domain.Organization;
 using PersonnelPlatform.Domain.Payroll;
 using PersonnelPlatform.Domain.Personnel;
+using PersonnelPlatform.Domain.Workflow;
 
 namespace PersonnelPlatform.Infrastructure.Persistence;
 
@@ -88,6 +89,13 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<AdministrativeTaskCompletion> AdministrativeTaskCompletions => Set<AdministrativeTaskCompletion>();
     public DbSet<AdministrativeContract> AdministrativeContracts => Set<AdministrativeContract>();
     public DbSet<AdministrativeReminderEvent> AdministrativeReminderEvents => Set<AdministrativeReminderEvent>();
+
+    public DbSet<WorkflowRequestType> WorkflowRequestTypes => Set<WorkflowRequestType>();
+    public DbSet<WorkflowApprovalStepDefinition> WorkflowApprovalStepDefinitions => Set<WorkflowApprovalStepDefinition>();
+    public DbSet<WorkflowRequest> WorkflowRequests => Set<WorkflowRequest>();
+    public DbSet<WorkflowRequestApproval> WorkflowRequestApprovals => Set<WorkflowRequestApproval>();
+    public DbSet<WorkflowRequestHistory> WorkflowRequestHistories => Set<WorkflowRequestHistory>();
+    public DbSet<WorkflowSlaEvent> WorkflowSlaEvents => Set<WorkflowSlaEvent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
