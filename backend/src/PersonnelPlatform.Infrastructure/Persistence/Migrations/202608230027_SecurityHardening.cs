@@ -70,6 +70,10 @@ public sealed class SecurityHardening : Migration
             CREATE UNIQUE INDEX ux_employee_sensitive_employee ON hr.employee_sensitive_profiles(employee_id) WHERE deleted_at IS NULL;
             CREATE INDEX ix_employee_sensitive_company ON hr.employee_sensitive_profiles(company_id);
 
+            ALTER TABLE payroll.employee_compensations DROP CONSTRAINT ck_employee_compensations_salary;
+            ALTER TABLE payroll.employee_compensations
+                ADD CONSTRAINT ck_employee_compensations_salary CHECK (monthly_base_salary >= 0);
+
             CREATE TABLE payroll.compensation_salary_secrets (
                 id uuid NOT NULL CONSTRAINT pk_compensation_salary_secrets PRIMARY KEY,
                 compensation_id uuid NOT NULL,
@@ -86,6 +90,27 @@ public sealed class SecurityHardening : Migration
             CREATE UNIQUE INDEX ux_compensation_salary_secret_compensation ON payroll.compensation_salary_secrets(compensation_id);
             CREATE INDEX ix_compensation_salary_secret_company_employee ON payroll.compensation_salary_secrets(company_id, employee_id);
 
+            CREATE OR REPLACE FUNCTION payroll.compensation_salary_storage_guard()
+            RETURNS trigger LANGUAGE plpgsql AS $$
+            DECLARE secret_exists boolean;
+            BEGIN
+                SELECT EXISTS (
+                    SELECT 1 FROM payroll.compensation_salary_secrets s WHERE s.compensation_id = NEW.id
+                ) INTO secret_exists;
+
+                IF secret_exists AND NEW.monthly_base_salary <> 0 THEN
+                    RAISE EXCEPTION 'PAYROLL_PLAINTEXT_SALARY_FORBIDDEN' USING ERRCODE = 'P0001';
+                END IF;
+                IF NOT secret_exists AND NEW.monthly_base_salary <= 0 THEN
+                    RAISE EXCEPTION 'PAYROLL_SALARY_SECRET_REQUIRED_FOR_ZERO_VALUE' USING ERRCODE = 'P0001';
+                END IF;
+                RETURN NEW;
+            END;
+            $$;
+            CREATE TRIGGER trg_compensation_salary_storage_guard
+                BEFORE INSERT OR UPDATE OF monthly_base_salary ON payroll.employee_compensations
+                FOR EACH ROW EXECUTE FUNCTION payroll.compensation_salary_storage_guard();
+
             CREATE OR REPLACE FUNCTION payroll.clear_plaintext_salary_after_secret()
             RETURNS trigger LANGUAGE plpgsql AS $$
             BEGIN
@@ -99,20 +124,6 @@ public sealed class SecurityHardening : Migration
             CREATE TRIGGER trg_compensation_salary_secret_clear_plaintext
                 AFTER INSERT ON payroll.compensation_salary_secrets
                 FOR EACH ROW EXECUTE FUNCTION payroll.clear_plaintext_salary_after_secret();
-
-            CREATE OR REPLACE FUNCTION payroll.prevent_plaintext_salary_restore()
-            RETURNS trigger LANGUAGE plpgsql AS $$
-            BEGIN
-                IF NEW.monthly_base_salary <> 0
-                   AND EXISTS (SELECT 1 FROM payroll.compensation_salary_secrets s WHERE s.compensation_id = NEW.id) THEN
-                    RAISE EXCEPTION 'PAYROLL_PLAINTEXT_SALARY_FORBIDDEN' USING ERRCODE = 'P0001';
-                END IF;
-                RETURN NEW;
-            END;
-            $$;
-            CREATE TRIGGER trg_compensation_salary_plaintext_guard
-                BEFORE UPDATE OF monthly_base_salary ON payroll.employee_compensations
-                FOR EACH ROW EXECUTE FUNCTION payroll.prevent_plaintext_salary_restore();
 
             INSERT INTO system.permissions (id, code, name, module, description, is_active) VALUES
                 ('20000000-0000-0000-0000-000000000136', 'personnel.sensitive.view', 'View Sensitive Personnel Metadata', 'Personnel', 'View masked identity and IBAN metadata.', TRUE),
@@ -133,6 +144,14 @@ public sealed class SecurityHardening : Migration
     protected override void Down(MigrationBuilder migrationBuilder)
     {
         migrationBuilder.Sql("""
+            DO $$
+            BEGIN
+                IF EXISTS (SELECT 1 FROM payroll.compensation_salary_secrets) THEN
+                    RAISE EXCEPTION 'SECURITY_HARDENING_ROLLBACK_REQUIRES_EXPLICIT_SALARY_RESTORE';
+                END IF;
+            END;
+            $$;
+
             DELETE FROM system.role_permissions WHERE id IN (
                 '30000000-0000-0000-0000-000000000136','30000000-0000-0000-0000-000000000137',
                 '30000000-0000-0000-0000-000000000138','30000000-0000-0000-0000-000000000139');
@@ -140,11 +159,16 @@ public sealed class SecurityHardening : Migration
                 '20000000-0000-0000-0000-000000000136','20000000-0000-0000-0000-000000000137',
                 '20000000-0000-0000-0000-000000000138','20000000-0000-0000-0000-000000000139');
 
-            DROP TRIGGER IF EXISTS trg_compensation_salary_plaintext_guard ON payroll.employee_compensations;
-            DROP FUNCTION IF EXISTS payroll.prevent_plaintext_salary_restore();
             DROP TRIGGER IF EXISTS trg_compensation_salary_secret_clear_plaintext ON payroll.compensation_salary_secrets;
             DROP FUNCTION IF EXISTS payroll.clear_plaintext_salary_after_secret();
+            DROP TRIGGER IF EXISTS trg_compensation_salary_storage_guard ON payroll.employee_compensations;
+            DROP FUNCTION IF EXISTS payroll.compensation_salary_storage_guard();
             DROP TABLE IF EXISTS payroll.compensation_salary_secrets;
+
+            ALTER TABLE payroll.employee_compensations DROP CONSTRAINT ck_employee_compensations_salary;
+            ALTER TABLE payroll.employee_compensations
+                ADD CONSTRAINT ck_employee_compensations_salary CHECK (monthly_base_salary > 0);
+
             DROP TABLE IF EXISTS hr.employee_sensitive_profiles;
             DROP TABLE IF EXISTS system.mfa_challenges;
             DROP TABLE IF EXISTS system.user_mfa_credentials;
