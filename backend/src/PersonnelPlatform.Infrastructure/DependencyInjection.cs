@@ -6,6 +6,7 @@ using PersonnelPlatform.Application.Audit;
 using PersonnelPlatform.Application.Camp;
 using PersonnelPlatform.Application.Documents;
 using PersonnelPlatform.Application.Leave;
+using PersonnelPlatform.Application.Meal;
 using PersonnelPlatform.Application.Organization;
 using PersonnelPlatform.Application.Personnel;
 using PersonnelPlatform.Infrastructure.Attendance;
@@ -14,6 +15,7 @@ using PersonnelPlatform.Infrastructure.Camp;
 using PersonnelPlatform.Infrastructure.Documents;
 using PersonnelPlatform.Infrastructure.Health;
 using PersonnelPlatform.Infrastructure.Leave;
+using PersonnelPlatform.Infrastructure.Meal;
 using PersonnelPlatform.Infrastructure.Organization;
 using PersonnelPlatform.Infrastructure.Personnel;
 using PersonnelPlatform.Infrastructure.Persistence;
@@ -44,6 +46,7 @@ public static class DependencyInjection
         services.AddScoped<IAttendanceProcessingRepository, AttendanceProcessingRepository>();
         services.AddScoped<IOvertimeRepository, OvertimeRepository>();
         services.AddScoped<ICampRepository, CampRepository>();
+        services.AddScoped<IMealRepository, MealRepository>();
 
         var storageRoot = configuration["FileStorage:RootPath"];
         if (string.IsNullOrWhiteSpace(storageRoot)) storageRoot = Path.Combine(AppContext.BaseDirectory, "storage");
