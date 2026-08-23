@@ -18,6 +18,9 @@ public static class LeaveEndpoints
         group.MapPost("/requests", CreateDraftAsync).RequirePermission(LeavePermissions.Create);
         group.MapPost("/requests/{leaveId:guid}/submit", SubmitAsync).RequirePermission(LeavePermissions.Submit);
         group.MapPost("/requests/{leaveId:guid}/withdraw", WithdrawAsync).RequirePermission(LeavePermissions.Submit);
+        group.MapGet("/requests/{leaveId:guid}/attachments", ListAttachmentsAsync).RequirePermission(LeavePermissions.AttachmentView);
+        group.MapPost("/requests/{leaveId:guid}/attachments", UploadAttachmentAsync).RequirePermission(LeavePermissions.AttachmentUpload).DisableAntiforgery();
+        group.MapGet("/attachments/{attachmentId:guid}/file", OpenAttachmentAsync).RequirePermission(LeavePermissions.AttachmentView);
         group.MapGet("/employees/{employeeId:guid}/balances", ListBalancesAsync).RequirePermission(LeavePermissions.BalanceView);
         group.MapPut("/employees/{employeeId:guid}/entitlements", UpsertEntitlementAsync).RequirePermission(LeavePermissions.BalanceManage);
         return endpoints;
@@ -79,6 +82,41 @@ public static class LeaveEndpoints
         return ToResult(result, context);
     }
 
+    private static async Task<IResult> ListAttachmentsAsync(Guid leaveId, ClaimsPrincipal principal, LeaveAttachmentService service, HttpContext context, CancellationToken ct)
+    {
+        if (!TryActor(principal, out var userId)) return Unauthorized(context);
+        return ToResult(await service.ListAsync(userId, leaveId, ct), context);
+    }
+
+    private static async Task<IResult> UploadAttachmentAsync(Guid leaveId, ClaimsPrincipal principal, LeaveAttachmentService service, AuditService auditService, ILoggerFactory loggerFactory, HttpContext context, CancellationToken ct)
+    {
+        if (!TryActor(principal, out var userId)) return Unauthorized(context);
+        if (!context.Request.HasFormContentType)
+            return Error(context, StatusCodes.Status400BadRequest, "LEAVE_ATTACHMENT_UPLOAD_INVALID", "multipart/form-data bekleniyor.");
+
+        var form = await context.Request.ReadFormAsync(ct);
+        var file = form.Files.GetFile("file");
+        if (file is null)
+            return Error(context, StatusCodes.Status400BadRequest, "LEAVE_ATTACHMENT_FILE_REQUIRED", "Dosya zorunludur.");
+
+        await using var stream = file.OpenReadStream();
+        var request = new UploadLeaveAttachmentRequest(
+            EmptyToNull(form["description"].ToString()),
+            new LeaveAttachmentUploadFile(file.FileName, file.ContentType, file.Length, stream));
+        var result = await service.UploadAsync(userId, leaveId, request, ct);
+        await AuditAsync(auditService, loggerFactory, principal, context, "LEAVE_ATTACHMENT_UPLOADED", result.Succeeded, "LEAVE", leaveId, result.ErrorCode, result.ErrorMessage, ct);
+        return ToResult(result, context, StatusCodes.Status201Created);
+    }
+
+    private static async Task<IResult> OpenAttachmentAsync(Guid attachmentId, ClaimsPrincipal principal, LeaveAttachmentService service, AuditService auditService, ILoggerFactory loggerFactory, HttpContext context, CancellationToken ct)
+    {
+        if (!TryActor(principal, out var userId)) return Unauthorized(context);
+        var result = await service.OpenAsync(userId, attachmentId, ct);
+        await AuditAsync(auditService, loggerFactory, principal, context, "LEAVE_ATTACHMENT_FILE_VIEWED", result.Succeeded, "LEAVE_ATTACHMENT", attachmentId, result.ErrorCode, result.ErrorMessage, ct);
+        if (!result.Succeeded || result.Value is null) return ToResult(result, context);
+        return Results.File(result.Value.Content, result.Value.ContentType, result.Value.FileName, enableRangeProcessing: true);
+    }
+
     private static async Task<IResult> ListBalancesAsync(Guid employeeId, ClaimsPrincipal principal, LeaveService service, HttpContext context, CancellationToken ct)
     {
         if (!TryActor(principal, out var userId)) return Unauthorized(context);
@@ -97,6 +135,7 @@ public static class LeaveEndpoints
     private static DateOnly? ReadDate(IQueryCollection query, string key) => DateOnly.TryParse(query[key].ToString(), out var value) ? value : null;
     private static int ReadInt(IQueryCollection query, string key, int fallback) => int.TryParse(query[key].ToString(), out var value) ? value : fallback;
     private static string? ReadString(IQueryCollection query, string key) => string.IsNullOrWhiteSpace(query[key].ToString()) ? null : query[key].ToString();
+    private static string? EmptyToNull(string value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     private static bool TryActor(ClaimsPrincipal principal, out Guid userId) => Guid.TryParse(principal.FindFirstValue("sub"), out userId);
     private static IResult Unauthorized(HttpContext context) => Error(context, StatusCodes.Status401Unauthorized, "AUTH_TOKEN_INVALID", "Oturum bilgisi geçersiz.");
 
@@ -106,6 +145,7 @@ public static class LeaveEndpoints
         var code = result.ErrorCode ?? "LEAVE_OPERATION_FAILED";
         var status = code == "SCOPE_DENIED" ? StatusCodes.Status403Forbidden
             : code.EndsWith("_NOT_FOUND", StringComparison.Ordinal) ? StatusCodes.Status404NotFound
+            : code == "FILE_SIZE_LIMIT_EXCEEDED" ? StatusCodes.Status413PayloadTooLarge
             : code is "LEAVE_TYPE_ALREADY_EXISTS" or "LEAVE_DATE_CONFLICT" or "LEAVE_ENTITLEMENT_PERIOD_CONFLICT" or "RECORD_MODIFIED_BY_ANOTHER_USER" ? StatusCodes.Status409Conflict
             : StatusCodes.Status422UnprocessableEntity;
         return Error(context, status, code, result.ErrorMessage ?? "İşlem tamamlanamadı.");

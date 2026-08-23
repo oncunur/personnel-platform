@@ -31,6 +31,7 @@ builder.Services.AddScoped<DocumentIntelligenceService>();
 builder.Services.AddScoped<DocumentHistoryService>();
 builder.Services.AddScoped<LeaveService>();
 builder.Services.AddScoped<LeaveApprovalService>();
+builder.Services.AddScoped<LeaveAttachmentService>();
 builder.Services.AddPlatformAuthentication(builder.Configuration);
 builder.Services.AddPlatformPermissionAuthorization();
 builder.Services.AddCors(options => options.AddPolicy("development", policy => policy.WithOrigins("http://localhost:3000").AllowAnyHeader().AllowAnyMethod().AllowCredentials()));

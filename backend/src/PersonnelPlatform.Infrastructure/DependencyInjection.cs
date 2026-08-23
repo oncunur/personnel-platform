@@ -35,6 +35,7 @@ public static class DependencyInjection
         services.AddScoped<IDocumentHistoryRepository, DocumentHistoryRepository>();
         services.AddScoped<ILeaveRepository, LeaveRepository>();
         services.AddScoped<ILeaveApprovalRepository, LeaveApprovalRepository>();
+        services.AddScoped<ILeaveAttachmentRepository, LeaveAttachmentRepository>();
 
         var storageRoot = configuration["FileStorage:RootPath"];
         if (string.IsNullOrWhiteSpace(storageRoot)) storageRoot = Path.Combine(AppContext.BaseDirectory, "storage");

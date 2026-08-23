@@ -14,6 +14,9 @@ type AuthResponse = { accessToken: string; accessTokenExpiresAt: string };
 type DocumentType = { id: string; code: string; name: string; fileRequired: boolean; documentNumberRequired: boolean; expirationRequired: boolean; multipleAllowed: boolean };
 type EmployeeDocument = { id: string; employeeId: string; documentTypeId: string; documentTypeCode: string; documentTypeName: string; documentNumber: string | null; issueDate: string | null; validFrom: string | null; validUntil: string | null; status: string; fileName: string | null; contentType: string | null; fileSizeBytes: number | null; replacesDocumentId: string | null; version: number };
 type MissingDocument = { documentTypeId: string; code: string; name: string; fileRequired: boolean; documentNumberRequired: boolean; expirationRequired: boolean };
+type LeaveRow = { id: string; employeeId: string; employeeNo: string; employeeName: string; leaveTypeId: string; leaveTypeCode: string; leaveTypeName: string; startDate: string; endDate: string; startDayPart: string; endDayPart: string; requestedDays: number; reason: string | null; status: string; submittedAt: string | null; version: number };
+type LeavePage = { items: LeaveRow[]; totalCount: number };
+type LeaveBalance = { id: string; employeeId: string; leaveTypeId: string; leaveTypeCode: string; leaveTypeName: string; periodStart: string; periodEnd: string; entitledDays: number; carryOverDays: number; adjustmentDays: number; reservedDays: number; usedDays: number; availableDays: number; version: number };
 
 export default function Personel360Page() {
   const params = useParams<{ id: string }>();
@@ -31,6 +34,8 @@ export default function Personel360Page() {
   const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([]);
   const [documents, setDocuments] = useState<EmployeeDocument[]>([]);
   const [missingDocuments, setMissingDocuments] = useState<MissingDocument[]>([]);
+  const [leaveRows, setLeaveRows] = useState<LeaveRow[]>([]);
+  const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([]);
   const [message, setMessage] = useState("Personel 360 yükleniyor…");
   const [busy, setBusy] = useState(false);
 
@@ -67,6 +72,13 @@ export default function Personel360Page() {
       setDocumentTypes((await json<DocumentType[]>("/api/v1/documents/types")) ?? []);
     if (current.permissions.some(x => x.code === "documents.missing.view"))
       setMissingDocuments((await json<MissingDocument[]>(`/api/v1/documents/employees/${employeeId}/missing`)) ?? []);
+
+    if (current.permissions.some(x => x.code === "leave.view")) {
+      const page = await json<LeavePage>(`/api/v1/leave/requests?employeeId=${employeeId}&pageSize=100`);
+      setLeaveRows(page?.items ?? []);
+    }
+    if (current.permissions.some(x => x.code === "leave.balance.view"))
+      setLeaveBalances((await json<LeaveBalance[]>(`/api/v1/leave/employees/${employeeId}/balances`)) ?? []);
 
     setMessage("Personel 360 güncel.");
   }
@@ -154,9 +166,15 @@ export default function Personel360Page() {
       <div className="table-wrap"><table className="data-table"><thead><tr><th>Belge</th><th>No</th><th>Geçerlilik</th><th>Durum</th><th>Dosya</th></tr></thead><tbody>{documents.length === 0 ? <tr><td colSpan={5}>Henüz belge bulunmuyor.</td></tr> : documents.map(x => <tr key={x.id}><td><strong>{x.documentTypeName}</strong><small>{x.documentTypeCode}</small></td><td>{x.documentNumber ?? "—"}</td><td>{x.validFrom ?? x.issueDate ?? "—"} → {x.validUntil ?? "Süresiz"}</td><td><span className={`status-badge ${x.status === "EXPIRED" ? "danger" : "success"}`}>{x.status}</span></td><td>{x.fileName ? <>{x.fileName}{permissions.has("documents.file.view") ? <button className="table-button document-open" disabled={busy} onClick={() => void openDocument(x.id)}>Aç</button> : null}</> : "—"}</td></tr>)}</tbody></table></div>
     </section> : null}
 
+    {permissions.has("leave.view") || permissions.has("leave.balance.view") ? <section className="panel audit-panel">
+      <div className="panel-heading"><div><span className="eyebrow dark">İZİN</span><h2>İzin Geçmişi & Bakiye</h2></div><div className="actions action-row"><strong>{leaveRows.length} kayıt</strong><a className="table-button" href="/leave">İzin Merkezi</a></div></div>
+      {permissions.has("leave.view") ? <div className="table-wrap"><table className="data-table"><thead><tr><th>İzin Türü</th><th>Tarih</th><th>Gün</th><th>Durum</th><th>Açıklama</th></tr></thead><tbody>{leaveRows.length === 0 ? <tr><td colSpan={5}>İzin kaydı bulunmuyor.</td></tr> : leaveRows.map(x => <tr key={x.id}><td><strong>{x.leaveTypeName}</strong><small>{x.leaveTypeCode}</small></td><td>{x.startDate} → {x.endDate}<small>{x.startDayPart} / {x.endDayPart}</small></td><td>{x.requestedDays}</td><td><span className={`status-badge ${x.status === "APPROVED" || x.status === "COMPLETED" ? "success" : x.status === "REJECTED" || x.status === "CANCELLED" ? "danger" : ""}`}>{x.status}</span></td><td>{x.reason ?? "—"}</td></tr>)}</tbody></table></div> : null}
+      {permissions.has("leave.balance.view") ? <div className="table-wrap"><table className="data-table"><thead><tr><th>Bakiye Türü</th><th>Dönem</th><th>Hakediş + Devir</th><th>Rezerve</th><th>Kullanılan</th><th>Kullanılabilir</th></tr></thead><tbody>{leaveBalances.length === 0 ? <tr><td colSpan={6}>Bakiye kaydı bulunmuyor.</td></tr> : leaveBalances.map(x => <tr key={x.id}><td><strong>{x.leaveTypeName}</strong><small>{x.leaveTypeCode}</small></td><td>{x.periodStart} → {x.periodEnd}</td><td>{x.entitledDays} + {x.carryOverDays}{x.adjustmentDays !== 0 ? ` (${x.adjustmentDays > 0 ? "+" : ""}${x.adjustmentDays})` : ""}</td><td>{x.reservedDays}</td><td>{x.usedDays}</td><td><strong>{x.availableDays}</strong></td></tr>)}</tbody></table></div> : null}
+    </section> : null}
+
     {permissions.has("personnel.project.view") ? <section className="panel audit-panel"><div className="panel-heading"><div><span className="eyebrow dark">PROJE</span><h2>Proje Atamaları</h2></div><strong>{assignments.length}</strong></div>{permissions.has("personnel.project.assign") ? <form className="inline-form" onSubmit={assignProject}><label className="field-label">Proje<select name="projectId" required><option value="">Seçin</option>{projects.map(x => <option key={x.id} value={x.id}>{x.code} · {x.name}</option>)}</select></label><label className="field-label">Cost Center<select name="costCenterId"><option value="">—</option>{costCenters.map(x => <option key={x.id} value={x.id}>{x.code} · {x.name}</option>)}</select></label><Field name="validFrom" label="Başlangıç" type="date"/><Field name="validUntil" label="Bitiş" type="date"/><Field name="allocationPercent" label="Allocation %" type="number"/><button className="primary-button" disabled={busy}>Ata</button></form> : null}<div className="table-wrap"><table className="data-table"><thead><tr><th>Proje</th><th>Cost Center</th><th>Tarih</th><th>Allocation</th><th>Durum</th></tr></thead><tbody>{assignments.map(x => <tr key={x.id}><td>{lookup(projects, x.projectId)}</td><td>{lookup(costCenters, x.costCenterId)}</td><td>{x.validFrom} → {x.validUntil ?? "Devam"}</td><td>%{x.allocationPercent}</td><td>{x.status}</td></tr>)}</tbody></table></div></section> : null}
 
-    <section className="grid"><article className="card"><span>Aktif</span><h2>Özlük & Belgeler</h2></article><article className="card"><span>Yakında</span><h2>İzin</h2></article><article className="card"><span>Yakında</span><h2>Puantaj</h2></article><article className="card"><span>Yakında</span><h2>Kamp & Yemek</h2></article><article className="card"><span>Yakında</span><h2>Bordro</h2></article></section>
+    <section className="grid"><article className="card"><span>Aktif</span><h2>Özlük & Belgeler</h2></article><article className="card"><span>Aktif</span><h2>İzin</h2></article><article className="card"><span>Yakında</span><h2>Puantaj</h2></article><article className="card"><span>Yakında</span><h2>Kamp & Yemek</h2></article><article className="card"><span>Yakında</span><h2>Bordro</h2></article></section>
   </main>;
 }
 

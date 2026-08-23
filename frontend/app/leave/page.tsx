@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
 
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
 
@@ -13,6 +13,7 @@ type LeaveType = { id: string; code: string; name: string; isPaid: boolean; bala
 type LeaveRow = { id: string; employeeId: string; employeeNo: string; employeeName: string; leaveTypeId: string; leaveTypeCode: string; leaveTypeName: string; startDate: string; endDate: string; startDayPart: string; endDayPart: string; requestedDays: number; reason: string | null; status: string; version: number };
 type LeavePage = { items: LeaveRow[]; totalCount: number };
 type Balance = { id: string; employeeId: string; leaveTypeId: string; leaveTypeCode: string; leaveTypeName: string; periodStart: string; periodEnd: string; entitledDays: number; carryOverDays: number; adjustmentDays: number; reservedDays: number; usedDays: number; availableDays: number; version: number };
+type LeaveAttachment = { id: string; leaveId: string; fileId: string; fileName: string; contentType: string; fileSizeBytes: number; description: string | null; uploadedAt: string; uploadedBy: string };
 
 export default function LeavePage() {
   const [me, setMe] = useState<Me | null>(null);
@@ -21,6 +22,8 @@ export default function LeavePage() {
   const [rows, setRows] = useState<LeaveRow[]>([]);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
   const [balances, setBalances] = useState<Balance[]>([]);
+  const [attachmentsByLeave, setAttachmentsByLeave] = useState<Record<string, LeaveAttachment[]>>({});
+  const [loadedAttachmentLeaves, setLoadedAttachmentLeaves] = useState<Set<string>>(new Set());
   const [message, setMessage] = useState("İzin merkezi yükleniyor…");
   const [busy, setBusy] = useState(false);
 
@@ -67,7 +70,10 @@ export default function LeavePage() {
       if (!response?.ok) { setMessage(await errorMessage(response, "İzin taslağı oluşturulamadı.")); return; }
       const created = await response.json() as LeaveRow;
       setRows(current => [created, ...current]);
-      setMessage("İzin taslağı oluşturuldu. Gönder butonu ile bakiye ve çakışma kontrolleri çalıştırılır.");
+      const type = types.find(x => x.id === created.leaveTypeId);
+      setMessage(type?.attachmentRequired
+        ? "İzin taslağı oluşturuldu. Bu izin türünde gönderimden önce destekleyici belge yüklemek zorunludur."
+        : "İzin taslağı oluşturuldu. Gönder butonu ile bakiye ve çakışma kontrolleri çalıştırılır.");
       event.currentTarget.reset();
     } finally { setBusy(false); }
   }
@@ -102,10 +108,52 @@ export default function LeavePage() {
       if (!response?.ok) { setMessage(await errorMessage(response, action === "submit" ? "İzin gönderilemedi." : "İzin geri çekilemedi.")); return; }
       const updated = await response.json() as LeaveRow;
       setRows(current => current.map(x => x.id === updated.id ? updated : x));
-      setMessage(action === "submit" ? "İzin talebi gönderildi; gerekli bakiye rezerve edildi." : "İzin talebi geri çekildi; rezervasyon serbest bırakıldı.");
+      setMessage(action === "submit" ? "İzin talebi onay akışına gönderildi; gerekli bakiye rezerve edildi." : "İzin talebi geri çekildi; rezervasyon serbest bırakıldı.");
       if (selectedEmployeeId === updated.employeeId && permissions.has("leave.balance.view")) await selectEmployee(updated.employeeId);
     } finally { setBusy(false); }
   }
+
+  async function loadAttachments(leaveId: string) {
+    if (!permissions.has("leave.attachment.view")) return;
+    setBusy(true);
+    try {
+      const attachments = (await json<LeaveAttachment[]>(`/api/v1/leave/requests/${leaveId}/attachments`)) ?? [];
+      setAttachmentsByLeave(current => ({ ...current, [leaveId]: attachments }));
+      setLoadedAttachmentLeaves(current => new Set(current).add(leaveId));
+      setMessage(attachments.length === 0 ? "Bu izin talebinde henüz ek bulunmuyor." : `${attachments.length} izin eki yüklendi.`);
+    } finally { setBusy(false); }
+  }
+
+  async function uploadAttachment(row: LeaveRow, event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    setBusy(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const response = await authFetch(`/api/v1/leave/requests/${row.id}/attachments`, { method: "POST", body: form });
+      if (!response?.ok) { setMessage(await errorMessage(response, "İzin eki yüklenemedi.")); return; }
+      const saved = await response.json() as LeaveAttachment;
+      setAttachmentsByLeave(current => ({ ...current, [row.id]: [saved, ...(current[row.id] ?? [])] }));
+      setLoadedAttachmentLeaves(current => new Set(current).add(row.id));
+      setMessage("İzin eki güvenli depolama alanına kaydedildi.");
+    } finally { setBusy(false); }
+  }
+
+  async function openAttachment(attachmentId: string) {
+    setBusy(true);
+    try {
+      const response = await authFetch(`/api/v1/leave/attachments/${attachmentId}/file`);
+      if (!response?.ok) { setMessage(await errorMessage(response, "İzin eki açılamadı.")); return; }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener,noreferrer");
+      window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } finally { setBusy(false); }
+  }
+
+  function attachmentRequired(row: LeaveRow) { return types.find(x => x.id === row.leaveTypeId)?.attachmentRequired ?? false; }
 
   async function json<T>(path: string): Promise<T | null> { const response = await authFetch(path); return response?.ok ? await response.json() as T : null; }
   async function authFetch(path: string, init?: RequestInit): Promise<Response | null> {
@@ -126,7 +174,7 @@ export default function LeavePage() {
       <div className="panel-heading"><div><span className="eyebrow dark">YENİ TALEP</span><h2>İzin Taslağı</h2></div></div>
       <form className="inline-form" onSubmit={createLeave}>
         <label className="field-label">Personel<select name="employeeId" required><option value="">Seçin</option>{employees.map(x => <option key={x.id} value={x.id}>{x.employeeNo} · {x.firstName} {x.lastName}</option>)}</select></label>
-        <label className="field-label">İzin Türü<select name="leaveTypeId" required><option value="">Seçin</option>{types.filter(x => x.id).map(x => <option key={x.id} value={x.id}>{x.code} · {x.name}</option>)}</select></label>
+        <label className="field-label">İzin Türü<select name="leaveTypeId" required><option value="">Seçin</option>{types.filter(x => x.id).map(x => <option key={x.id} value={x.id}>{x.code} · {x.name}{x.attachmentRequired ? " · Ek zorunlu" : ""}</option>)}</select></label>
         <label className="field-label">Başlangıç<input name="startDate" type="date" required/></label>
         <label className="field-label">Başlangıç Bölümü<select name="startDayPart" defaultValue="FULL_DAY"><option value="FULL_DAY">Tam Gün</option><option value="FIRST_HALF">İlk Yarım</option><option value="SECOND_HALF">İkinci Yarım</option></select></label>
         <label className="field-label">Bitiş<input name="endDate" type="date" required/></label>
@@ -138,7 +186,7 @@ export default function LeavePage() {
 
     {permissions.has("leave.view") ? <section className="panel audit-panel">
       <div className="panel-heading"><div><span className="eyebrow dark">TALEPLER</span><h2>İzin Kayıtları</h2></div><strong>{rows.length}</strong></div>
-      <div className="table-wrap"><table className="data-table"><thead><tr><th>Personel</th><th>İzin</th><th>Tarih</th><th>Gün</th><th>Durum</th><th></th></tr></thead><tbody>{rows.map(row => <tr key={row.id}><td><strong>{row.employeeName}</strong><small>{row.employeeNo}</small></td><td>{row.leaveTypeName}<small>{row.leaveTypeCode}</small></td><td>{row.startDate} → {row.endDate}<small>{row.startDayPart} / {row.endDayPart}</small></td><td>{row.requestedDays}</td><td>{row.status}</td><td><div className="actions action-row">{permissions.has("leave.submit") && row.status === "DRAFT" ? <button className="table-button" disabled={busy} onClick={() => void act(row, "submit")}>Gönder</button> : null}{permissions.has("leave.submit") && ["DRAFT","SUBMITTED","PENDING_APPROVAL"].includes(row.status) ? <button className="table-button" disabled={busy} onClick={() => void act(row, "withdraw")}>Geri Çek</button> : null}</div></td></tr>)}</tbody></table></div>
+      <div className="table-wrap"><table className="data-table"><thead><tr><th>Personel</th><th>İzin</th><th>Tarih</th><th>Gün</th><th>Durum</th><th>Ekler</th><th></th></tr></thead><tbody>{rows.map(row => <tr key={row.id}><td><strong>{row.employeeName}</strong><small>{row.employeeNo}</small></td><td>{row.leaveTypeName}<small>{row.leaveTypeCode}{attachmentRequired(row) ? " · EK ZORUNLU" : ""}</small></td><td>{row.startDate} → {row.endDate}<small>{row.startDayPart} / {row.endDayPart}</small></td><td>{row.requestedDays}</td><td>{row.status}</td><td><div className="actions action-row">{permissions.has("leave.attachment.view") ? <button className="table-button" disabled={busy} onClick={() => void loadAttachments(row.id)}>{loadedAttachmentLeaves.has(row.id) ? `Yenile (${attachmentsByLeave[row.id]?.length ?? 0})` : "Ekleri Göster"}</button> : null}{permissions.has("leave.attachment.upload") && row.status === "DRAFT" ? <label className="table-button">Ek Yükle<input hidden type="file" accept="application/pdf,image/jpeg,image/png" onChange={event => void uploadAttachment(row, event)}/></label> : null}</div>{(attachmentsByLeave[row.id] ?? []).map(file => <div key={file.id}><button className="table-button document-open" disabled={busy} onClick={() => void openAttachment(file.id)}>{file.fileName}</button></div>)}</td><td><div className="actions action-row">{permissions.has("leave.submit") && row.status === "DRAFT" ? <button className="table-button" disabled={busy} onClick={() => void act(row, "submit")}>Gönder</button> : null}{permissions.has("leave.submit") && ["DRAFT","SUBMITTED","PENDING_APPROVAL"].includes(row.status) ? <button className="table-button" disabled={busy} onClick={() => void act(row, "withdraw")}>Geri Çek</button> : null}</div></td></tr>)}</tbody></table></div>
     </section> : null}
 
     {permissions.has("leave.balance.view") ? <section className="panel audit-panel">
