@@ -3,7 +3,7 @@ using PersonnelPlatform.Application.Migration;
 using PersonnelPlatform.Domain.Migration;
 using PersonnelPlatform.Infrastructure.Persistence;
 
-namespace PersonnelPlatform.Infrastructure.Migration;
+namespace PersonnelPlatform.Infrastructure.LegacyMigration;
 
 public sealed class MigrationRepository(ApplicationDbContext db) : IMigrationRepository
 {
