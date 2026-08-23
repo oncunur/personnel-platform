@@ -4,11 +4,17 @@ import { useEffect, useState } from "react";
 
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
 
+type RoleSummary = { id: string; code: string; name: string };
+type PermissionSummary = { id: string; code: string; name: string; module: string };
+type ScopeSummary = { scopeType: string; scopeId: string | null; validFrom: string; validUntil: string | null };
 type MeResponse = {
   userId: string;
   username: string;
   email: string | null;
   securityVersion: number;
+  roles: RoleSummary[];
+  permissions: PermissionSummary[];
+  scopes: ScopeSummary[];
 };
 
 type AuthResponse = {
@@ -100,6 +106,10 @@ export default function DashboardPage() {
     sessionStorage.removeItem("pp_access_token_expires_at");
   }
 
+  const canOpenSecurity = me?.permissions.some((permission) =>
+    ["system.user.view", "system.role.view", "audit.view"].includes(permission.code),
+  ) ?? false;
+
   return (
     <main className="shell">
       <section className="hero compact">
@@ -111,16 +121,22 @@ export default function DashboardPage() {
             <strong>{me.username}</strong>
             <span>{me.email ?? "E-posta tanımlı değil"}</span>
             <span>Security version: {me.securityVersion}</span>
+            <span>Roller: {me.roles.map((role) => role.code).join(", ") || "—"}</span>
+            <span>Scope: {me.scopes.map((scope) => scope.scopeType).join(", ") || "—"}</span>
           </div>
         ) : null}
-        <div className="actions"><button className="secondary-button" type="button" onClick={logout}>Çıkış yap</button></div>
+        <div className="actions action-row">
+          {canOpenSecurity ? <a className="primary" href="/security">Security Console</a> : null}
+          <button className="secondary-button" type="button" onClick={logout}>Çıkış yap</button>
+        </div>
       </section>
 
       <section className="grid" aria-label="Sprint 1 durum kartları">
         <article className="card"><span>Aktif</span><h2>JWT Access Token</h2></article>
         <article className="card"><span>Aktif</span><h2>Refresh Token Rotation</h2></article>
-        <article className="card"><span>Aktif</span><h2>PBKDF2 Password Hashing</h2></article>
-        <article className="card"><span>Sıradaki</span><h2>Role / Permission / Scope</h2></article>
+        <article className="card"><span>Aktif</span><h2>Role / Permission / Scope</h2></article>
+        <article className="card"><span>Aktif</span><h2>Security Version Invalidation</h2></article>
+        <article className="card"><span>Aktif</span><h2>Append-only Security Audit</h2></article>
       </section>
     </main>
   );

@@ -22,6 +22,14 @@ public sealed class IdentityRepository(ApplicationDbContext dbContext) : IIdenti
     public Task<RefreshToken?> FindRefreshTokenByHashAsync(string tokenHash, CancellationToken cancellationToken) =>
         dbContext.RefreshTokens.FirstOrDefaultAsync(x => x.TokenHash == tokenHash, cancellationToken);
 
+    public async Task<IReadOnlyList<RefreshToken>> ListActiveRefreshTokensAsync(
+        Guid userId,
+        DateTimeOffset now,
+        CancellationToken cancellationToken) =>
+        await dbContext.RefreshTokens
+            .Where(x => x.UserId == userId && x.RevokedAt == null && x.ExpiresAt > now)
+            .ToListAsync(cancellationToken);
+
     public void AddUser(User user) => dbContext.Users.Add(user);
     public void AddRefreshToken(RefreshToken refreshToken) => dbContext.RefreshTokens.Add(refreshToken);
     public Task<int> SaveChangesAsync(CancellationToken cancellationToken) => dbContext.SaveChangesAsync(cancellationToken);

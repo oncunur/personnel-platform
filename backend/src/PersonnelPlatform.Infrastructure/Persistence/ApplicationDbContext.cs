@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using PersonnelPlatform.Domain.Audit;
 using PersonnelPlatform.Domain.Identity;
 
 namespace PersonnelPlatform.Infrastructure.Persistence;
@@ -12,6 +13,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<UserRole> UserRoles => Set<UserRole>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
     public DbSet<UserScope> UserScopes => Set<UserScope>();
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using PersonnelPlatform.Application.Audit;
+using PersonnelPlatform.Infrastructure.Audit;
 using PersonnelPlatform.Infrastructure.Health;
 using PersonnelPlatform.Infrastructure.Persistence;
 
@@ -16,6 +18,9 @@ public static class DependencyInjection
         services.AddDbContext<ApplicationDbContext>(options =>
             options.UseNpgsql(connectionString, npgsql =>
                 npgsql.MigrationsHistoryTable("__ef_migrations_history", DatabaseSchemas.System)));
+
+        services.AddScoped<IAuditRepository, AuditRepository>();
+        services.AddScoped<AuditService>();
 
         services.Configure<RedisOptions>(configuration.GetSection(RedisOptions.SectionName));
         services.AddSingleton<RedisTcpHealthCheck>();

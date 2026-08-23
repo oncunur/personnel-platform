@@ -139,6 +139,30 @@ public sealed class AuthService(
         await identityRepository.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<bool> LogoutAllAsync(
+        Guid userId,
+        string? ipAddress,
+        CancellationToken cancellationToken)
+    {
+        var user = await identityRepository.FindUserByIdAsync(userId, cancellationToken);
+        if (user is null || !user.IsActive)
+        {
+            return false;
+        }
+
+        var now = timeProvider.GetUtcNow();
+        var activeTokens = await identityRepository.ListActiveRefreshTokensAsync(userId, now, cancellationToken);
+
+        foreach (var token in activeTokens)
+        {
+            token.Revoke(now, ipAddress);
+        }
+
+        user.InvalidateSessions(now);
+        await identityRepository.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
     private static AuthenticatedUser ToAuthenticatedUser(User user) =>
         new(user.Id, user.Username, user.Email, user.SecurityVersion);
 

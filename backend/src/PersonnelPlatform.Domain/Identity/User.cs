@@ -99,6 +99,13 @@ public sealed class User : AuditableEntity
         Version++;
     }
 
+    public void InvalidateSessions(DateTimeOffset now)
+    {
+        SecurityVersion++;
+        UpdatedAt = now;
+        Version++;
+    }
+
     public void Activate(DateTimeOffset now)
     {
         if (IsActive)
