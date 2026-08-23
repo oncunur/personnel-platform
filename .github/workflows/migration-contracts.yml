@@ -26,3 +26,11 @@ jobs:
       - name: Test migration transformations
         working-directory: scripts/migration
         run: python -m unittest -v test_transform_values.py
+      - name: Run synthetic migration dry-run
+        run: >-
+          python scripts/migration/preview_transform.py
+          --source scripts/migration/fixtures/legacy-employees.csv
+          --mapping scripts/migration/fixtures/employee-field-mapping.csv
+          --source-system SYNTHETIC_HR
+          --source-object EMPLOYEE_EXPORT
+          --max-rows 10
