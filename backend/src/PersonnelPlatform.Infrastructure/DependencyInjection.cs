@@ -6,18 +6,21 @@ using PersonnelPlatform.Application.Attendance;
 using PersonnelPlatform.Application.Audit;
 using PersonnelPlatform.Application.Camp;
 using PersonnelPlatform.Application.Documents;
+using PersonnelPlatform.Application.Finance;
 using PersonnelPlatform.Application.Leave;
 using PersonnelPlatform.Application.Meal;
 using PersonnelPlatform.Application.Notification;
 using PersonnelPlatform.Application.Organization;
 using PersonnelPlatform.Application.Payroll;
 using PersonnelPlatform.Application.Personnel;
+using PersonnelPlatform.Application.Reporting;
 using PersonnelPlatform.Application.Workflow;
 using PersonnelPlatform.Infrastructure.Administration;
 using PersonnelPlatform.Infrastructure.Attendance;
 using PersonnelPlatform.Infrastructure.Audit;
 using PersonnelPlatform.Infrastructure.Camp;
 using PersonnelPlatform.Infrastructure.Documents;
+using PersonnelPlatform.Infrastructure.Finance;
 using PersonnelPlatform.Infrastructure.Health;
 using PersonnelPlatform.Infrastructure.Leave;
 using PersonnelPlatform.Infrastructure.Meal;
@@ -26,6 +29,7 @@ using PersonnelPlatform.Infrastructure.Organization;
 using PersonnelPlatform.Infrastructure.Payroll;
 using PersonnelPlatform.Infrastructure.Personnel;
 using PersonnelPlatform.Infrastructure.Persistence;
+using PersonnelPlatform.Infrastructure.Reporting;
 using PersonnelPlatform.Infrastructure.Workflow;
 
 namespace PersonnelPlatform.Infrastructure;
@@ -61,11 +65,14 @@ public static class DependencyInjection
         services.AddScoped<IAdministrativeAffairsRepository, AdministrativeAffairsRepository>();
         services.AddScoped<IWorkflowRepository, WorkflowRepository>();
         services.AddScoped<INotificationRepository, NotificationRepository>();
+        services.AddScoped<IFinanceRepository, FinanceRepository>();
+        services.AddScoped<IReportingRepository, ReportingRepository>();
 
         var storageRoot = configuration["FileStorage:RootPath"];
         if (string.IsNullOrWhiteSpace(storageRoot)) storageRoot = Path.Combine(AppContext.BaseDirectory, "storage");
         services.AddSingleton(new LocalFileStorageOptions(storageRoot));
         services.AddSingleton<IFileStorage, LocalFileStorage>();
+        services.AddSingleton<IReportFileStorage, ReportFileStorage>();
 
         var maxMbRaw = configuration["FileStorage:MaxUploadSizeMb"];
         var maxMb = long.TryParse(maxMbRaw, out var parsedMaxMb) && parsedMaxMb > 0 ? parsedMaxMb : 10;
