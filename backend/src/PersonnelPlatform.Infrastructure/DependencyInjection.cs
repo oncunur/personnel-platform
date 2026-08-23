@@ -53,6 +53,7 @@ public static class DependencyInjection
         services.AddScoped<IMealRepository, MealRepository>();
         services.AddScoped<IPayrollRepository, PayrollRepository>();
         services.AddScoped<IAssetStockRepository, AssetStockRepository>();
+        services.AddScoped<IVehicleRepository, VehicleRepository>();
 
         var storageRoot = configuration["FileStorage:RootPath"];
         if (string.IsNullOrWhiteSpace(storageRoot)) storageRoot = Path.Combine(AppContext.BaseDirectory, "storage");
