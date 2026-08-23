@@ -52,6 +52,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<EmployeeShiftAssignment> EmployeeShiftAssignments => Set<EmployeeShiftAssignment>();
     public DbSet<RawAttendanceEvent> RawAttendanceEvents => Set<RawAttendanceEvent>();
     public DbSet<DailyAttendance> DailyAttendances => Set<DailyAttendance>();
+    public DbSet<OvertimeRequest> OvertimeRequests => Set<OvertimeRequest>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

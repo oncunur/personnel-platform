@@ -139,6 +139,10 @@ public sealed class ApiExceptionMiddleware(RequestDelegate next, ILogger<ApiExce
                 code = "DAILY_ATTENDANCE_CONCURRENT_UPDATE";
                 message = "Bu günün puantajı başka bir işlem tarafından oluşturuldu. Veriyi yenileyip tekrar deneyin.";
                 return true;
+            case "ux_overtime_active_daily" when postgres.SqlState == PostgresErrorCodes.UniqueViolation:
+                code = "OVERTIME_REQUEST_ALREADY_EXISTS";
+                message = "Bu günlük puantaj için açık veya onaylanmış bir fazla mesai talebi zaten bulunuyor.";
+                return true;
             default:
                 return false;
         }
