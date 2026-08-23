@@ -19,6 +19,7 @@ public sealed record OvertimeRequestSummary(
     string EmployeeNo,
     string EmployeeName,
     Guid DailyAttendanceId,
+    int SourceDailyVersion,
     DateOnly AttendanceDate,
     int CandidateMinutes,
     int RequestedMinutes,
