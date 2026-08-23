@@ -53,21 +53,14 @@ public sealed class ApiExceptionMiddleware(RequestDelegate next, ILogger<ApiExce
         {
             logger.LogError(exception, "Unhandled exception. TraceId={TraceId}", context.TraceIdentifier);
 
-            if (context.Response.HasStarted)
-            {
-                throw;
-            }
+            if (context.Response.HasStarted) throw;
 
             context.Response.Clear();
             context.Response.StatusCode = StatusCodes.Status500InternalServerError;
             context.Response.ContentType = MediaTypeNames.Application.Json;
-
-            var response = ApiErrorResponse.Create(
-                code: "UNEXPECTED_ERROR",
-                message: "Beklenmeyen bir sistem hatası oluştu.",
-                traceId: context.TraceIdentifier);
-
-            await context.Response.WriteAsJsonAsync(response, context.RequestAborted);
+            await context.Response.WriteAsJsonAsync(
+                ApiErrorResponse.Create("UNEXPECTED_ERROR", "Beklenmeyen bir sistem hatası oluştu.", context.TraceIdentifier),
+                context.RequestAborted);
         }
     }
 
@@ -94,14 +87,10 @@ public sealed class ApiExceptionMiddleware(RequestDelegate next, ILogger<ApiExce
     }
 
     private static bool IsRequiredLeaveAttachment(Exception? exception) =>
-        exception is PostgresException postgres
-        && postgres.SqlState == "P0001"
-        && postgres.MessageText == "LEAVE_ATTACHMENT_REQUIRED";
+        exception is PostgresException postgres && postgres.SqlState == "P0001" && postgres.MessageText == "LEAVE_ATTACHMENT_REQUIRED";
 
     private static bool IsRawAttendanceImmutable(Exception? exception) =>
-        exception is PostgresException postgres
-        && postgres.SqlState == "P0001"
-        && postgres.MessageText == "RAW_ATTENDANCE_IMMUTABLE";
+        exception is PostgresException postgres && postgres.SqlState == "P0001" && postgres.MessageText == "RAW_ATTENDANCE_IMMUTABLE";
 
     private static bool TryMapBusinessConstraint(Exception? exception, out string code, out string message)
     {
@@ -166,6 +155,18 @@ public sealed class ApiExceptionMiddleware(RequestDelegate next, ILogger<ApiExce
             case "ex_accommodation_stays_employee_overlap" when postgres.SqlState == PostgresErrorCodes.ExclusionViolation:
                 code = "CAMP_EMPLOYEE_ACCOMMODATION_CONFLICT";
                 message = "Personelin bu tarih aralığında başka bir konaklama kaydı bulunuyor.";
+                return true;
+            case "ex_meal_rates_overlap" when postgres.SqlState == PostgresErrorCodes.ExclusionViolation:
+                code = "MEAL_RATE_DATE_CONFLICT";
+                message = "Bu kamp ve öğün türü için tarih aralığı çakışan başka bir fiyat bulunuyor.";
+                return true;
+            case "ux_meal_consumptions_employee_date_type" when postgres.SqlState == PostgresErrorCodes.UniqueViolation:
+                code = "MEAL_ALREADY_CONSUMED";
+                message = "Personel için bu gün ve öğün türünde tüketim kaydı zaten bulunuyor.";
+                return true;
+            case "ux_meal_consumptions_company_source_external" when postgres.SqlState == PostgresErrorCodes.UniqueViolation:
+                code = "MEAL_EXTERNAL_EVENT_DUPLICATE";
+                message = "Aynı harici yemek olayı daha önce kaydedilmiş. Kayıt yinelenmedi.";
                 return true;
             default:
                 return false;
