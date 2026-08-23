@@ -6,7 +6,6 @@ namespace PersonnelPlatform.Application.Administration;
 public interface IAdministrativeAffairsRepository
 {
     Task<User?> FindUserAsync(Guid userId, CancellationToken cancellationToken);
-    Task<IReadOnlyList<AdministrativeResponsibleUserSummary>> ListActiveUsersAsync(CancellationToken cancellationToken);
 
     Task<AdministrativeTask?> FindTaskAsync(Guid taskId, CancellationToken cancellationToken);
     Task<IReadOnlyList<AdministrativeTaskSummary>> ListTasksAsync(bool globalAccess, IReadOnlyCollection<Guid> companyIds, Guid? companyId, Guid? responsibleUserId, string? status, CancellationToken cancellationToken);
