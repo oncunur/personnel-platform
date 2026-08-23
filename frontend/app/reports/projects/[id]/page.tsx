@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams } from "next/navigation";
 
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
 type Cost = { currency: string; payrollCost: number; mealCost: number; accommodationCost: number; totalCost: number };
@@ -11,26 +11,30 @@ type AuthResponse = { accessToken: string };
 
 export default function Project360Page() {
   const params = useParams<{ id: string }>();
-  const search = useSearchParams();
   const today = new Date().toISOString().slice(0, 10);
-  const initialFrom = search.get("from") ?? `${today.slice(0, 7)}-01`;
-  const initialTo = search.get("to") ?? today;
-  const [from, setFrom] = useState(initialFrom);
-  const [to, setTo] = useState(initialTo);
+  const [from, setFrom] = useState(`${today.slice(0, 7)}-01`);
+  const [to, setTo] = useState(today);
   const [project, setProject] = useState<Project360 | null>(null);
   const [ledger, setLedger] = useState<Ledger[]>([]);
   const [message, setMessage] = useState("Project 360 yükleniyor…");
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => { void load(); }, [params.id]);
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
+    const resolvedFrom = query.get("from") ?? `${today.slice(0, 7)}-01`;
+    const resolvedTo = query.get("to") ?? today;
+    setFrom(resolvedFrom); setTo(resolvedTo);
+    void loadRange(resolvedFrom, resolvedTo);
+  }, [params.id]);
 
-  async function load(event?: FormEvent) {
-    event?.preventDefault();
+  async function load(event?: FormEvent) { event?.preventDefault(); await loadRange(from, to); }
+
+  async function loadRange(rangeFrom: string, rangeTo: string) {
     setBusy(true);
     try {
       const [summaryResponse, ledgerResponse] = await Promise.all([
-        authFetch(`/api/v1/reports/projects/${params.id}/360?from=${from}&to=${to}`),
-        authFetch(`/api/v1/finance/cost-ledger?projectId=${params.id}&from=${from}&to=${to}&take=1000`),
+        authFetch(`/api/v1/reports/projects/${params.id}/360?from=${rangeFrom}&to=${rangeTo}`),
+        authFetch(`/api/v1/finance/cost-ledger?projectId=${params.id}&from=${rangeFrom}&to=${rangeTo}&take=1000`),
       ]);
       if (!summaryResponse?.ok) {
         setMessage(await errorMessage(summaryResponse, "Project 360 alınamadı."));
