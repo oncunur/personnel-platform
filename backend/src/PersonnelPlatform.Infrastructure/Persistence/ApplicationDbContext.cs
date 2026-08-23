@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using PersonnelPlatform.Domain.Attendance;
 using PersonnelPlatform.Domain.Audit;
+using PersonnelPlatform.Domain.Camp;
 using PersonnelPlatform.Domain.Documents;
 using PersonnelPlatform.Domain.Identity;
 using PersonnelPlatform.Domain.Leave;
@@ -53,6 +54,12 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<RawAttendanceEvent> RawAttendanceEvents => Set<RawAttendanceEvent>();
     public DbSet<DailyAttendance> DailyAttendances => Set<DailyAttendance>();
     public DbSet<OvertimeRequest> OvertimeRequests => Set<OvertimeRequest>();
+
+    public DbSet<CampSite> Camps => Set<CampSite>();
+    public DbSet<CampRoom> CampRooms => Set<CampRoom>();
+    public DbSet<CampBed> CampBeds => Set<CampBed>();
+    public DbSet<AccommodationRate> AccommodationRates => Set<AccommodationRate>();
+    public DbSet<AccommodationStay> AccommodationStays => Set<AccommodationStay>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
