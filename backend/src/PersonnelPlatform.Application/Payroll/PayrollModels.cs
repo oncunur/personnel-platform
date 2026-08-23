@@ -14,7 +14,8 @@ public static class PayrollPermissions
 }
 
 public sealed record CreateEmployeeCompensationRequest(Guid EmployeeId, DateOnly ValidFrom, DateOnly? ValidUntilExclusive, decimal MonthlyBaseSalary, string Currency, decimal OvertimeMultiplier);
-public sealed record EmployeeCompensationSummary(Guid Id, Guid CompanyId, Guid EmployeeId, string EmployeeNo, string EmployeeName, DateOnly ValidFrom, DateOnly? ValidUntilExclusive, decimal? MonthlyBaseSalary, string MonthlyBaseSalaryDisplay, string Currency, decimal OvertimeMultiplier, int Version);
+public sealed record EmployeeCompensationSummary(Guid Id, Guid CompanyId, Guid EmployeeId, string EmployeeNo, string EmployeeName, DateOnly ValidFrom, DateOnly? ValidUntilExclusive, decimal MonthlyBaseSalary, string Currency, decimal OvertimeMultiplier, int Version);
+public sealed record EmployeeCompensationViewSummary(Guid Id, Guid CompanyId, Guid EmployeeId, string EmployeeNo, string EmployeeName, DateOnly ValidFrom, DateOnly? ValidUntilExclusive, decimal? MonthlyBaseSalary, string MonthlyBaseSalaryDisplay, string Currency, decimal OvertimeMultiplier, int Version);
 
 public sealed record CreatePayrollPeriodRequest(Guid CompanyId, int Year, int Month);
 public sealed record PayrollPeriodActionRequest(int Version);
