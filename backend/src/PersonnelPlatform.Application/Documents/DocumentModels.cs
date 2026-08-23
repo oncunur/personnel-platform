@@ -10,6 +10,7 @@ public static class DocumentPermissions
     public const string EmployeeCancel = "documents.employee.cancel";
     public const string FileView = "documents.file.view";
     public const string MissingView = "documents.missing.view";
+    public const string ExpiringView = "documents.expiring.view";
 }
 
 public sealed record DocumentTypeSummary(
@@ -60,6 +61,33 @@ public sealed record EmployeeDocumentSummary(
     int Version);
 
 public sealed record MissingDocumentSummary(Guid DocumentTypeId, string Code, string Name, bool FileRequired, bool DocumentNumberRequired, bool ExpirationRequired);
+
+public sealed record DocumentAttentionItem(
+    Guid DocumentId,
+    Guid EmployeeId,
+    Guid CompanyId,
+    string EmployeeNo,
+    string EmployeeName,
+    Guid DocumentTypeId,
+    string DocumentTypeCode,
+    string DocumentTypeName,
+    DateOnly ValidUntil,
+    string Status,
+    int DaysRemaining);
+
+public sealed record MissingEmployeeDocumentItem(
+    Guid EmployeeId,
+    Guid CompanyId,
+    string EmployeeNo,
+    string EmployeeName,
+    Guid DocumentTypeId,
+    string Code,
+    string Name);
+
+public sealed record DocumentEmployeeContext(Guid EmployeeId, Guid CompanyId, Guid EmployeeTypeId, string EmployeeNo, string EmployeeName);
+public sealed record DocumentFact(Guid EmployeeId, Guid DocumentTypeId, string Status, DateOnly? ValidUntil);
+public sealed record DocumentLifecycleResult(int Scanned, int Changed, int Expiring, int Expired);
+public sealed record DocumentDashboardList<T>(IReadOnlyList<T> Items, int TotalCount);
 
 public sealed record DocumentUploadFile(string OriginalName, string ContentType, long Length, Stream Content);
 
