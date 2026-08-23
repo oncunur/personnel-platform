@@ -11,6 +11,7 @@ using PersonnelPlatform.Application.Meal;
 using PersonnelPlatform.Application.Organization;
 using PersonnelPlatform.Application.Payroll;
 using PersonnelPlatform.Application.Personnel;
+using PersonnelPlatform.Application.Workflow;
 using PersonnelPlatform.Infrastructure.Administration;
 using PersonnelPlatform.Infrastructure.Attendance;
 using PersonnelPlatform.Infrastructure.Audit;
@@ -23,6 +24,7 @@ using PersonnelPlatform.Infrastructure.Organization;
 using PersonnelPlatform.Infrastructure.Payroll;
 using PersonnelPlatform.Infrastructure.Personnel;
 using PersonnelPlatform.Infrastructure.Persistence;
+using PersonnelPlatform.Infrastructure.Workflow;
 
 namespace PersonnelPlatform.Infrastructure;
 
@@ -55,6 +57,7 @@ public static class DependencyInjection
         services.AddScoped<IAssetStockRepository, AssetStockRepository>();
         services.AddScoped<IVehicleRepository, VehicleRepository>();
         services.AddScoped<IAdministrativeAffairsRepository, AdministrativeAffairsRepository>();
+        services.AddScoped<IWorkflowRepository, WorkflowRepository>();
 
         var storageRoot = configuration["FileStorage:RootPath"];
         if (string.IsNullOrWhiteSpace(storageRoot)) storageRoot = Path.Combine(AppContext.BaseDirectory, "storage");
