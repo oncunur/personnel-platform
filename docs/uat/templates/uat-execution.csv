@@ -1,0 +1,1 @@
+execution_id,scenario_id,environment,commit_sha,tester,persona,started_at,completed_at,result,observed_result,evidence_ref,defect_id,retest_of_execution_id,notes
