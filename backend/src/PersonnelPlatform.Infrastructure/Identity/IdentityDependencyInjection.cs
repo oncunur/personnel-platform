@@ -1,8 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using PersonnelPlatform.Application.Identity;
-using PersonnelPlatform.Application.Security;
-using PersonnelPlatform.Infrastructure.Security;
 
 namespace PersonnelPlatform.Infrastructure.Identity;
 
@@ -13,7 +11,6 @@ public static class IdentityDependencyInjection
         var issuer = GetRequired(configuration, "Jwt:Issuer");
         var audience = GetRequired(configuration, "Jwt:Audience");
         var signingKey = GetRequired(configuration, "Jwt:SigningKey");
-        var dataProtectionKey = GetRequired(configuration, "Security:DataProtectionKey");
         var accessTokenMinutes = GetPositiveInt(configuration, "Jwt:AccessTokenMinutes", 15);
         var refreshTokenDays = GetPositiveInt(configuration, "Jwt:RefreshTokenDays", 7);
         var maxFailedAttempts = GetPositiveInt(configuration, "Identity:MaxFailedLoginAttempts", 5);
@@ -32,7 +29,6 @@ public static class IdentityDependencyInjection
         services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
         services.AddSingleton<IAuthTokenService, JwtTokenService>();
         services.AddSingleton<ITotpService, TotpService>();
-        services.AddSingleton<ISensitiveDataProtector>(new AesGcmSensitiveDataProtector(dataProtectionKey));
         services.AddScoped<IIdentityRepository, IdentityRepository>();
         return services;
     }
