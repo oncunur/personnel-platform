@@ -42,24 +42,29 @@ public sealed record PayrollEmployeeResultSummary(
     DateTimeOffset CalculatedAt);
 
 public sealed record PayrollCurrencyAmount(string Currency, decimal Amount);
+public sealed record PayrollSourceRef(Guid Id, int Version);
+public sealed record PayrollProjectAllocationSnapshot(Guid AssignmentId, Guid ProjectId, Guid? CostCenterId, DateOnly ValidFrom, DateOnly? ValidUntil, decimal AllocationPercent);
+
 public sealed record PayrollCalculationSource(
     Guid EmployeeId,
     string EmployeeNo,
     string EmployeeName,
-    Guid CompensationId,
-    decimal MonthlyBaseSalary,
-    string Currency,
-    decimal OvertimeMultiplier,
+    Guid? CompensationId,
+    decimal? MonthlyBaseSalary,
+    string? Currency,
+    decimal? OvertimeMultiplier,
     int PlannedMinutes,
     int WorkedMinutes,
     int PaidLeaveMinutes,
     int ApprovedOvertimeMinutes,
+    int UnapprovedAttendanceCount,
     IReadOnlyList<PayrollCurrencyAmount> MealCosts,
     IReadOnlyList<PayrollCurrencyAmount> AccommodationCosts,
-    IReadOnlyList<Guid> DailyAttendanceIds,
-    IReadOnlyList<Guid> ApprovedOvertimeIds,
-    IReadOnlyList<Guid> MealConsumptionIds,
-    IReadOnlyList<Guid> AccommodationStayIds);
+    IReadOnlyList<PayrollSourceRef> DailyAttendanceRefs,
+    IReadOnlyList<PayrollSourceRef> ApprovedOvertimeRefs,
+    IReadOnlyList<PayrollSourceRef> MealConsumptionRefs,
+    IReadOnlyList<PayrollSourceRef> AccommodationStayRefs,
+    IReadOnlyList<PayrollProjectAllocationSnapshot> ProjectAllocations);
 
 public sealed record PayrollResult<T>(bool Succeeded, T? Value, string? ErrorCode, string? ErrorMessage) where T : class
 {
