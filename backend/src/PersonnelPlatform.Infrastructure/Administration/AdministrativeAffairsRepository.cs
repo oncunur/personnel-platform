@@ -56,10 +56,13 @@ public sealed class AdministrativeAffairsRepository(ApplicationDbContext db) : I
 
     public void AddContract(AdministrativeContract contract) => db.AdministrativeContracts.Add(contract);
 
-    public async Task<IReadOnlyList<AdministrativeReminderCandidate>> BuildReminderCandidatesAsync(DateOnly today, int vehicleDateHorizonDays, int taskDefaultHorizonDays, int maintenanceKmThreshold, CancellationToken ct)
+    public async Task<IReadOnlyList<AdministrativeReminderCandidate>> BuildReminderCandidatesAsync(DateOnly today, IReadOnlyCollection<Guid>? companyIds, int vehicleDateHorizonDays, int taskDefaultHorizonDays, int maintenanceKmThreshold, CancellationToken ct)
     {
         var candidates = new List<AdministrativeReminderCandidate>();
-        var vehicles = await db.Vehicles.AsNoTracking().Where(x => x.DeletedAt == null && x.Status != VehicleStatuses.Retired).ToListAsync(ct);
+
+        var vehicleQuery = db.Vehicles.AsNoTracking().Where(x => x.DeletedAt == null && x.Status != VehicleStatuses.Retired);
+        if (companyIds is not null) vehicleQuery = vehicleQuery.Where(x => companyIds.Contains(x.CompanyId));
+        var vehicles = await vehicleQuery.ToListAsync(ct);
         foreach (var v in vehicles)
         {
             AddVehicleDateCandidate(candidates, v.CompanyId, v.Id, v.Plate, "VEHICLE_INSURANCE_DUE", "Sigorta", v.InsuranceValidUntil, today, vehicleDateHorizonDays);
@@ -69,38 +72,51 @@ public sealed class AdministrativeAffairsRepository(ApplicationDbContext db) : I
         var vehicleIds = vehicles.Select(x => x.Id).ToArray();
         var currentKm = await db.VehicleOdometerEvents.AsNoTracking().Where(x => vehicleIds.Contains(x.VehicleId) && x.DeletedAt == null)
             .GroupBy(x => x.VehicleId).Select(g => new { VehicleId = g.Key, Km = g.Max(x => x.OdometerKm) }).ToDictionaryAsync(x => x.VehicleId, x => x.Km, ct);
-        var maintenance = await (from m in db.VehicleMaintenanceRecords.AsNoTracking()
-                                 join v in db.Vehicles.AsNoTracking() on m.VehicleId equals v.Id
-                                 where m.DeletedAt == null && v.DeletedAt == null && v.Status != VehicleStatuses.Retired && (m.NextDueDate != null || m.NextDueOdometerKm != null)
-                                 select new { m, v.Plate }).ToListAsync(ct);
+
+        var maintenanceRows = await (from m in db.VehicleMaintenanceRecords.AsNoTracking()
+                                     join v in db.Vehicles.AsNoTracking() on m.VehicleId equals v.Id
+                                     where vehicleIds.Contains(m.VehicleId) && m.DeletedAt == null && v.DeletedAt == null && v.Status != VehicleStatuses.Retired
+                                     select new { m, v.Plate }).ToListAsync(ct);
+        var maintenance = maintenanceRows
+            .GroupBy(x => new { x.m.VehicleId, Type = x.m.MaintenanceType.ToUpperInvariant() })
+            .Select(g => g.OrderByDescending(x => x.m.ServiceDate).ThenByDescending(x => x.m.CreatedAt).First())
+            .ToArray();
+
         foreach (var x in maintenance)
         {
             if (x.m.NextDueDate is not null && today >= x.m.NextDueDate.Value.AddDays(-vehicleDateHorizonDays))
             {
                 var due = x.m.NextDueDate.Value;
-                candidates.Add(new(x.m.CompanyId, "VEHICLE_MAINTENANCE_DATE_DUE", "VEHICLE_MAINTENANCE", x.m.Id, due, Severity(today, due), $"VEHICLE_MAINT_DATE:{x.m.Id:N}:{due:yyyyMMdd}", $"{x.Plate} için {x.m.MaintenanceType} bakım tarihi yaklaşıyor: {due:yyyy-MM-dd}.", JsonSerializer.Serialize(new { x.m.VehicleId, x.m.MaintenanceType, dueDate = due })));
+                var severity = Severity(today, due);
+                candidates.Add(new(x.m.CompanyId, "VEHICLE_MAINTENANCE_DATE_DUE", "VEHICLE_MAINTENANCE", x.m.Id, due, severity, $"VEHICLE_MAINT_DATE:{x.m.Id:N}:{due:yyyyMMdd}:{severity}", $"{x.Plate} için {x.m.MaintenanceType} bakım tarihi yaklaşıyor: {due:yyyy-MM-dd}.", JsonSerializer.Serialize(new { x.m.VehicleId, x.m.MaintenanceType, dueDate = due })));
             }
             if (x.m.NextDueOdometerKm is not null && currentKm.TryGetValue(x.m.VehicleId, out var km) && km >= x.m.NextDueOdometerKm.Value - maintenanceKmThreshold)
             {
                 var dueKm = x.m.NextDueOdometerKm.Value;
                 var severity = km >= dueKm ? "CRITICAL" : dueKm - km <= 250 ? "IMPORTANT" : "NORMAL";
-                candidates.Add(new(x.m.CompanyId, "VEHICLE_MAINTENANCE_KM_DUE", "VEHICLE_MAINTENANCE", x.m.Id, null, severity, $"VEHICLE_MAINT_KM:{x.m.Id:N}:{dueKm}", $"{x.Plate} için {x.m.MaintenanceType} bakım kilometresi yaklaşıyor: {km}/{dueKm} km.", JsonSerializer.Serialize(new { x.m.VehicleId, x.m.MaintenanceType, currentKm = km, dueKm })));
+                candidates.Add(new(x.m.CompanyId, "VEHICLE_MAINTENANCE_KM_DUE", "VEHICLE_MAINTENANCE", x.m.Id, null, severity, $"VEHICLE_MAINT_KM:{x.m.Id:N}:{dueKm}:{severity}", $"{x.Plate} için {x.m.MaintenanceType} bakım kilometresi yaklaşıyor: {km}/{dueKm} km.", JsonSerializer.Serialize(new { x.m.VehicleId, x.m.MaintenanceType, currentKm = km, dueKm })));
             }
         }
 
-        var tasks = await db.AdministrativeTasks.AsNoTracking().Where(x => x.DeletedAt == null && x.Status == AdministrativeTaskStatuses.Open).ToListAsync(ct);
+        var taskQuery = db.AdministrativeTasks.AsNoTracking().Where(x => x.DeletedAt == null && x.Status == AdministrativeTaskStatuses.Open);
+        if (companyIds is not null) taskQuery = taskQuery.Where(x => companyIds.Contains(x.CompanyId));
+        var tasks = await taskQuery.ToListAsync(ct);
         foreach (var task in tasks)
         {
             var horizon = task.ReminderDaysBefore > 0 ? task.ReminderDaysBefore : taskDefaultHorizonDays;
             if (today < task.DueDate.AddDays(-horizon)) continue;
-            candidates.Add(new(task.CompanyId, "ADMIN_TASK_DUE", "ADMIN_TASK", task.Id, task.DueDate, Severity(today, task.DueDate), $"ADMIN_TASK:{task.Id:N}:{task.DueDate:yyyyMMdd}", $"İdari görev son tarihi yaklaşıyor: {task.Code} · {task.Title} · {task.DueDate:yyyy-MM-dd}.", JsonSerializer.Serialize(new { task.Code, task.Title, task.ResponsibleUserId, task.DueDate })));
+            var severity = Severity(today, task.DueDate);
+            candidates.Add(new(task.CompanyId, "ADMIN_TASK_DUE", "ADMIN_TASK", task.Id, task.DueDate, severity, $"ADMIN_TASK:{task.Id:N}:{task.DueDate:yyyyMMdd}:{severity}", $"İdari görev son tarihi yaklaşıyor: {task.Code} · {task.Title} · {task.DueDate:yyyy-MM-dd}.", JsonSerializer.Serialize(new { task.Code, task.Title, task.ResponsibleUserId, task.DueDate })));
         }
 
-        var contracts = await db.AdministrativeContracts.AsNoTracking().Where(x => x.DeletedAt == null && x.Status == AdministrativeContractStatuses.Active).ToListAsync(ct);
+        var contractQuery = db.AdministrativeContracts.AsNoTracking().Where(x => x.DeletedAt == null && x.Status == AdministrativeContractStatuses.Active);
+        if (companyIds is not null) contractQuery = contractQuery.Where(x => companyIds.Contains(x.CompanyId));
+        var contracts = await contractQuery.ToListAsync(ct);
         foreach (var contract in contracts)
         {
             if (today < contract.EndDate.AddDays(-contract.ReminderDaysBefore)) continue;
-            candidates.Add(new(contract.CompanyId, "ADMIN_CONTRACT_EXPIRY_DUE", "ADMIN_CONTRACT", contract.Id, contract.EndDate, Severity(today, contract.EndDate), $"ADMIN_CONTRACT:{contract.Id:N}:{contract.EndDate:yyyyMMdd}", $"Kontrat bitiş tarihi yaklaşıyor: {contract.ContractNo} · {contract.Title} · {contract.EndDate:yyyy-MM-dd}.", JsonSerializer.Serialize(new { contract.ContractNo, contract.Title, contract.Counterparty, contract.ResponsibleUserId, contract.EndDate, contract.AutoRenewal })));
+            var severity = Severity(today, contract.EndDate);
+            candidates.Add(new(contract.CompanyId, "ADMIN_CONTRACT_EXPIRY_DUE", "ADMIN_CONTRACT", contract.Id, contract.EndDate, severity, $"ADMIN_CONTRACT:{contract.Id:N}:{contract.EndDate:yyyyMMdd}:{severity}", $"Kontrat bitiş tarihi yaklaşıyor: {contract.ContractNo} · {contract.Title} · {contract.EndDate:yyyy-MM-dd}.", JsonSerializer.Serialize(new { contract.ContractNo, contract.Title, contract.Counterparty, contract.ResponsibleUserId, contract.EndDate, contract.AutoRenewal })));
         }
         return candidates;
     }
@@ -132,7 +148,8 @@ public sealed class AdministrativeAffairsRepository(ApplicationDbContext db) : I
     private static void AddVehicleDateCandidate(List<AdministrativeReminderCandidate> target, Guid companyId, Guid vehicleId, string plate, string type, string label, DateOnly? due, DateOnly today, int horizon)
     {
         if (due is null || today < due.Value.AddDays(-horizon)) return;
-        target.Add(new(companyId, type, "VEHICLE", vehicleId, due, Severity(today, due.Value), $"{type}:{vehicleId:N}:{due.Value:yyyyMMdd}", $"{plate} için {label.ToLowerInvariant()} tarihi yaklaşıyor: {due.Value:yyyy-MM-dd}.", JsonSerializer.Serialize(new { vehicleId, plate, dueDate = due.Value })));
+        var severity = Severity(today, due.Value);
+        target.Add(new(companyId, type, "VEHICLE", vehicleId, due, severity, $"{type}:{vehicleId:N}:{due.Value:yyyyMMdd}:{severity}", $"{plate} için {label.ToLowerInvariant()} tarihi yaklaşıyor: {due.Value:yyyy-MM-dd}.", JsonSerializer.Serialize(new { vehicleId, plate, dueDate = due.Value })));
     }
 
     private static string Severity(DateOnly today, DateOnly due) => today > due ? "CRITICAL" : due.DayNumber - today.DayNumber <= 7 ? "IMPORTANT" : "NORMAL";
