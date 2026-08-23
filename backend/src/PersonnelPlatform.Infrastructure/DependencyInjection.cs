@@ -40,17 +40,14 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("Postgres")
-            ?? throw new InvalidOperationException("ConnectionStrings:Postgres is required.");
-
-        services.AddDbContext<ApplicationDbContext>(options =>
-            options.UseNpgsql(connectionString, npgsql =>
-                npgsql.MigrationsHistoryTable("__ef_migrations_history", DatabaseSchemas.System)));
+        var connectionString = configuration.GetConnectionString("Postgres") ?? throw new InvalidOperationException("ConnectionStrings:Postgres is required.");
+        services.AddDbContext<ApplicationDbContext>(options => options.UseNpgsql(connectionString, npgsql => npgsql.MigrationsHistoryTable("__ef_migrations_history", DatabaseSchemas.System)));
 
         services.AddScoped<IAuditRepository, AuditRepository>();
         services.AddScoped<AuditService>();
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();
         services.AddScoped<IPersonnelRepository, PersonnelRepository>();
+        services.AddScoped<IEmployeeSensitiveRepository, EmployeeSensitiveRepository>();
         services.AddScoped<IDocumentRepository, DocumentRepository>();
         services.AddScoped<IDocumentHistoryRepository, DocumentHistoryRepository>();
         services.AddScoped<ILeaveRepository, LeaveRepository>();
@@ -77,19 +74,12 @@ public static class DependencyInjection
         services.AddSingleton(new LocalFileStorageOptions(storageRoot));
         services.AddSingleton<IFileStorage, LocalFileStorage>();
         services.AddSingleton<IReportFileStorage, ReportFileStorage>();
-
         var maxMbRaw = configuration["FileStorage:MaxUploadSizeMb"];
         var maxMb = long.TryParse(maxMbRaw, out var parsedMaxMb) && parsedMaxMb > 0 ? parsedMaxMb : 10;
         services.AddSingleton(new DocumentFilePolicyOptions(maxMb * 1024 * 1024));
-
         services.Configure<RedisOptions>(configuration.GetSection(RedisOptions.SectionName));
         services.AddSingleton<RedisTcpHealthCheck>();
-
-        services
-            .AddHealthChecks()
-            .AddDbContextCheck<ApplicationDbContext>(name: "postgres", tags: ["ready"])
-            .AddCheck<RedisTcpHealthCheck>(name: "redis", tags: ["ready"]);
-
+        services.AddHealthChecks().AddDbContextCheck<ApplicationDbContext>(name: "postgres", tags: ["ready"]).AddCheck<RedisTcpHealthCheck>(name: "redis", tags: ["ready"]);
         return services;
     }
 }
