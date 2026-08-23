@@ -18,6 +18,16 @@ function todayLocal() {
   return new Date(now.getTime() - offset).toISOString().slice(0, 10);
 }
 
+function localDateTimeWithOffset(localDate: string, localTime: string) {
+  const local = new Date(`${localDate}T${localTime}:00`);
+  const minutesEastOfUtc = -local.getTimezoneOffset();
+  const sign = minutesEastOfUtc >= 0 ? "+" : "-";
+  const absolute = Math.abs(minutesEastOfUtc);
+  const hours = String(Math.floor(absolute / 60)).padStart(2, "0");
+  const minutes = String(absolute % 60).padStart(2, "0");
+  return `${localDate}T${localTime}:00${sign}${hours}:${minutes}`;
+}
+
 export default function DailyAttendancePage() {
   const [me, setMe] = useState<Me | null>(null);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -81,13 +91,12 @@ export default function DailyAttendancePage() {
       const form = new FormData(event.currentTarget);
       const localDate = String(form.get("eventDate"));
       const localTime = String(form.get("eventTime"));
-      const local = new Date(`${localDate}T${localTime}:00`);
       const body = {
         companyId: selectedEmployee.companyId,
         employeeId: selectedEmployee.id,
         source: form.get("source"),
         direction: form.get("direction"),
-        eventAt: local.toISOString(),
+        eventAt: localDateTimeWithOffset(localDate, localTime),
         deviceCode: form.get("deviceCode") || null,
         externalEventId: form.get("externalEventId") || null,
         rawPayloadJson: null,
