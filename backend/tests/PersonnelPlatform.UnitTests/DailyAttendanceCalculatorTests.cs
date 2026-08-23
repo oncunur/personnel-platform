@@ -32,6 +32,7 @@ public sealed class DailyAttendanceCalculatorTests
         Assert.Equal(480, result.WorkedMinutes);
         Assert.Equal(0, result.LateMinutes);
         Assert.Equal(0, result.EarlyLeaveMinutes);
+        Assert.Null(result.Message);
     }
 
     [Fact]
@@ -81,7 +82,7 @@ public sealed class DailyAttendanceCalculatorTests
 
         Assert.Equal(DailyAttendanceStatuses.MissingRecord, result.Status);
         Assert.Equal(DailyAttendanceProcessingStatuses.ReviewRequired, result.ProcessingStatus);
-        Assert.NotNull(result.CalculationMessage());
+        Assert.NotNull(result.Message);
     }
 
     [Fact]
@@ -106,6 +107,33 @@ public sealed class DailyAttendanceCalculatorTests
         Assert.Equal(DailyAttendanceStatuses.Leave, result.Status);
         Assert.Equal(DailyAttendanceProcessingStatuses.Calculated, result.ProcessingStatus);
         Assert.Equal(480, result.LeaveMinutes);
+    }
+
+    [Fact]
+    public void Full_day_leave_with_punch_requires_review()
+    {
+        var date = new DateOnly(2026, 8, 24);
+        var input = new DailyAttendanceCalculationInput(
+            date,
+            new TimeOnly(8, 0),
+            new TimeOnly(17, 0),
+            60,
+            480,
+            0,
+            0,
+            WorkCalendarDayTypes.Workday,
+            1m,
+            false,
+            [
+                Punch(date, new TimeOnly(8, 0), RawAttendanceDirections.In),
+                Punch(date, new TimeOnly(17, 0), RawAttendanceDirections.Out)
+            ]);
+
+        var result = DailyAttendanceCalculator.Calculate(input);
+
+        Assert.Equal(DailyAttendanceStatuses.Leave, result.Status);
+        Assert.Equal(DailyAttendanceProcessingStatuses.ReviewRequired, result.ProcessingStatus);
+        Assert.NotNull(result.Message);
     }
 
     [Fact]
@@ -135,14 +163,32 @@ public sealed class DailyAttendanceCalculatorTests
         Assert.Equal(480, result.OvertimeCandidateMinutes);
     }
 
+    [Fact]
+    public void Raw_event_preserves_source_local_snapshot_but_stores_event_in_utc()
+    {
+        var sourceTime = new DateTimeOffset(2026, 8, 24, 8, 15, 0, TimeSpan.FromHours(3));
+        var row = RawAttendanceEvent.Create(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            RawAttendanceSources.Pdks,
+            RawAttendanceDirections.In,
+            sourceTime,
+            "TURNSTILE-1",
+            "evt-1",
+            null,
+            DateTimeOffset.UtcNow,
+            Guid.NewGuid());
+
+        Assert.Equal(new DateOnly(2026, 8, 24), row.LocalDate);
+        Assert.Equal(new TimeOnly(8, 15), row.LocalTime);
+        Assert.Equal(180, row.UtcOffsetMinutes);
+        Assert.Equal(TimeSpan.Zero, row.EventAt.Offset);
+        Assert.Equal(sourceTime.UtcDateTime, row.EventAt.UtcDateTime);
+    }
+
     private static AttendancePunchPoint Punch(DateOnly date, TimeOnly time, string direction)
     {
         var local = new DateTimeOffset(date.Year, date.Month, date.Day, time.Hour, time.Minute, 0, TimeSpan.FromHours(3));
-        return new AttendancePunchPoint(Guid.NewGuid(), date, time, local, direction);
+        return new AttendancePunchPoint(Guid.NewGuid(), date, time, local.ToUniversalTime(), direction);
     }
-}
-
-internal static class DailyAttendanceTestExtensions
-{
-    public static string? CalculationMessage(this DailyAttendanceCalculationResult result) => result.Message;
 }
