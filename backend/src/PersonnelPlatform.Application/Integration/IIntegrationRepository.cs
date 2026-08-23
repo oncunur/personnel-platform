@@ -34,7 +34,7 @@ public interface IIntegrationRepository
     Task<IReadOnlyList<IntegrationStagingHistory>> ListStagingHistoryAsync(Guid stagingId, CancellationToken ct);
     Task<IReadOnlyList<IntegrationStagingRecord>> ListDueStagingAsync(DateTimeOffset now, int take, CancellationToken ct);
     Task<IReadOnlyList<IntegrationStagingRecord>> ListCompanyStagingAsync(Guid companyId, CancellationToken ct);
-    void AddStaging(IntegrationStagingRecord record);
+    Task<bool> TryInsertStagingAsync(IntegrationStagingRecord record, CancellationToken ct);
     void AddStagingHistory(IntegrationStagingHistory history);
 
     Task<Employee?> FindEmployeeAsync(Guid employeeId, CancellationToken ct);
