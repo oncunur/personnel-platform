@@ -10,7 +10,7 @@ services:
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-personnel} -d ${POSTGRES_DB:-personnel_platform}"]
       interval: 5s
@@ -42,11 +42,14 @@ services:
       Redis__Port: 6379
       Jwt__SigningKey: ${JWT_SIGNING_KEY:-dev-only-signing-key-change-me-at-least-32-bytes-long}
       Security__DataProtectionKey: ${SECURITY_DATA_PROTECTION_KEY:-MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}
+      FileStorage__RootPath: /app/storage
       BootstrapAdmin__Username: ${BOOTSTRAP_ADMIN_USERNAME:-admin}
       BootstrapAdmin__Password: ${BOOTSTRAP_ADMIN_PASSWORD:-Admin123!ChangeMe}
       BootstrapAdmin__Email: ${BOOTSTRAP_ADMIN_EMAIL:-admin@local.test}
     ports:
       - "${API_PORT:-8080}:8080"
+    volumes:
+      - file_storage:/app/storage
     depends_on:
       postgres:
         condition: service_healthy
@@ -63,6 +66,9 @@ services:
       Redis__Host: redis
       Redis__Port: 6379
       Security__DataProtectionKey: ${SECURITY_DATA_PROTECTION_KEY:-MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}
+      FileStorage__RootPath: /app/storage
+    volumes:
+      - file_storage:/app/storage
     depends_on:
       postgres:
         condition: service_healthy
@@ -85,3 +91,4 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  file_storage:

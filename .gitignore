@@ -27,3 +27,4 @@ coverage/
 # Local runtime
 *.log
 **/storage/
+backups/

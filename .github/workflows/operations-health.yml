@@ -1,0 +1,27 @@
+name: operations-health
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deployment-health:
+    if: ${{ vars.MONITOR_BASE_URL != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Probe deployment health
+        env:
+          BASE_URL: ${{ vars.MONITOR_BASE_URL }}
+          COMPANY_ID: ${{ vars.MONITOR_COMPANY_ID }}
+          BEARER_TOKEN: ${{ secrets.MONITOR_BEARER_TOKEN }}
+          MAX_INTEGRATION_BACKLOG: ${{ vars.MAX_INTEGRATION_BACKLOG || '500' }}
+          MAX_INTEGRATION_ERRORS: ${{ vars.MAX_INTEGRATION_ERRORS || '50' }}
+          MAX_INTEGRATION_DEAD_LETTERS: ${{ vars.MAX_INTEGRATION_DEAD_LETTERS || '0' }}
+        run: bash scripts/ops/health-watch.sh "$BASE_URL"
