@@ -97,6 +97,7 @@ public sealed class OvertimeRepository(ApplicationDbContext dbContext) : IOverti
             employee.EmployeeNo,
             employee.FirstName + " " + employee.LastName,
             overtime.DailyAttendanceId,
+            overtime.SourceDailyVersion,
             overtime.AttendanceDate,
             overtime.CandidateMinutes,
             overtime.RequestedMinutes,
