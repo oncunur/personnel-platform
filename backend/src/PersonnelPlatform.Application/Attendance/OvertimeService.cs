@@ -7,15 +7,16 @@ namespace PersonnelPlatform.Application.Attendance;
 
 public sealed class OvertimeService(
     IOvertimeRepository repository,
-    IAttendanceProcessingRepository attendanceRepository,
     IPersonnelRepository personnelRepository,
     AccessControlService accessControlService,
     TimeProvider timeProvider)
 {
     public async Task<AttendanceResult<OvertimeRequestSummary>> CreateAsync(Guid userId, CreateOvertimeRequest request, CancellationToken cancellationToken)
     {
-        var daily = await attendanceRepository.FindDailyAsync(Guid.Empty, default, cancellationToken);
-        daily = await FindDailyByIdAsync(request.DailyAttendanceId, cancellationToken);
+        if (request.DailyAttendanceId == Guid.Empty)
+            return AttendanceResult<OvertimeRequestSummary>.Failure("DAILY_ATTENDANCE_NOT_FOUND", "Günlük puantaj kaydı bulunamadı.");
+
+        var daily = await repository.FindDailyAttendanceByIdAsync(request.DailyAttendanceId, cancellationToken);
         if (daily is null) return AttendanceResult<OvertimeRequestSummary>.Failure("DAILY_ATTENDANCE_NOT_FOUND", "Günlük puantaj kaydı bulunamadı.");
 
         var employee = await personnelRepository.FindEmployeeAsync(daily.EmployeeId, cancellationToken);
@@ -162,18 +163,6 @@ public sealed class OvertimeService(
         }
     }
 
-    private async Task<DailyAttendance?> FindDailyByIdAsync(Guid dailyAttendanceId, CancellationToken cancellationToken)
-    {
-        if (dailyAttendanceId == Guid.Empty) return null;
-        return await repositoryDailyBridge(dailyAttendanceId, cancellationToken);
-    }
-
-    private async Task<DailyAttendance?> repositoryDailyBridge(Guid dailyAttendanceId, CancellationToken cancellationToken)
-    {
-        // IAttendanceProcessingRepository intentionally exposes day-key lookup only; locate by candidate id through the overtime repository bridge.
-        return await ((IOvertimeDailyAttendanceLookup)repository).FindDailyAttendanceByIdAsync(dailyAttendanceId, cancellationToken);
-    }
-
     private async Task<CompanyAccess> ResolveAccessAsync(Guid userId, CancellationToken cancellationToken)
     {
         var snapshot = await accessControlService.GetSnapshotAsync(userId, cancellationToken);
@@ -183,9 +172,4 @@ public sealed class OvertimeService(
     }
 
     private sealed record CompanyAccess(bool Global, IReadOnlyCollection<Guid> CompanyIds);
-}
-
-public interface IOvertimeDailyAttendanceLookup
-{
-    Task<DailyAttendance?> FindDailyAttendanceByIdAsync(Guid dailyAttendanceId, CancellationToken cancellationToken);
 }
