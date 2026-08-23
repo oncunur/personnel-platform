@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using PersonnelPlatform.Domain.Audit;
 using PersonnelPlatform.Domain.Documents;
 using PersonnelPlatform.Domain.Identity;
+using PersonnelPlatform.Domain.Leave;
 using PersonnelPlatform.Domain.Organization;
 using PersonnelPlatform.Domain.Personnel;
 
@@ -34,6 +35,11 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<DocumentTypeEmployeeTypeRequirement> DocumentTypeEmployeeTypeRequirements => Set<DocumentTypeEmployeeTypeRequirement>();
     public DbSet<EmployeeDocument> EmployeeDocuments => Set<EmployeeDocument>();
     public DbSet<EmployeeDocumentHistory> EmployeeDocumentHistories => Set<EmployeeDocumentHistory>();
+
+    public DbSet<LeaveType> LeaveTypes => Set<LeaveType>();
+    public DbSet<LeaveEntitlement> LeaveEntitlements => Set<LeaveEntitlement>();
+    public DbSet<LeaveBalance> LeaveBalances => Set<LeaveBalance>();
+    public DbSet<LeaveRequest> LeaveRequests => Set<LeaveRequest>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
