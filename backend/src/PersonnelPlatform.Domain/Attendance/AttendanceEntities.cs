@@ -57,6 +57,7 @@ public sealed class WorkCalendarDay : AuditableEntity
     public static WorkCalendarDay Create(Guid workCalendarId, DateOnly date, string dayType, int plannedMinutes, bool isPaid, string? description, DateTimeOffset now, Guid actorUserId)
     {
         if (workCalendarId == Guid.Empty || actorUserId == Guid.Empty) throw new ArgumentException("Calendar and actor are required.");
+        ArgumentException.ThrowIfNullOrWhiteSpace(dayType);
         var normalizedType = dayType.Trim().ToUpperInvariant();
         if (!WorkCalendarDayTypes.IsKnown(normalizedType)) throw new ArgumentException("Calendar day type is invalid.", nameof(dayType));
         if (plannedMinutes < 0 || plannedMinutes > 1440) throw new ArgumentOutOfRangeException(nameof(plannedMinutes));
@@ -76,6 +77,7 @@ public sealed class WorkCalendarDay : AuditableEntity
 
     public void Update(string dayType, int plannedMinutes, bool isPaid, string? description, DateTimeOffset now, Guid actorUserId)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(dayType);
         var normalizedType = dayType.Trim().ToUpperInvariant();
         if (!WorkCalendarDayTypes.IsKnown(normalizedType)) throw new ArgumentException("Calendar day type is invalid.", nameof(dayType));
         if (plannedMinutes < 0 || plannedMinutes > 1440) throw new ArgumentOutOfRangeException(nameof(plannedMinutes));
