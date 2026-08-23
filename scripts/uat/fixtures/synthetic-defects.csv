@@ -1,0 +1,2 @@
+defect_id,scenario_id,severity,title,status,owner,opened_at,fixed_at,retest_execution_id,disposition,notes
+SYN-DEF-001,PAY-003,S2,Synthetic payroll approval transition failure,CLOSED,ci-owner,2026-08-24T00:05:00Z,2026-08-24T00:09:00Z,SYN-EXE-003,Fixed and synthetic retest passed,Synthetic contract fixture only
