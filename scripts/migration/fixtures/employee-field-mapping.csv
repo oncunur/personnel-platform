@@ -1,0 +1,7 @@
+mapping_id,source_system,source_object,source_field,source_type,source_nullable,target_domain,target_entity,target_field,target_type,target_required,transformation,lookup_dictionary,default_rule,validation_rule,sensitivity,lineage_key,owner,status,notes
+SYN-EMP-001,SYNTHETIC_HR,EMPLOYEE_EXPORT,SicilNo,string,FALSE,Personnel,Employee,EmployeeNo,string,TRUE,TRIM|UPPER,,,NONEMPTY,SENSITIVE-HR,TRUE,Migration,APPROVED,Synthetic CI fixture
+SYN-EMP-002,SYNTHETIC_HR,EMPLOYEE_EXPORT,Ad,string,FALSE,Personnel,Employee,FirstName,string,TRUE,TRIM,,,NONEMPTY,PERSONAL,FALSE,Migration,APPROVED,Synthetic CI fixture
+SYN-EMP-003,SYNTHETIC_HR,EMPLOYEE_EXPORT,Soyad,string,FALSE,Personnel,Employee,LastName,string,TRUE,TRIM,,,NONEMPTY,PERSONAL,FALSE,Migration,APPROVED,Synthetic CI fixture
+SYN-EMP-004,SYNTHETIC_HR,EMPLOYEE_EXPORT,IseGiris,date,FALSE,Personnel,Employee,HireDate,date,TRUE,DATE_AUTO,,,DATE_ISO,SENSITIVE-HR,FALSE,Migration,APPROVED,Synthetic CI fixture
+SYN-EMP-005,SYNTHETIC_HR,EMPLOYEE_EXPORT,CepTelefonu,string,TRUE,Personnel,Employee,Phone,string,FALSE,PHONE_TR,,,PHONE,PERSONAL,FALSE,Migration,APPROVED,Synthetic CI fixture
+SYN-EMP-006,SYNTHETIC_HR,EMPLOYEE_EXPORT,Durum,string,FALSE,Personnel,Employee,Status,string,TRUE,STATUS_EMPLOYEE,,,ENUM:ACTIVE|SUSPENDED|TERMINATED,SENSITIVE-HR,FALSE,Migration,APPROVED,Synthetic CI fixture
