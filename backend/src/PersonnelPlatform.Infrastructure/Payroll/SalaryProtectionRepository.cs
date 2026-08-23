@@ -67,6 +67,6 @@ public sealed class SalaryProtectionRepository(
 
     public Task<int> CountUnprotectedAsync(CancellationToken cancellationToken) =>
         db.EmployeeCompensations.AsNoTracking().CountAsync(
-            x => x.DeletedAt == null && (x.MonthlyBaseSalary <> 0m || !db.CompensationSalarySecrets.Any(s => s.CompensationId == x.Id)),
+            x => x.DeletedAt == null && (x.MonthlyBaseSalary != 0m || !db.CompensationSalarySecrets.Any(s => s.CompensationId == x.Id)),
             cancellationToken);
 }
