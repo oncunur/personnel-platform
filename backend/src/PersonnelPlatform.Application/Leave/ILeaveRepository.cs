@@ -12,7 +12,7 @@ public interface ILeaveRepository
     Task<LeaveRequest?> FindLeaveRequestAsync(Guid id, CancellationToken cancellationToken);
     Task<LeaveRequestSummary?> GetLeaveRequestSummaryAsync(Guid id, CancellationToken cancellationToken);
     Task<LeavePagedResult<LeaveRequestSummary>> SearchLeaveRequestsAsync(LeaveQuery query, bool globalAccess, IReadOnlyCollection<Guid> allowedCompanyIds, CancellationToken cancellationToken);
-    Task<bool> HasBlockingOverlapAsync(Guid employeeId, DateOnly startDate, DateOnly endDate, Guid? exceptLeaveId, CancellationToken cancellationToken);
+    Task<bool> HasBlockingOverlapAsync(Guid employeeId, DateOnly startDate, DateOnly endDate, string startDayPart, string endDayPart, Guid? exceptLeaveId, CancellationToken cancellationToken);
     void AddLeaveRequest(LeaveRequest leaveRequest);
 
     Task<IReadOnlyList<LeaveBalance>> ListBalancesAsync(Guid employeeId, CancellationToken cancellationToken);
