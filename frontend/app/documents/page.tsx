@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
 
@@ -79,7 +79,8 @@ export default function DocumentsPage() {
         const error = response ? await response.json().catch(() => null) as { error?: { message?: string } } | null : null;
         setMessage(error?.error?.message ?? "Belge türü oluşturulamadı."); return;
       }
-      setTypes(current => [...current, await response.json() as DocumentType].sort((a, b) => a.displayOrder - b.displayOrder));
+      const created = await response.json() as DocumentType;
+      setTypes(current => [...current, created].sort((a, b) => a.displayOrder - b.displayOrder));
       event.currentTarget.reset(); setMessage("Belge türü oluşturuldu.");
     } finally { setBusy(false); }
   }
@@ -111,13 +112,13 @@ export default function DocumentsPage() {
       <article className="card"><span>Belge Türü</span><h2>{permissions.has("documents.type.view") ? types.length : "—"}</h2></article>
     </section>
 
-    {permissions.has("documents.missing.view") ? <AttentionPanel title="Eksik Zorunlu Belgeler" empty="Eksik zorunlu belge bulunmuyor.">
+    {permissions.has("documents.missing.view") ? <AttentionPanel title="Eksik Zorunlu Belgeler" empty="Eksik zorunlu belge bulunmuyor." isEmpty={missing.length === 0}>
       <table className="data-table"><thead><tr><th>Personel</th><th>Sicil</th><th>Eksik Belge</th><th></th></tr></thead><tbody>{missing.map((x, index) => <tr key={`${x.employeeId}-${x.code}-${index}`}><td>{x.employeeName}</td><td>{x.employeeNo}</td><td><strong>{x.name}</strong><small>{x.code}</small></td><td><a className="table-button" href={`/personnel/${x.employeeId}`}>Personel 360</a></td></tr>)}</tbody></table>
     </AttentionPanel> : null}
 
     {permissions.has("documents.expiring.view") ? <section className="security-grid document-attention-grid">
-      <AttentionPanel title="30 Gün İçinde Süresi Dolacak" empty="Yaklaşan belge bulunmuyor."><DocumentAttentionTable rows={expiring}/></AttentionPanel>
-      <AttentionPanel title="Süresi Geçmiş" empty="Süresi geçmiş belge bulunmuyor."><DocumentAttentionTable rows={expired}/></AttentionPanel>
+      <AttentionPanel title="30 Gün İçinde Süresi Dolacak" empty="Yaklaşan belge bulunmuyor." isEmpty={expiring.length === 0}><DocumentAttentionTable rows={expiring}/></AttentionPanel>
+      <AttentionPanel title="Süresi Geçmiş" empty="Süresi geçmiş belge bulunmuyor." isEmpty={expired.length === 0}><DocumentAttentionTable rows={expired}/></AttentionPanel>
     </section> : null}
 
     {permissions.has("documents.type.view") ? <section className="panel audit-panel">
@@ -142,12 +143,10 @@ export default function DocumentsPage() {
   </main>;
 }
 
-function AttentionPanel({ title, empty, children }: { title: string; empty: string; children: React.ReactNode }) {
-  const table = children as React.ReactElement<{ children?: unknown }>;
-  return <section className="panel audit-panel"><div className="panel-heading"><div><span className="eyebrow dark">DİKKAT GEREKTİREN</span><h2>{title}</h2></div></div><div className="table-wrap">{table ?? <p className="muted">{empty}</p>}</div></section>;
+function AttentionPanel({ title, empty, isEmpty, children }: { title: string; empty: string; isEmpty: boolean; children: ReactNode }) {
+  return <section className="panel audit-panel"><div className="panel-heading"><div><span className="eyebrow dark">DİKKAT GEREKTİREN</span><h2>{title}</h2></div></div><div className="table-wrap">{isEmpty ? <p className="muted">{empty}</p> : children}</div></section>;
 }
 
 function DocumentAttentionTable({ rows }: { rows: Attention[] }) {
-  if (rows.length === 0) return <p className="muted">Kayıt bulunmuyor.</p>;
   return <table className="data-table"><thead><tr><th>Personel</th><th>Belge</th><th>Bitiş</th><th>Durum</th><th></th></tr></thead><tbody>{rows.map(x => <tr key={x.documentId}><td><strong>{x.employeeName}</strong><small>{x.employeeNo}</small></td><td>{x.documentTypeName}<small>{x.documentTypeCode}</small></td><td>{x.validUntil}<small>{x.daysRemaining < 0 ? `${Math.abs(x.daysRemaining)} gün geçti` : `${x.daysRemaining} gün kaldı`}</small></td><td><span className={`status-badge ${x.daysRemaining < 0 ? "danger" : "success"}`}>{x.status}</span></td><td><a className="table-button" href={`/personnel/${x.employeeId}`}>Personel 360</a></td></tr>)}</tbody></table>;
 }
