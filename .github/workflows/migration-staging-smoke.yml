@@ -1,0 +1,63 @@
+name: migration-staging-smoke
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'backend/src/PersonnelPlatform.Domain/Migration/**'
+      - 'backend/src/PersonnelPlatform.Application/Migration/**'
+      - 'backend/src/PersonnelPlatform.Infrastructure/Migration/**'
+      - 'backend/src/PersonnelPlatform.Infrastructure/Persistence/Configurations/MigrationConfigurations.cs'
+      - 'backend/src/PersonnelPlatform.Infrastructure/Persistence/Migrations/*MigrationStaging.cs'
+      - 'backend/src/PersonnelPlatform.Infrastructure/Persistence/DatabaseSchemas.cs'
+      - 'backend/src/PersonnelPlatform.Api/Migration/**'
+      - 'backend/src/PersonnelPlatform.Api/Program.cs'
+      - '.github/workflows/migration-staging-smoke.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  postgres-migration-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start PostgreSQL, Redis and API
+        run: docker compose up -d --build postgres redis api
+
+      - name: Wait for API readiness
+        shell: bash
+        run: |
+          for attempt in {1..60}; do
+            if curl --fail --silent http://127.0.0.1:8080/health/ready >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose ps
+          docker compose logs api postgres
+          exit 1
+
+      - name: Verify migration schema and permissions
+        shell: bash
+        run: |
+          query() {
+            docker compose exec -T postgres psql -U personnel -d personnel_platform -Atc "$1"
+          }
+          test "$(query "SELECT to_regclass('migration.runs') IS NOT NULL;")" = "t"
+          test "$(query "SELECT to_regclass('migration.stage_rows') IS NOT NULL;")" = "t"
+          test "$(query "SELECT to_regclass('migration.lineage_records') IS NOT NULL;")" = "t"
+          test "$(query "SELECT to_regclass('migration.reconciliations') IS NOT NULL;")" = "t"
+          test "$(query "SELECT count(*) FROM system.permissions WHERE code IN ('migration.view','migration.manage','migration.reconcile');")" = "3"
+          test "$(query "SELECT count(*) FROM pg_trigger WHERE tgname IN ('trg_migration_stage_row_immutable','trg_migration_reconciliation_immutable') AND NOT tgisinternal;")" = "2"
+          test "$(query "SELECT count(*) FROM system.__ef_migrations_history h WHERE to_jsonb(h)->>'MigrationId'='202608230028_MigrationStaging';")" = "1"
+
+      - name: Show logs on failure
+        if: failure()
+        run: docker compose logs api postgres redis
+
+      - name: Tear down isolated platform
+        if: always()
+        run: docker compose down -v --remove-orphans

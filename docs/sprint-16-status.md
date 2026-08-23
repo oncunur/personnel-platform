@@ -10,7 +10,7 @@ Prepare the Personnel Platform for controlled legacy-data migration, business UA
 | --- | --- | --- | --- |
 | MIG-001 | Legacy data inventory & target mapping | IN PROGRESS | Inventory register, target-domain matrix, migration decisions, source owners |
 | MIG-002 | Field mapping & transformation rules | IN PROGRESS | Canonical target catalog, transformation engine, field-level mappings, code/value dictionaries, validation rules |
-| MIG-003 | Migration staging & validation harness | PLANNED | Repeatable import/staging run, row errors, idempotence, reconciliation output |
+| MIG-003 | Migration staging & validation harness | IN PROGRESS | Repeatable import/staging run, row errors, idempotence, reconciliation output |
 | MIG-004 | Migration dry run #1 | PLANNED | Counts/totals, defects, duration, unresolved mapping log |
 | MIG-005 | Migration dry run #2 / cutover rehearsal | PLANNED | Repeatable clean run, measured RTO/RPO-adjacent cutover timing, sign-off |
 | UAT-001 | UAT scenario catalog | PLANNED | Role-based and end-to-end business scenarios |
@@ -59,6 +59,21 @@ The repository now contains:
 
 The current baseline deliberately does not invent legacy field names or source-system semantics. Real source exports are still required to complete MIG-001 and approve MIG-002 mappings.
 
+## MIG-003 implementation baseline
+
+The staging harness now provides:
+
+- a dedicated `migration` PostgreSQL schema for runs, immutable staged rows, lineage records and reconciliation metrics.
+- encrypted persistence of source and transformed JSON payloads using the existing sensitive-data protector.
+- source-key and SHA-256 based `NEW` / `CHANGED` / `UNCHANGED` idempotence classification across runs.
+- row outcomes `VALID` / `WARNING` / `ERROR` / `DUPLICATE` and run-level blocking rules.
+- reconciliation metrics with explicit source value, target value, tolerance and mismatch evidence.
+- separate `migration.view`, `migration.manage` and `migration.reconcile` permissions plus company-scope enforcement.
+- version-based concurrency protection and audit events for state-changing API operations.
+- domain unit tests and a PostgreSQL migration smoke workflow that verifies the schema, permissions, triggers and EF migration history in an isolated Docker stack.
+
+MIG-003 remains `IN PROGRESS` until the branch passes all CI gates and a real source-specific staged run is executed. That real run belongs to the MIG-004 dry-run evidence package.
+
 ## Current boundary
 
-MIG-001 defines what exists and where it should land. MIG-002 now defines how approved source fields are normalized and previewed, but it does **not** yet authorize loading production data. Actual source inventory, source-specific mappings/lookups, migration staging, idempotent persistence, dry runs and business reconciliation remain required before cutover.
+MIG-001 defines what exists and where it should land. MIG-002 defines how approved source fields are normalized and previewed. MIG-003 provides controlled staging, lineage, idempotence, row-level validation and reconciliation evidence, but it still does **not** authorize writes into live business tables. Actual source inventory, approved source-specific mappings/lookups, a measured dry run and business reconciliation remain required before cutover.
