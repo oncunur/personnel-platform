@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using PersonnelPlatform.Application.Administration;
 using PersonnelPlatform.Application.Attendance;
 using PersonnelPlatform.Application.Audit;
 using PersonnelPlatform.Application.Camp;
@@ -10,6 +11,7 @@ using PersonnelPlatform.Application.Meal;
 using PersonnelPlatform.Application.Organization;
 using PersonnelPlatform.Application.Payroll;
 using PersonnelPlatform.Application.Personnel;
+using PersonnelPlatform.Infrastructure.Administration;
 using PersonnelPlatform.Infrastructure.Attendance;
 using PersonnelPlatform.Infrastructure.Audit;
 using PersonnelPlatform.Infrastructure.Camp;
@@ -50,6 +52,7 @@ public static class DependencyInjection
         services.AddScoped<ICampRepository, CampRepository>();
         services.AddScoped<IMealRepository, MealRepository>();
         services.AddScoped<IPayrollRepository, PayrollRepository>();
+        services.AddScoped<IAssetStockRepository, AssetStockRepository>();
 
         var storageRoot = configuration["FileStorage:RootPath"];
         if (string.IsNullOrWhiteSpace(storageRoot)) storageRoot = Path.Combine(AppContext.BaseDirectory, "storage");
