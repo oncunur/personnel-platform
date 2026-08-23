@@ -26,6 +26,9 @@ jobs:
       - name: Test migration transformations
         working-directory: scripts/migration
         run: python -m unittest -v test_transform_values.py
+      - name: Test dry-run evidence helpers
+        working-directory: scripts/migration
+        run: python -m unittest -v test_run_dry_run.py
       - name: Run synthetic migration dry-run
         run: >-
           python scripts/migration/preview_transform.py
