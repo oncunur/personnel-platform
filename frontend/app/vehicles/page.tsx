@@ -52,7 +52,7 @@ export default function VehiclesPage() {
     const cs = companyRows ?? [];
     setCompanies(cs); setEmployees(employeeRows?.items ?? []); setAssignments(assignmentRows ?? []);
     if (cs.length) setCompanyId(cs[0].id);
-    setMessage("Araç, sürücü, kilometre, bakım ve yakıt kayıtları hazır.");
+    setMessage("Araç, sürücü, kilometre, bakım, yakıt ve uygunluk tarihleri hazır.");
   }
 
   async function reloadVehicles(cid = companyId) {
@@ -92,6 +92,24 @@ export default function VehiclesPage() {
     } finally { setBusy(false); }
   }
 
+  async function updateCompliance(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); if (!selectedVehicle) return; setBusy(true);
+    try {
+      const fd = new FormData(event.currentTarget);
+      const response = await authFetch(`/api/v1/administration/vehicles/${selectedVehicle.id}/compliance`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          version: selectedVehicle.version,
+          insuranceValidUntil: fd.get("insurance") || null,
+          inspectionValidUntil: fd.get("inspection") || null,
+        }),
+      });
+      if (!response?.ok) { setMessage(await errorMessage(response, "Sigorta/muayene tarihleri güncellenemedi.")); return; }
+      setMessage("Sigorta ve muayene geçerlilik tarihleri güncellendi."); await reloadVehicles();
+    } finally { setBusy(false); }
+  }
+
   async function closeAssignment(row: Assignment) {
     const end = window.prompt("Atama bitiş tarihi [hariç] (YYYY-MM-DD)", today()); if (!end) return;
     const response = await authFetch(`/api/v1/administration/vehicles/assignments/${row.id}/close`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ version: row.version, validUntilExclusive: end }) });
@@ -112,9 +130,11 @@ export default function VehiclesPage() {
     <a className="back" href="/dashboard">← Dashboard</a>
     <section className="hero compact"><span className="eyebrow">SPRINT 10 · ARAÇ</span><h1>Araç Yönetim Merkezi</h1><p>{message}</p></section>
 
-    <section className="panel audit-panel"><div className="inline-form"><label className="field-label">Şirket<select value={companyId} onChange={e => setCompanyId(e.target.value)}><option value="">Seçin</option>{companies.map(x => <option key={x.id} value={x.id}>{x.code} · {x.name}</option>)}</select></label><label className="field-label">Araç<select value={vehicleId} onChange={e => setVehicleId(e.target.value)}><option value="">Seçin</option>{vehicles.map(x => <option key={x.id} value={x.id}>{x.plate} · {x.brand} {x.model}</option>)}</select></label>{selectedVehicle ? <div><strong>{selectedVehicle.currentOdometerKm ?? 0} km</strong> · {selectedVehicle.status} · {selectedVehicle.assignedEmployeeName ?? "Atanmamış"}</div> : null}</div></section>
+    <section className="panel audit-panel"><div className="inline-form"><label className="field-label">Şirket<select value={companyId} onChange={e => setCompanyId(e.target.value)}><option value="">Seçin</option>{companies.map(x => <option key={x.id} value={x.id}>{x.code} · {x.name}</option>)}</select></label><label className="field-label">Araç<select value={vehicleId} onChange={e => setVehicleId(e.target.value)}><option value="">Seçin</option>{vehicles.map(x => <option key={x.id} value={x.id}>{x.plate} · {x.brand} {x.model}</option>)}</select></label>{selectedVehicle ? <div><strong>{selectedVehicle.currentOdometerKm ?? 0} km</strong> · {selectedVehicle.status} · {selectedVehicle.assignedEmployeeName ?? "Atanmamış"}<br/><span>Sigorta: {selectedVehicle.insuranceValidUntil ?? "—"} · Muayene: {selectedVehicle.inspectionValidUntil ?? "—"}</span></div> : null}</div></section>
 
     {permissions.has("administration.vehicle.manage") ? <section className="panel audit-panel"><h2>Araç kartı</h2><form className="inline-form" onSubmit={e => submit(e, "/api/v1/administration/vehicles", fd => ({ companyId, plate: fd.get("plate"), vin: fd.get("vin") || null, brand: fd.get("brand"), model: fd.get("model"), modelYear: Number(fd.get("modelYear")) || null, insuranceValidUntil: fd.get("insurance") || null, inspectionValidUntil: fd.get("inspection") || null, note: fd.get("note") || null }), "Araç kartı oluşturuldu.")}><input name="plate" placeholder="Plaka" required/><input name="vin" placeholder="VIN/Şasi"/><input name="brand" placeholder="Marka" required/><input name="model" placeholder="Model" required/><input name="modelYear" type="number" placeholder="Model yılı"/><input name="insurance" type="date" title="Sigorta geçerlilik"/><input name="inspection" type="date" title="Muayene geçerlilik"/><input name="note" placeholder="Not"/><button className="primary-button" disabled={busy || !companyId}>Araç ekle</button></form>{selectedVehicle ? <div className="actions action-row">{["ACTIVE","MAINTENANCE","OUT_OF_SERVICE","RETIRED"].map(x => <button key={x} className="secondary-button" disabled={busy || selectedVehicle.status === x} onClick={() => void changeStatus(x)}>{x}</button>)}</div> : null}</section> : null}
+
+    {selectedVehicle && permissions.has("administration.vehicle.manage") ? <section className="panel audit-panel"><h2>Sigorta / Muayene Yenileme</h2><form key={`${selectedVehicle.id}-${selectedVehicle.version}`} className="inline-form" onSubmit={updateCompliance}><label className="field-label">Sigorta geçerlilik<input name="insurance" type="date" defaultValue={selectedVehicle.insuranceValidUntil ?? ""}/></label><label className="field-label">Muayene geçerlilik<input name="inspection" type="date" defaultValue={selectedVehicle.inspectionValidUntil ?? ""}/></label><button className="primary-button" disabled={busy}>Tarihleri güncelle</button></form></section> : null}
 
     {selectedVehicle && permissions.has("administration.vehicle.assign") ? <section className="panel audit-panel"><h2>Personel / sürücü ataması</h2><form className="inline-form" onSubmit={e => submit(e, `/api/v1/administration/vehicles/${selectedVehicle.id}/assignments`, fd => ({ vehicleId: selectedVehicle.id, employeeId: fd.get("employeeId"), validFrom: fd.get("validFrom"), validUntilExclusive: fd.get("validUntil") || null, note: fd.get("note") || null }), "Araç personele atandı.")}><select name="employeeId" required><option value="">Personel seçin</option>{companyEmployees.map(x => <option key={x.id} value={x.id}>{x.employeeNo} · {x.firstName} {x.lastName}</option>)}</select><input name="validFrom" type="date" defaultValue={today()} required/><input name="validUntil" type="date"/><input name="note" placeholder="Not"/><button className="primary-button" disabled={busy}>Ata</button></form></section> : null}
 
