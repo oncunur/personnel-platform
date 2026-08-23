@@ -6,6 +6,7 @@ using PersonnelPlatform.Domain.Camp;
 using PersonnelPlatform.Domain.Documents;
 using PersonnelPlatform.Domain.Finance;
 using PersonnelPlatform.Domain.Identity;
+using PersonnelPlatform.Domain.Integration;
 using PersonnelPlatform.Domain.Leave;
 using PersonnelPlatform.Domain.Meal;
 using PersonnelPlatform.Domain.Notification;
@@ -108,6 +109,12 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<CostEntry> CostEntries => Set<CostEntry>();
     public DbSet<PayrollCostAllocationOverride> PayrollCostAllocationOverrides => Set<PayrollCostAllocationOverride>();
     public DbSet<ReportExportJob> ReportExportJobs => Set<ReportExportJob>();
+
+    public DbSet<IntegrationSystem> IntegrationSystems => Set<IntegrationSystem>();
+    public DbSet<IntegrationDevice> IntegrationDevices => Set<IntegrationDevice>();
+    public DbSet<ExternalEntityMapping> ExternalEntityMappings => Set<ExternalEntityMapping>();
+    public DbSet<IntegrationStagingRecord> IntegrationStagingRecords => Set<IntegrationStagingRecord>();
+    public DbSet<IntegrationStagingHistory> IntegrationStagingHistories => Set<IntegrationStagingHistory>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
