@@ -45,6 +45,7 @@ public sealed class EmployeeSensitiveService(
         var iban = NormalizeIban(request.Iban);
         if (request.NationalId is not null && nationalId is null) return PersonnelResult<EmployeeSensitiveProfileSummary>.Failure("NATIONAL_ID_INVALID", "Kimlik numarası biçimi geçersiz.");
         if (request.Iban is not null && (iban is null || !IsValidIban(iban))) return PersonnelResult<EmployeeSensitiveProfileSummary>.Failure("IBAN_INVALID", "IBAN biçimi veya kontrol basamakları geçersiz.");
+        if (nationalId is null && iban is null) return PersonnelResult<EmployeeSensitiveProfileSummary>.Failure("SENSITIVE_PROFILE_EMPTY", "Kimlik veya IBAN alanlarından en az biri girilmelidir.");
 
         var nationalCipher = nationalId is null ? null : protector.Protect(nationalId);
         var ibanCipher = iban is null ? null : protector.Protect(iban);
