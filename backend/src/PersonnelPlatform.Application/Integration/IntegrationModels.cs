@@ -28,6 +28,7 @@ public sealed record UpdateIntegrationMappingRequest(Guid InternalEntityId, bool
 public sealed record StagingRecordSummary(Guid Id, Guid CompanyId, Guid IntegrationSystemId, Guid? DeviceId, string EventType, string ExternalEventId, string Status, int AttemptCount, DateTimeOffset? NextRetryAt, string? ErrorCode, string? ErrorMessage, string? ProcessedEntityType, Guid? ProcessedEntityId, DateTimeOffset ReceivedAt, DateTimeOffset? LastAttemptAt, DateTimeOffset? ProcessedAt, int Version);
 public sealed record StagingHistorySummary(Guid Id, Guid StagingRecordId, string EventType, string FromStatus, string ToStatus, string? ErrorCode, string? ErrorMessage, Guid? ActorUserId, DateTimeOffset OccurredAt);
 public sealed record IntegrationQueueQuery(Guid? CompanyId, Guid? IntegrationSystemId, string? EventType, string? Status, int Take = 200);
+public sealed record ReprocessStagingRequest(int Version);
 
 public sealed record IntegrationDeviceHealth(Guid DeviceId, string SystemCode, string DeviceCode, string DeviceName, string DeviceType, Guid? ScopedCampId, string Health, DateTimeOffset? LastSeenAt, DateTimeOffset? LastErrorAt, string? LastErrorMessage);
 public sealed record IntegrationQueueMetrics(int Received, int Processing, int BusinessError, int TechnicalError, int DeadLetter, int Processed);
