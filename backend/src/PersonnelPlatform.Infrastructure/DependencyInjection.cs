@@ -2,8 +2,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using PersonnelPlatform.Application.Audit;
+using PersonnelPlatform.Application.Organization;
 using PersonnelPlatform.Infrastructure.Audit;
 using PersonnelPlatform.Infrastructure.Health;
+using PersonnelPlatform.Infrastructure.Organization;
 using PersonnelPlatform.Infrastructure.Persistence;
 
 namespace PersonnelPlatform.Infrastructure;
@@ -21,6 +23,7 @@ public static class DependencyInjection
 
         services.AddScoped<IAuditRepository, AuditRepository>();
         services.AddScoped<AuditService>();
+        services.AddScoped<IOrganizationRepository, OrganizationRepository>();
 
         services.Configure<RedisOptions>(configuration.GetSection(RedisOptions.SectionName));
         services.AddSingleton<RedisTcpHealthCheck>();

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using PersonnelPlatform.Domain.Audit;
 using PersonnelPlatform.Domain.Identity;
+using PersonnelPlatform.Domain.Organization;
 
 namespace PersonnelPlatform.Infrastructure.Persistence;
 
@@ -14,6 +15,13 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
     public DbSet<UserScope> UserScopes => Set<UserScope>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+
+    public DbSet<Company> Companies => Set<Company>();
+    public DbSet<Branch> Branches => Set<Branch>();
+    public DbSet<Department> Departments => Set<Department>();
+    public DbSet<Position> Positions => Set<Position>();
+    public DbSet<Project> Projects => Set<Project>();
+    public DbSet<CostCenter> CostCenters => Set<CostCenter>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
