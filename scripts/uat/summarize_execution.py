@@ -7,6 +7,7 @@ import argparse
 import csv
 import json
 from collections import Counter
+from datetime import datetime, timezone
 from pathlib import Path
 
 OPEN_DEFECT_STATUSES = {"OPEN", "IN_PROGRESS", "FIXED", "RETEST_PENDING"}
@@ -15,6 +16,16 @@ OPEN_DEFECT_STATUSES = {"OPEN", "IN_PROGRESS", "FIXED", "RETEST_PENDING"}
 def read_csv(path: Path) -> list[dict[str, str]]:
     with path.open("r", encoding="utf-8-sig", newline="") as handle:
         return list(csv.DictReader(handle))
+
+
+def completed_at_key(row: dict[str, str]) -> datetime:
+    value = row.get("completed_at", "").strip()
+    if not value:
+        return datetime.min.replace(tzinfo=timezone.utc)
+    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
 
 
 def summarize(catalog_path: Path, executions_path: Path, defects_path: Path) -> dict[str, object]:
@@ -26,9 +37,8 @@ def summarize(catalog_path: Path, executions_path: Path, defects_path: Path) -> 
     latest: dict[str, dict[str, str]] = {}
     for row in executions:
         scenario_id = row["scenario_id"].strip()
-        completed_at = row["completed_at"].strip()
         current = latest.get(scenario_id)
-        if current is None or completed_at >= current["completed_at"].strip():
+        if current is None or completed_at_key(row) >= completed_at_key(current):
             latest[scenario_id] = row
 
     priority_totals = Counter(row["priority"].strip() for row in catalog)
