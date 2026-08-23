@@ -22,6 +22,7 @@ public interface IFinanceRepository
     Task<IReadOnlyList<MealConsumption>> ListMealSourcesAsync(IReadOnlyCollection<Guid>? companyIds, CancellationToken ct);
     Task<IReadOnlyList<AccommodationStay>> ListAccommodationSourcesAsync(IReadOnlyCollection<Guid>? companyIds, CancellationToken ct);
 
+    Task<bool> SourceHasCostEntriesAsync(string sourceType, Guid sourceId, CancellationToken ct);
     Task<bool> CostEntryExistsAsync(string sourceType, Guid sourceId, string sourceLineKey, CancellationToken ct);
     Task<bool> TryInsertCostEntryAsync(CostEntry entry, CancellationToken ct);
     Task<IReadOnlyList<CostLedgerItem>> ListCostLedgerAsync(bool globalAccess, IReadOnlyCollection<Guid> companyIds, Guid? companyId, Guid? projectId, Guid? costCenterId, Guid? employeeId, string? sourceType, DateOnly? from, DateOnly? to, int take, CancellationToken ct);
