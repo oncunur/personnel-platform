@@ -15,6 +15,7 @@ using PersonnelPlatform.Application.Organization;
 using PersonnelPlatform.Application.Payroll;
 using PersonnelPlatform.Application.Personnel;
 using PersonnelPlatform.Application.Reporting;
+using PersonnelPlatform.Application.Security;
 using PersonnelPlatform.Application.Workflow;
 using PersonnelPlatform.Infrastructure.Administration;
 using PersonnelPlatform.Infrastructure.Attendance;
@@ -32,6 +33,7 @@ using PersonnelPlatform.Infrastructure.Payroll;
 using PersonnelPlatform.Infrastructure.Personnel;
 using PersonnelPlatform.Infrastructure.Persistence;
 using PersonnelPlatform.Infrastructure.Reporting;
+using PersonnelPlatform.Infrastructure.Security;
 using PersonnelPlatform.Infrastructure.Workflow;
 
 namespace PersonnelPlatform.Infrastructure;
@@ -42,6 +44,10 @@ public static class DependencyInjection
     {
         var connectionString = configuration.GetConnectionString("Postgres") ?? throw new InvalidOperationException("ConnectionStrings:Postgres is required.");
         services.AddDbContext<ApplicationDbContext>(options => options.UseNpgsql(connectionString, npgsql => npgsql.MigrationsHistoryTable("__ef_migrations_history", DatabaseSchemas.System)));
+
+        var dataProtectionKey = configuration["Security:DataProtectionKey"];
+        if (string.IsNullOrWhiteSpace(dataProtectionKey)) throw new InvalidOperationException("Configuration value 'Security:DataProtectionKey' is required.");
+        services.AddSingleton<ISensitiveDataProtector>(new AesGcmSensitiveDataProtector(dataProtectionKey));
 
         services.AddScoped<IAuditRepository, AuditRepository>();
         services.AddScoped<AuditService>();
