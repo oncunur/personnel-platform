@@ -7,6 +7,7 @@ public interface IAttendanceSetupRepository
     Task<IReadOnlyList<WorkCalendar>> ListCalendarsAsync(Guid? companyId, bool globalAccess, IReadOnlyCollection<Guid> allowedCompanyIds, CancellationToken cancellationToken);
     Task<WorkCalendar?> FindCalendarAsync(Guid calendarId, CancellationToken cancellationToken);
     Task<bool> CalendarCodeExistsAsync(Guid companyId, string code, CancellationToken cancellationToken);
+    Task<bool> HasDefaultCalendarAsync(Guid companyId, CancellationToken cancellationToken);
     void AddCalendar(WorkCalendar calendar);
 
     Task<IReadOnlyList<WorkCalendarDay>> ListCalendarDaysAsync(Guid calendarId, DateOnly? from, DateOnly? to, CancellationToken cancellationToken);
