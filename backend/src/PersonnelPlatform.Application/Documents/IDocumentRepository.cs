@@ -29,6 +29,13 @@ public interface IDocumentRepository
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 }
 
+public interface IDocumentHistoryRepository
+{
+    Task<IReadOnlyList<EmployeeDocumentHistory>> ListAsync(Guid documentId, CancellationToken cancellationToken);
+    void Add(EmployeeDocumentHistory history);
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken);
+}
+
 public interface IFileStorage
 {
     string ProviderCode { get; }

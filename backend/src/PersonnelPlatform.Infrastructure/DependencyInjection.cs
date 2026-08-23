@@ -30,6 +30,7 @@ public static class DependencyInjection
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();
         services.AddScoped<IPersonnelRepository, PersonnelRepository>();
         services.AddScoped<IDocumentRepository, DocumentRepository>();
+        services.AddScoped<IDocumentHistoryRepository, DocumentHistoryRepository>();
 
         var storageRoot = configuration["FileStorage:RootPath"];
         if (string.IsNullOrWhiteSpace(storageRoot)) storageRoot = Path.Combine(AppContext.BaseDirectory, "storage");

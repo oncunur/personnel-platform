@@ -60,6 +60,16 @@ public sealed record EmployeeDocumentSummary(
     Guid? ReplacesDocumentId,
     int Version);
 
+public sealed record EmployeeDocumentHistorySummary(
+    Guid Id,
+    Guid EmployeeDocumentId,
+    string Action,
+    string? FromStatus,
+    string ToStatus,
+    Guid ChangedBy,
+    DateTimeOffset ChangedAt,
+    string? Reason);
+
 public sealed record MissingDocumentSummary(Guid DocumentTypeId, string Code, string Name, bool FileRequired, bool DocumentNumberRequired, bool ExpirationRequired);
 
 public sealed record DocumentAttentionItem(
