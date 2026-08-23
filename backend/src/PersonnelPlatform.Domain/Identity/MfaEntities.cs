@@ -79,7 +79,7 @@ public sealed class MfaChallenge : Entity
     }
 
     public bool IsUsableAt(DateTimeOffset now) => ConsumedAt is null && ExpiresAt > now && FailedAttemptCount < 5;
-    public void RegisterFailure() { if (ConsumedAt is not null) return; FailedAttemptCount++; }
+    public void RegisterFailure() { if (ConsumedAt is null && FailedAttemptCount < 5) FailedAttemptCount++; }
     public void Consume(DateTimeOffset now) { if (!IsUsableAt(now)) throw new InvalidOperationException("MFA challenge is not usable."); ConsumedAt = now.ToUniversalTime(); }
     private static string? Limit(string? value, int max) => string.IsNullOrWhiteSpace(value) ? null : value.Trim()[..Math.Min(value.Trim().Length, max)];
 }
