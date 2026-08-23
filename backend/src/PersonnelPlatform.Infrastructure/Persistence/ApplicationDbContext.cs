@@ -29,6 +29,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<EmployeeType> EmployeeTypes => Set<EmployeeType>();
     public DbSet<Employee> Employees => Set<Employee>();
     public DbSet<EmployeeProjectAssignment> EmployeeProjectAssignments => Set<EmployeeProjectAssignment>();
+    public DbSet<EmployeeUserLink> EmployeeUserLinks => Set<EmployeeUserLink>();
 
     public DbSet<StoredFile> StoredFiles => Set<StoredFile>();
     public DbSet<DocumentType> DocumentTypes => Set<DocumentType>();
@@ -40,6 +41,8 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<LeaveEntitlement> LeaveEntitlements => Set<LeaveEntitlement>();
     public DbSet<LeaveBalance> LeaveBalances => Set<LeaveBalance>();
     public DbSet<LeaveRequest> LeaveRequests => Set<LeaveRequest>();
+    public DbSet<LeaveApproval> LeaveApprovals => Set<LeaveApproval>();
+    public DbSet<LeaveApprovalHistory> LeaveApprovalHistories => Set<LeaveApprovalHistory>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
