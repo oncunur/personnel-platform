@@ -30,3 +30,7 @@ coverage/
 backups/
 migration-output/
 *.migration-output.csv
+uat-results/
+uat-output/
+*.uat-results.csv
+*.uat-defects.csv
