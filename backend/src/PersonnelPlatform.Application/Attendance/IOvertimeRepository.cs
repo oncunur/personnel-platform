@@ -5,6 +5,7 @@ namespace PersonnelPlatform.Application.Attendance;
 
 public interface IOvertimeRepository
 {
+    Task<DailyAttendance?> FindDailyAttendanceByIdAsync(Guid dailyAttendanceId, CancellationToken cancellationToken);
     Task<OvertimeRequest?> FindAsync(Guid overtimeId, CancellationToken cancellationToken);
     Task<OvertimeRequest?> FindActiveByDailyAttendanceAsync(Guid dailyAttendanceId, CancellationToken cancellationToken);
     Task<OvertimeRequestSummary?> GetSummaryAsync(Guid overtimeId, CancellationToken cancellationToken);
