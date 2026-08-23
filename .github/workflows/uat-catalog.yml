@@ -1,0 +1,31 @@
+name: uat-catalog
+
+on:
+  pull_request:
+    paths:
+      - "docs/uat/**"
+      - "scripts/uat/**"
+      - ".github/workflows/uat-catalog.yml"
+  push:
+    branches: [main]
+    paths:
+      - "docs/uat/**"
+      - "scripts/uat/**"
+      - ".github/workflows/uat-catalog.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-uat-catalog:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Validate canonical UAT catalog
+        run: python scripts/uat/validate_catalog.py
+      - name: Test UAT catalog validator
+        working-directory: scripts/uat
+        run: python -m unittest -v test_validate_catalog.py
