@@ -12,6 +12,8 @@ public static class LeavePermissions
     public const string Approve = "leave.approve";
     public const string ManagerApprove = "leave.manager.approve";
     public const string ApproverManage = "leave.approver.manage";
+    public const string AttachmentView = "leave.attachment.view";
+    public const string AttachmentUpload = "leave.attachment.upload";
 }
 
 public sealed record LeaveTypeSummary(
