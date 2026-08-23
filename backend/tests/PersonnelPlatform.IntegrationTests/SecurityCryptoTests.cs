@@ -32,7 +32,7 @@ public sealed class SecurityCryptoTests
     }
 
     [Fact]
-    public void TOTP_uri_should_not_put_secret_in_path_or account_label_unescaped()
+    public void TOTP_uri_should_not_put_secret_in_path_or_account_label_unescaped()
     {
         var service = new TotpService();
         var secret = service.GenerateSecret();
