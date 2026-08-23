@@ -152,11 +152,17 @@ public sealed class ReportExportProcessor(
             var p = await reportingRepository.GetProject360Async(filters.ProjectId.Value, filters.From, filters.To, ct) ?? throw new InvalidOperationException("Project not found.");
             var rows = new List<string[]>
             {
-                ["Project", $"{p.ProjectCode} - {p.ProjectName}"], ["Range", $"{p.From:yyyy-MM-dd} / {p.To:yyyy-MM-dd}"], ["Headcount", p.Headcount.ToString()],
-                ["Man-days", p.ManDays.ToString("0.####")], ["Worked hours", p.WorkedHours.ToString("0.00")], ["Approved OT hours", p.ApprovedOvertimeHours.ToString("0.00")],
-                ["Meal quantity", p.MealQuantity.ToString("0.##")], ["Accommodation nights", p.AccommodationNights.ToString()]
+                new[] { "Project", $"{p.ProjectCode} - {p.ProjectName}" },
+                new[] { "Range", $"{p.From:yyyy-MM-dd} / {p.To:yyyy-MM-dd}" },
+                new[] { "Headcount", p.Headcount.ToString() },
+                new[] { "Man-days", p.ManDays.ToString("0.####") },
+                new[] { "Worked hours", p.WorkedHours.ToString("0.00") },
+                new[] { "Approved OT hours", p.ApprovedOvertimeHours.ToString("0.00") },
+                new[] { "Meal quantity", p.MealQuantity.ToString("0.##") },
+                new[] { "Accommodation nights", p.AccommodationNights.ToString() }
             };
-            foreach (var c in p.Costs) rows.Add([$"Cost {c.Currency}", $"Payroll={c.PayrollCost:0.00}; Meal={c.MealCost:0.00}; Accommodation={c.AccommodationCost:0.00}; Total={c.TotalCost:0.00}"]);
+            foreach (var c in p.Costs)
+                rows.Add(new[] { $"Cost {c.Currency}", $"Payroll={c.PayrollCost:0.00}; Meal={c.MealCost:0.00}; Accommodation={c.AccommodationCost:0.00}; Total={c.TotalCost:0.00}" });
             return new ReportTable("Project 360", ["Metric","Value"], rows);
         }
         if (reportType != ReportTypes.Management) throw new InvalidOperationException("Report type is invalid.");
