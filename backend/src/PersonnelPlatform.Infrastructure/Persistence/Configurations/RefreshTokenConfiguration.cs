@@ -10,7 +10,6 @@ public sealed class RefreshTokenConfiguration : IEntityTypeConfiguration<Refresh
     {
         builder.ToTable("refresh_tokens", DatabaseSchemas.System);
         builder.HasKey(x => x.Id).HasName("pk_refresh_tokens");
-
         builder.Property(x => x.Id).HasColumnName("id");
         builder.Property(x => x.UserId).HasColumnName("user_id").IsRequired();
         builder.Property(x => x.TokenHash).HasColumnName("token_hash").HasMaxLength(64).IsRequired();
@@ -19,21 +18,12 @@ public sealed class RefreshTokenConfiguration : IEntityTypeConfiguration<Refresh
         builder.Property(x => x.CreatedAt).HasColumnName("created_at").IsRequired();
         builder.Property(x => x.CreatedByIp).HasColumnName("created_by_ip").HasMaxLength(64);
         builder.Property(x => x.DeviceName).HasColumnName("device_name").HasMaxLength(200);
+        builder.Property(x => x.MfaVerified).HasColumnName("mfa_verified").IsRequired();
         builder.Property(x => x.RevokedAt).HasColumnName("revoked_at");
         builder.Property(x => x.RevokedByIp).HasColumnName("revoked_by_ip").HasMaxLength(64);
         builder.Property(x => x.ReplacedByTokenHash).HasColumnName("replaced_by_token_hash").HasMaxLength(64);
-
-        builder.HasIndex(x => x.TokenHash)
-            .IsUnique()
-            .HasDatabaseName("ux_refresh_tokens_token_hash");
-
-        builder.HasIndex(x => new { x.UserId, x.ExpiresAt })
-            .HasDatabaseName("ix_refresh_tokens_user_expires");
-
-        builder.HasOne<User>()
-            .WithMany()
-            .HasForeignKey(x => x.UserId)
-            .OnDelete(DeleteBehavior.Cascade)
-            .HasConstraintName("fk_refresh_tokens_users_user_id");
+        builder.HasIndex(x => x.TokenHash).IsUnique().HasDatabaseName("ux_refresh_tokens_token_hash");
+        builder.HasIndex(x => new { x.UserId, x.ExpiresAt }).HasDatabaseName("ix_refresh_tokens_user_expires");
+        builder.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade).HasConstraintName("fk_refresh_tokens_users_user_id");
     }
 }

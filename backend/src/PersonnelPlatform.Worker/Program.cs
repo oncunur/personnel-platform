@@ -23,6 +23,7 @@ builder.Services.AddHostedService<WorkflowSlaWorker>();
 builder.Services.AddHostedService<NotificationCenterWorker>();
 builder.Services.AddHostedService<ReportExportWorker>();
 builder.Services.AddHostedService<IntegrationProcessingWorker>();
+builder.Services.AddHostedService<SalaryProtectionBackfillWorker>();
 
 var host = builder.Build();
 await host.RunAsync();

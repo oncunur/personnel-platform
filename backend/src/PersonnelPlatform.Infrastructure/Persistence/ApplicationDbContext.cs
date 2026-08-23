@@ -22,6 +22,8 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
 {
     public DbSet<User> Users => Set<User>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<UserMfaCredential> UserMfaCredentials => Set<UserMfaCredential>();
+    public DbSet<MfaChallenge> MfaChallenges => Set<MfaChallenge>();
     public DbSet<Role> Roles => Set<Role>();
     public DbSet<Permission> Permissions => Set<Permission>();
     public DbSet<UserRole> UserRoles => Set<UserRole>();
@@ -38,6 +40,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
 
     public DbSet<EmployeeType> EmployeeTypes => Set<EmployeeType>();
     public DbSet<Employee> Employees => Set<Employee>();
+    public DbSet<EmployeeSensitiveProfile> EmployeeSensitiveProfiles => Set<EmployeeSensitiveProfile>();
     public DbSet<EmployeeProjectAssignment> EmployeeProjectAssignments => Set<EmployeeProjectAssignment>();
     public DbSet<EmployeeUserLink> EmployeeUserLinks => Set<EmployeeUserLink>();
 
@@ -74,6 +77,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<MealConsumption> MealConsumptions => Set<MealConsumption>();
 
     public DbSet<EmployeeCompensation> EmployeeCompensations => Set<EmployeeCompensation>();
+    public DbSet<CompensationSalarySecret> CompensationSalarySecrets => Set<CompensationSalarySecret>();
     public DbSet<PayrollPeriod> PayrollPeriods => Set<PayrollPeriod>();
     public DbSet<PayrollEmployeeResult> PayrollEmployeeResults => Set<PayrollEmployeeResult>();
 

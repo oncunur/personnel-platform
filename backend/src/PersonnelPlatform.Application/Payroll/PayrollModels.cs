@@ -4,6 +4,7 @@ public static class PayrollPermissions
 {
     public const string CompensationView = "payroll.compensation.view";
     public const string CompensationManage = "payroll.compensation.manage";
+    public const string SalaryReveal = "payroll.salary.reveal";
     public const string PeriodView = "payroll.period.view";
     public const string PeriodManage = "payroll.period.manage";
     public const string Calculate = "payroll.calculate";
@@ -14,6 +15,7 @@ public static class PayrollPermissions
 
 public sealed record CreateEmployeeCompensationRequest(Guid EmployeeId, DateOnly ValidFrom, DateOnly? ValidUntilExclusive, decimal MonthlyBaseSalary, string Currency, decimal OvertimeMultiplier);
 public sealed record EmployeeCompensationSummary(Guid Id, Guid CompanyId, Guid EmployeeId, string EmployeeNo, string EmployeeName, DateOnly ValidFrom, DateOnly? ValidUntilExclusive, decimal MonthlyBaseSalary, string Currency, decimal OvertimeMultiplier, int Version);
+public sealed record EmployeeCompensationViewSummary(Guid Id, Guid CompanyId, Guid EmployeeId, string EmployeeNo, string EmployeeName, DateOnly ValidFrom, DateOnly? ValidUntilExclusive, decimal? MonthlyBaseSalary, string MonthlyBaseSalaryDisplay, string Currency, decimal OvertimeMultiplier, int Version);
 
 public sealed record CreatePayrollPeriodRequest(Guid CompanyId, int Year, int Month);
 public sealed record PayrollPeriodActionRequest(int Version);

@@ -15,6 +15,7 @@ using PersonnelPlatform.Application.Organization;
 using PersonnelPlatform.Application.Payroll;
 using PersonnelPlatform.Application.Personnel;
 using PersonnelPlatform.Application.Reporting;
+using PersonnelPlatform.Application.Security;
 using PersonnelPlatform.Application.Workflow;
 using PersonnelPlatform.Infrastructure.Administration;
 using PersonnelPlatform.Infrastructure.Attendance;
@@ -32,6 +33,7 @@ using PersonnelPlatform.Infrastructure.Payroll;
 using PersonnelPlatform.Infrastructure.Personnel;
 using PersonnelPlatform.Infrastructure.Persistence;
 using PersonnelPlatform.Infrastructure.Reporting;
+using PersonnelPlatform.Infrastructure.Security;
 using PersonnelPlatform.Infrastructure.Workflow;
 
 namespace PersonnelPlatform.Infrastructure;
@@ -40,17 +42,18 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("Postgres")
-            ?? throw new InvalidOperationException("ConnectionStrings:Postgres is required.");
+        var connectionString = configuration.GetConnectionString("Postgres") ?? throw new InvalidOperationException("ConnectionStrings:Postgres is required.");
+        services.AddDbContext<ApplicationDbContext>(options => options.UseNpgsql(connectionString, npgsql => npgsql.MigrationsHistoryTable("__ef_migrations_history", DatabaseSchemas.System)));
 
-        services.AddDbContext<ApplicationDbContext>(options =>
-            options.UseNpgsql(connectionString, npgsql =>
-                npgsql.MigrationsHistoryTable("__ef_migrations_history", DatabaseSchemas.System)));
+        var dataProtectionKey = configuration["Security:DataProtectionKey"];
+        if (string.IsNullOrWhiteSpace(dataProtectionKey)) throw new InvalidOperationException("Configuration value 'Security:DataProtectionKey' is required.");
+        services.AddSingleton<ISensitiveDataProtector>(new AesGcmSensitiveDataProtector(dataProtectionKey));
 
         services.AddScoped<IAuditRepository, AuditRepository>();
         services.AddScoped<AuditService>();
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();
         services.AddScoped<IPersonnelRepository, PersonnelRepository>();
+        services.AddScoped<IEmployeeSensitiveRepository, EmployeeSensitiveRepository>();
         services.AddScoped<IDocumentRepository, DocumentRepository>();
         services.AddScoped<IDocumentHistoryRepository, DocumentHistoryRepository>();
         services.AddScoped<ILeaveRepository, LeaveRepository>();
@@ -62,6 +65,7 @@ public static class DependencyInjection
         services.AddScoped<ICampRepository, CampRepository>();
         services.AddScoped<IMealRepository, MealRepository>();
         services.AddScoped<IPayrollRepository, PayrollRepository>();
+        services.AddScoped<ISalaryProtectionRepository, SalaryProtectionRepository>();
         services.AddScoped<IAssetStockRepository, AssetStockRepository>();
         services.AddScoped<IVehicleRepository, VehicleRepository>();
         services.AddScoped<IAdministrativeAffairsRepository, AdministrativeAffairsRepository>();
@@ -77,19 +81,12 @@ public static class DependencyInjection
         services.AddSingleton(new LocalFileStorageOptions(storageRoot));
         services.AddSingleton<IFileStorage, LocalFileStorage>();
         services.AddSingleton<IReportFileStorage, ReportFileStorage>();
-
         var maxMbRaw = configuration["FileStorage:MaxUploadSizeMb"];
         var maxMb = long.TryParse(maxMbRaw, out var parsedMaxMb) && parsedMaxMb > 0 ? parsedMaxMb : 10;
         services.AddSingleton(new DocumentFilePolicyOptions(maxMb * 1024 * 1024));
-
         services.Configure<RedisOptions>(configuration.GetSection(RedisOptions.SectionName));
         services.AddSingleton<RedisTcpHealthCheck>();
-
-        services
-            .AddHealthChecks()
-            .AddDbContextCheck<ApplicationDbContext>(name: "postgres", tags: ["ready"])
-            .AddCheck<RedisTcpHealthCheck>(name: "redis", tags: ["ready"]);
-
+        services.AddHealthChecks().AddDbContextCheck<ApplicationDbContext>(name: "postgres", tags: ["ready"]).AddCheck<RedisTcpHealthCheck>(name: "redis", tags: ["ready"]);
         return services;
     }
 }

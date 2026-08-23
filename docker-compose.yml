@@ -41,6 +41,7 @@ services:
       Redis__Host: redis
       Redis__Port: 6379
       Jwt__SigningKey: ${JWT_SIGNING_KEY:-dev-only-signing-key-change-me-at-least-32-bytes-long}
+      Security__DataProtectionKey: ${SECURITY_DATA_PROTECTION_KEY:-MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}
       BootstrapAdmin__Username: ${BOOTSTRAP_ADMIN_USERNAME:-admin}
       BootstrapAdmin__Password: ${BOOTSTRAP_ADMIN_PASSWORD:-Admin123!ChangeMe}
       BootstrapAdmin__Email: ${BOOTSTRAP_ADMIN_EMAIL:-admin@local.test}
@@ -61,6 +62,7 @@ services:
       ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=${POSTGRES_DB:-personnel_platform};Username=${POSTGRES_USER:-personnel};Password=${POSTGRES_PASSWORD:-personnel_dev_only};Include Error Detail=true
       Redis__Host: redis
       Redis__Port: 6379
+      Security__DataProtectionKey: ${SECURITY_DATA_PROTECTION_KEY:-MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}
     depends_on:
       postgres:
         condition: service_healthy
