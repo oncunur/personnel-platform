@@ -52,7 +52,7 @@ jobs:
           test "$(query "SELECT to_regclass('migration.reconciliations') IS NOT NULL;")" = "t"
           test "$(query "SELECT count(*) FROM system.permissions WHERE code IN ('migration.view','migration.manage','migration.reconcile');")" = "3"
           test "$(query "SELECT count(*) FROM pg_trigger WHERE tgname IN ('trg_migration_stage_row_immutable','trg_migration_reconciliation_immutable') AND NOT tgisinternal;")" = "2"
-          test "$(query "SELECT count(*) FROM system.__ef_migrations_history WHERE migration_id='202608230028_MigrationStaging';")" = "1"
+          test "$(query "SELECT count(*) FROM system.__ef_migrations_history h WHERE to_jsonb(h)->>'MigrationId'='202608230028_MigrationStaging';")" = "1"
 
       - name: Show logs on failure
         if: failure()
