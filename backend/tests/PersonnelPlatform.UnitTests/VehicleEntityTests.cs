@@ -1,4 +1,5 @@
 using PersonnelPlatform.Domain.Administration;
+using Xunit;
 
 namespace PersonnelPlatform.UnitTests;
 
