@@ -35,9 +35,9 @@ public sealed class ApiExceptionMiddleware(RequestDelegate next, ILogger<ApiExce
         await context.Response.WriteAsJsonAsync(ApiErrorResponse.Create("LEAVE_ATTACHMENT_REQUIRED", "Bu izin türü gönderilmeden önce destekleyici belge yüklenmelidir.", context.TraceIdentifier), context.RequestAborted);
     }
 
-    private async Task WriteConflictAsync(HttpContext context, string code, string message, string? constraintName)
+    private async Task WriteConflictAsync(HttpContext context, string code, string message, string? rule)
     {
-        logger.LogInformation("Database business rule rejected request. Rule={Rule} Code={ErrorCode} TraceId={TraceId}", constraintName, code, context.TraceIdentifier);
+        logger.LogInformation("Database business rule rejected request. Rule={Rule} Code={ErrorCode} TraceId={TraceId}", rule, code, context.TraceIdentifier);
         if (context.Response.HasStarted) throw new InvalidOperationException("Response already started while handling a database business rule.");
         context.Response.Clear(); context.Response.StatusCode = StatusCodes.Status409Conflict; context.Response.ContentType = MediaTypeNames.Application.Json;
         await context.Response.WriteAsJsonAsync(ApiErrorResponse.Create(code, message, context.TraceIdentifier), context.RequestAborted);
@@ -57,6 +57,7 @@ public sealed class ApiExceptionMiddleware(RequestDelegate next, ILogger<ApiExce
             case "STOCK_MOVEMENT_IMMUTABLE": code = "STOCK_MOVEMENT_IMMUTABLE"; message = "Stok hareketleri değiştirilemez veya silinemez. Düzeltme için yeni ters/düzeltme hareketi oluşturun."; return true;
             case "VEHICLE_ODOMETER_REGRESSION": code = "VEHICLE_ODOMETER_REGRESSION"; message = "Araç kilometre değeri son kayıtlı değerden küçük olamaz."; return true;
             case "VEHICLE_LEDGER_IMMUTABLE": code = "VEHICLE_LEDGER_IMMUTABLE"; message = "Araç kilometre, bakım ve yakıt defteri kayıtları değiştirilemez veya silinemez. Düzeltme yeni kayıtla yapılmalıdır."; return true;
+            case "ADMIN_HISTORY_IMMUTABLE": code = "ADMIN_HISTORY_IMMUTABLE"; message = "İdari görev tamamlama ve reminder event geçmişi değiştirilemez veya silinemez."; return true;
             default: return false;
         }
     }
@@ -97,6 +98,8 @@ public sealed class ApiExceptionMiddleware(RequestDelegate next, ILogger<ApiExce
             case "ex_vehicle_assignments_overlap" when p.SqlState == PostgresErrorCodes.ExclusionViolation: code = "VEHICLE_ASSIGNMENT_DATE_CONFLICT"; message = "Araç için tarih aralığı çakışan başka bir personel ataması bulunuyor."; return true;
             case "ux_vehicle_odometer_company_source_external" when p.SqlState == PostgresErrorCodes.UniqueViolation: code = "VEHICLE_EXTERNAL_EVENT_DUPLICATE"; message = "Aynı harici kilometre olayı daha önce kaydedilmiş."; return true;
             case "ux_vehicle_fuel_company_source_external" when p.SqlState == PostgresErrorCodes.UniqueViolation: code = "VEHICLE_FUEL_EXTERNAL_EVENT_DUPLICATE"; message = "Aynı harici yakıt kaydı daha önce işlenmiş."; return true;
+            case "ux_administrative_tasks_company_code" when p.SqlState == PostgresErrorCodes.UniqueViolation: code = "ADMIN_TASK_CODE_EXISTS"; message = "Bu şirket için idari görev kodu zaten kullanılıyor."; return true;
+            case "ux_administrative_contracts_company_no" when p.SqlState == PostgresErrorCodes.UniqueViolation: code = "ADMIN_CONTRACT_NO_EXISTS"; message = "Bu şirket için kontrat numarası zaten kullanılıyor."; return true;
             default: return false;
         }
     }
