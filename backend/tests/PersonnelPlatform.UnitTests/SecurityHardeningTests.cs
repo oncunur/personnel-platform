@@ -33,7 +33,7 @@ public sealed class SecurityHardeningTests
     [Fact]
     public void Sensitive_masking_should_not_expose_full_values()
     {
-        Assert.Equal("*******6789", SensitiveDataMasking.MaskNationalId("12345678901"));
+        Assert.Equal("*******8901", SensitiveDataMasking.MaskNationalId("12345678901"));
         Assert.Equal("TR********************1234", SensitiveDataMasking.MaskIban("TR12 3456 7890 1234 5678 9012 34"));
         Assert.Equal("*** TRY", SensitiveDataMasking.MaskMoney(12345.67m, "try"));
     }
