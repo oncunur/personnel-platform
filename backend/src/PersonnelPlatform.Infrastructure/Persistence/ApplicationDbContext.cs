@@ -84,6 +84,11 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<VehicleMaintenanceRecord> VehicleMaintenanceRecords => Set<VehicleMaintenanceRecord>();
     public DbSet<VehicleFuelRecord> VehicleFuelRecords => Set<VehicleFuelRecord>();
 
+    public DbSet<AdministrativeTask> AdministrativeTasks => Set<AdministrativeTask>();
+    public DbSet<AdministrativeTaskCompletion> AdministrativeTaskCompletions => Set<AdministrativeTaskCompletion>();
+    public DbSet<AdministrativeContract> AdministrativeContracts => Set<AdministrativeContract>();
+    public DbSet<AdministrativeReminderEvent> AdministrativeReminderEvents => Set<AdministrativeReminderEvent>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

@@ -12,6 +12,8 @@ public static class VehiclePermissions
 
 public sealed record CreateVehicleRequest(Guid CompanyId, string Plate, string? Vin, string Brand, string Model, int? ModelYear, DateOnly? InsuranceValidUntil, DateOnly? InspectionValidUntil, string? Note);
 public sealed record SetVehicleStatusRequest(int Version, string Status);
+public sealed record UpdateVehicleComplianceRequest(int Version, DateOnly? InsuranceValidUntil, DateOnly? InspectionValidUntil);
+public sealed record VehicleComplianceSummary(Guid Id, DateOnly? InsuranceValidUntil, DateOnly? InspectionValidUntil, int Version);
 public sealed record VehicleSummary(Guid Id, Guid CompanyId, string Plate, string? Vin, string Brand, string Model, int? ModelYear, string Status, DateOnly? InsuranceValidUntil, DateOnly? InspectionValidUntil, int? CurrentOdometerKm, Guid? AssignedEmployeeId, string? AssignedEmployeeNo, string? AssignedEmployeeName, int Version);
 
 public sealed record AssignVehicleRequest(Guid VehicleId, Guid EmployeeId, DateOnly ValidFrom, DateOnly? ValidUntilExclusive, string? Note);
