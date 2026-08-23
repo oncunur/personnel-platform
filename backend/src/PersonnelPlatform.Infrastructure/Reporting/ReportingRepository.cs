@@ -3,6 +3,7 @@ using PersonnelPlatform.Application.Reporting;
 using PersonnelPlatform.Domain.Attendance;
 using PersonnelPlatform.Domain.Camp;
 using PersonnelPlatform.Domain.Finance;
+using PersonnelPlatform.Domain.Personnel;
 using PersonnelPlatform.Domain.Reporting;
 using PersonnelPlatform.Infrastructure.Persistence;
 
@@ -125,7 +126,7 @@ public sealed class ReportingRepository(ApplicationDbContext db) : IReportingRep
 
     public Task<int> SaveChangesAsync(CancellationToken ct) => db.SaveChangesAsync(ct);
 
-    private static decimal ProjectShare(Guid employeeId, DateOnly date, Guid projectId, IReadOnlyList<Domain.Personnel.EmployeeProjectAssignment> assignments)
+    private static decimal ProjectShare(Guid employeeId, DateOnly date, Guid projectId, IReadOnlyList<EmployeeProjectAssignment> assignments)
     {
         var active = assignments.Where(x => x.EmployeeId == employeeId && x.ValidFrom <= date && (x.ValidUntil == null || x.ValidUntil >= date)).ToArray();
         var total = active.Sum(x => x.AllocationPercent);
