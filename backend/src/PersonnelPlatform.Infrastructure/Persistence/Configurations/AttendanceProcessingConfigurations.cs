@@ -25,7 +25,11 @@ public sealed class RawAttendanceEventConfiguration : IEntityTypeConfiguration<R
         builder.Property(x => x.ReceivedAt).HasColumnName("received_at");
         builder.Property(x => x.ReceivedBy).HasColumnName("received_by");
         builder.HasIndex(x => new { x.EmployeeId, x.LocalDate, x.LocalTime }).HasDatabaseName("ix_raw_events_employee_local");
-        builder.HasIndex(x => new { x.CompanyId, x.Source, x.ExternalEventId }).HasDatabaseName("ix_raw_events_source_external_model");
+        builder.HasIndex(x => new { x.CompanyId, x.LocalDate }).HasDatabaseName("ix_raw_events_company_local");
+        builder.HasIndex(x => new { x.CompanyId, x.Source, x.ExternalEventId })
+            .IsUnique()
+            .HasFilter("external_event_id IS NOT NULL")
+            .HasDatabaseName("ux_raw_attendance_events_company_source_external");
     }
 }
 
@@ -57,7 +61,10 @@ public sealed class DailyAttendanceConfiguration : IEntityTypeConfiguration<Dail
         builder.Property(x => x.CalculationMessage).HasColumnName("calculation_message").HasMaxLength(2000);
         builder.Property(x => x.CalculatedAt).HasColumnName("calculated_at");
         AttendanceConfigurationHelpers.ConfigureAudit(builder);
-        builder.HasIndex(x => new { x.EmployeeId, x.AttendanceDate }).IsUnique().HasDatabaseName("ux_daily_attendance_employee_date");
+        builder.HasIndex(x => new { x.EmployeeId, x.AttendanceDate })
+            .IsUnique()
+            .HasFilter("deleted_at IS NULL")
+            .HasDatabaseName("ux_daily_attendance_employee_date");
         builder.HasIndex(x => new { x.CompanyId, x.AttendanceDate, x.ProcessingStatus }).HasDatabaseName("ix_daily_attendance_company_date_status");
         builder.HasIndex(x => x.ShiftAssignmentId).HasDatabaseName("ix_daily_attendance_assignment");
         builder.HasIndex(x => x.LeaveId).HasDatabaseName("ix_daily_attendance_leave");
