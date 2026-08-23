@@ -44,6 +44,14 @@ public sealed class ApiExceptionMiddleware(RequestDelegate next, ILogger<ApiExce
         {
             await WriteConflictAsync(context, "RAW_ATTENDANCE_IMMUTABLE", "Ham PDKS kayıtları değiştirilemez veya silinemez.", "trg_raw_events_immutable");
         }
+        catch (DbUpdateException exception) when (IsPayrollClosedImmutable(exception.InnerException))
+        {
+            await WriteConflictAsync(context, "PAYROLL_CLOSED_IMMUTABLE", "Kapatılmış bordro dönemi ve sonuçları değiştirilemez. Düzeltme için yeni revision oluşturun.", "payroll_closed_immutable");
+        }
+        catch (PostgresException exception) when (IsPayrollClosedImmutable(exception))
+        {
+            await WriteConflictAsync(context, "PAYROLL_CLOSED_IMMUTABLE", "Kapatılmış bordro dönemi ve sonuçları değiştirilemez. Düzeltme için yeni revision oluşturun.", "payroll_closed_immutable");
+        }
         catch (DbUpdateConcurrencyException exception)
         {
             logger.LogInformation(exception, "Optimistic concurrency conflict. TraceId={TraceId}", context.TraceIdentifier);
@@ -91,6 +99,9 @@ public sealed class ApiExceptionMiddleware(RequestDelegate next, ILogger<ApiExce
 
     private static bool IsRawAttendanceImmutable(Exception? exception) =>
         exception is PostgresException postgres && postgres.SqlState == "P0001" && postgres.MessageText == "RAW_ATTENDANCE_IMMUTABLE";
+
+    private static bool IsPayrollClosedImmutable(Exception? exception) =>
+        exception is PostgresException postgres && postgres.SqlState == "P0001" && postgres.MessageText == "PAYROLL_CLOSED_IMMUTABLE";
 
     private static bool TryMapBusinessConstraint(Exception? exception, out string code, out string message)
     {
@@ -167,6 +178,18 @@ public sealed class ApiExceptionMiddleware(RequestDelegate next, ILogger<ApiExce
             case "ux_meal_consumptions_company_source_external" when postgres.SqlState == PostgresErrorCodes.UniqueViolation:
                 code = "MEAL_EXTERNAL_EVENT_DUPLICATE";
                 message = "Aynı harici yemek olayı daha önce kaydedilmiş. Kayıt yinelenmedi.";
+                return true;
+            case "ex_employee_compensations_overlap" when postgres.SqlState == PostgresErrorCodes.ExclusionViolation:
+                code = "PAYROLL_COMPENSATION_DATE_CONFLICT";
+                message = "Personelin bu tarih aralığında başka bir ücret tanımı bulunuyor.";
+                return true;
+            case "ux_payroll_period_revision" when postgres.SqlState == PostgresErrorCodes.UniqueViolation:
+                code = "PAYROLL_PERIOD_REVISION_EXISTS";
+                message = "Bu ay ve revision için bordro dönemi başka bir işlem tarafından oluşturuldu.";
+                return true;
+            case "ux_payroll_results_period_employee" when postgres.SqlState == PostgresErrorCodes.UniqueViolation:
+                code = "PAYROLL_RESULT_ALREADY_EXISTS";
+                message = "Bu bordro dönemi için personel sonucu zaten oluşturulmuş. Veriyi yenileyin.";
                 return true;
             default:
                 return false;
