@@ -36,6 +36,19 @@ public sealed class ApiExceptionMiddleware(RequestDelegate next, ILogger<ApiExce
             TryMapAttendanceConstraint(exception, out var code, out var message);
             await WriteConflictAsync(context, code, message, exception.ConstraintName);
         }
+        catch (DbUpdateException exception) when (IsRawAttendanceImmutable(exception.InnerException))
+        {
+            await WriteConflictAsync(context, "RAW_ATTENDANCE_IMMUTABLE", "Ham PDKS kayıtları değiştirilemez veya silinemez.", "trg_raw_events_immutable");
+        }
+        catch (PostgresException exception) when (IsRawAttendanceImmutable(exception))
+        {
+            await WriteConflictAsync(context, "RAW_ATTENDANCE_IMMUTABLE", "Ham PDKS kayıtları değiştirilemez veya silinemez.", "trg_raw_events_immutable");
+        }
+        catch (DbUpdateConcurrencyException exception)
+        {
+            logger.LogInformation(exception, "Optimistic concurrency conflict. TraceId={TraceId}", context.TraceIdentifier);
+            await WriteConflictAsync(context, "RECORD_MODIFIED_BY_ANOTHER_USER", "Kayıt başka bir işlem tarafından değiştirildi. Veriyi yenileyip tekrar deneyin.", null);
+        }
         catch (Exception exception)
         {
             logger.LogError(exception, "Unhandled exception. TraceId={TraceId}", context.TraceIdentifier);
@@ -85,6 +98,11 @@ public sealed class ApiExceptionMiddleware(RequestDelegate next, ILogger<ApiExce
         && postgres.SqlState == "P0001"
         && postgres.MessageText == "LEAVE_ATTACHMENT_REQUIRED";
 
+    private static bool IsRawAttendanceImmutable(Exception? exception) =>
+        exception is PostgresException postgres
+        && postgres.SqlState == "P0001"
+        && postgres.MessageText == "RAW_ATTENDANCE_IMMUTABLE";
+
     private static bool TryMapAttendanceConstraint(Exception? exception, out string code, out string message)
     {
         code = string.Empty;
@@ -112,6 +130,14 @@ public sealed class ApiExceptionMiddleware(RequestDelegate next, ILogger<ApiExce
             case "ux_work_calendar_days_calendar_date" when postgres.SqlState == PostgresErrorCodes.UniqueViolation:
                 code = "WORK_CALENDAR_DAY_CONFLICT";
                 message = "Bu tarih için takvim günü başka bir işlem tarafından oluşturuldu; veriyi yenileyip tekrar deneyin.";
+                return true;
+            case "ux_raw_attendance_events_company_source_external" when postgres.SqlState == PostgresErrorCodes.UniqueViolation:
+                code = "RAW_ATTENDANCE_EVENT_DUPLICATE";
+                message = "Aynı harici PDKS olayı daha önce alınmış. Kayıt yinelenmedi.";
+                return true;
+            case "ux_daily_attendance_employee_date" when postgres.SqlState == PostgresErrorCodes.UniqueViolation:
+                code = "DAILY_ATTENDANCE_CONCURRENT_UPDATE";
+                message = "Bu günün puantajı başka bir işlem tarafından oluşturuldu. Veriyi yenileyip tekrar deneyin.";
                 return true;
             default:
                 return false;
