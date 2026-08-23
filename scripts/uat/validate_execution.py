@@ -10,6 +10,10 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+CATALOG_HEADERS = [
+    "scenario_id", "domain", "title", "persona", "route", "priority", "test_type",
+    "preconditions", "steps", "expected_result", "evidence", "status",
+]
 EXECUTION_HEADERS = [
     "execution_id", "scenario_id", "environment", "commit_sha", "tester", "persona",
     "started_at", "completed_at", "result", "observed_result", "evidence_ref",
@@ -47,10 +51,7 @@ def parse_iso(value: str, field: str, row_no: int, errors: list[str]) -> None:
 def validate(catalog_path: Path, executions_path: Path, defects_path: Path, strict: bool = False) -> tuple[list[str], dict[str, int]]:
     errors: list[str] = []
 
-    catalog_errors, catalog_rows = load_csv(
-        catalog_path,
-        ["scenario_id", "domain", "title", "persona", "route", "priority", "test_type", "preconditions", "steps", "expected_result", "evidence", "status"],
-    )
+    catalog_errors, catalog_rows = load_csv(catalog_path, CATALOG_HEADERS)
     errors.extend(catalog_errors)
     execution_errors, execution_rows = load_csv(executions_path, EXECUTION_HEADERS)
     errors.extend(execution_errors)
@@ -127,28 +128,42 @@ def validate(catalog_path: Path, executions_path: Path, defects_path: Path, stri
         parse_iso(row["fixed_at"].strip(), "fixed_at", row_no, errors)
         if status in {"FIXED", "RETEST_PENDING", "CLOSED"} and not row["fixed_at"].strip():
             errors.append(f"Defect row {row_no}: status {status} requires fixed_at")
+        if status == "CLOSED" and not row["retest_execution_id"].strip():
+            errors.append(f"Defect row {row_no}: CLOSED requires retest_execution_id")
         if status in {"CLOSED", "ACCEPTED_RISK"} and not row["disposition"].strip():
             errors.append(f"Defect row {row_no}: status {status} requires disposition")
 
     for row_no, row in enumerate(execution_rows, start=2):
         defect_id = row["defect_id"].strip()
         retest_of = row["retest_of_execution_id"].strip()
-        if defect_id and defect_id not in defect_ids:
-            errors.append(f"Execution row {row_no}: unknown defect_id {defect_id}")
+        if defect_id:
+            defect = defect_by_id.get(defect_id)
+            if defect is None:
+                errors.append(f"Execution row {row_no}: unknown defect_id {defect_id}")
+            elif defect["scenario_id"].strip() != row["scenario_id"].strip():
+                errors.append(f"Execution row {row_no}: defect must reference the same scenario")
         if retest_of:
-            if retest_of not in execution_by_id:
+            original = execution_by_id.get(retest_of)
+            if original is None:
                 errors.append(f"Execution row {row_no}: unknown retest_of_execution_id {retest_of}")
-            elif execution_by_id[retest_of]["scenario_id"].strip() != row["scenario_id"].strip():
+            elif original["scenario_id"].strip() != row["scenario_id"].strip():
                 errors.append(f"Execution row {row_no}: retest must reference the same scenario")
+            elif original["result"].strip() != "FAIL":
+                errors.append(f"Execution row {row_no}: retest must reference a FAIL execution")
+            elif defect_id and original["defect_id"].strip() != defect_id:
+                errors.append(f"Execution row {row_no}: retest defect_id must match the original FAIL defect")
 
     for row_no, row in enumerate(defect_rows, start=2):
         retest_id = row["retest_execution_id"].strip()
         if retest_id:
-            if retest_id not in execution_by_id:
+            retest = execution_by_id.get(retest_id)
+            if retest is None:
                 errors.append(f"Defect row {row_no}: unknown retest_execution_id {retest_id}")
-            elif execution_by_id[retest_id]["scenario_id"].strip() != row["scenario_id"].strip():
+            elif retest["scenario_id"].strip() != row["scenario_id"].strip():
                 errors.append(f"Defect row {row_no}: retest execution must reference the same scenario")
-            elif row["status"].strip() == "CLOSED" and execution_by_id[retest_id]["result"].strip() != "PASS":
+            elif retest["defect_id"].strip() != row["defect_id"].strip():
+                errors.append(f"Defect row {row_no}: retest execution must reference this defect")
+            elif row["status"].strip() == "CLOSED" and retest["result"].strip() != "PASS":
                 errors.append(f"Defect row {row_no}: CLOSED defect retest execution must PASS")
 
     if strict and not execution_rows:
