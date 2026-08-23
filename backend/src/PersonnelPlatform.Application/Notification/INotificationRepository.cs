@@ -17,7 +17,7 @@ public interface INotificationRepository
 
     Task<UserNotification?> FindNotificationAsync(Guid notificationId, CancellationToken ct);
     Task<NotificationSummary?> GetNotificationSummaryAsync(Guid notificationId, CancellationToken ct);
-    Task<IReadOnlyList<NotificationSummary>> ListNotificationsAsync(Guid userId, Guid? companyId, string? status, string? priority, int take, CancellationToken ct);
+    Task<IReadOnlyList<NotificationSummary>> ListNotificationsAsync(Guid userId, bool globalAccess, IReadOnlyCollection<Guid> companyIds, Guid? companyId, string? status, string? priority, int take, CancellationToken ct);
     Task<IReadOnlyList<NotificationHistorySummary>> ListHistoryAsync(Guid notificationId, int take, CancellationToken ct);
     void AddHistory(NotificationHistory history);
 
