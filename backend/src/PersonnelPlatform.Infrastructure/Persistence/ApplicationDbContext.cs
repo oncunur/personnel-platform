@@ -4,6 +4,7 @@ using PersonnelPlatform.Domain.Attendance;
 using PersonnelPlatform.Domain.Audit;
 using PersonnelPlatform.Domain.Camp;
 using PersonnelPlatform.Domain.Documents;
+using PersonnelPlatform.Domain.Finance;
 using PersonnelPlatform.Domain.Identity;
 using PersonnelPlatform.Domain.Leave;
 using PersonnelPlatform.Domain.Meal;
@@ -11,6 +12,7 @@ using PersonnelPlatform.Domain.Notification;
 using PersonnelPlatform.Domain.Organization;
 using PersonnelPlatform.Domain.Payroll;
 using PersonnelPlatform.Domain.Personnel;
+using PersonnelPlatform.Domain.Reporting;
 using PersonnelPlatform.Domain.Workflow;
 
 namespace PersonnelPlatform.Infrastructure.Persistence;
@@ -102,6 +104,10 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<NotificationRule> NotificationRules => Set<NotificationRule>();
     public DbSet<UserNotification> UserNotifications => Set<UserNotification>();
     public DbSet<NotificationHistory> NotificationHistories => Set<NotificationHistory>();
+
+    public DbSet<CostEntry> CostEntries => Set<CostEntry>();
+    public DbSet<PayrollCostAllocationOverride> PayrollCostAllocationOverrides => Set<PayrollCostAllocationOverride>();
+    public DbSet<ReportExportJob> ReportExportJobs => Set<ReportExportJob>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
