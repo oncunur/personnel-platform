@@ -20,6 +20,7 @@ public interface IOrganizationRepository
     void AddDepartment(Department department);
 
     Task<IReadOnlyList<Position>> ListPositionsAsync(Guid departmentId, CancellationToken cancellationToken);
+    Task<Position?> FindPositionAsync(Guid id, CancellationToken cancellationToken);
     Task<bool> PositionCodeExistsAsync(Guid departmentId, string code, CancellationToken cancellationToken);
     void AddPosition(Position position);
 

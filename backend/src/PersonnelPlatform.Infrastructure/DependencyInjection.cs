@@ -3,9 +3,11 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using PersonnelPlatform.Application.Audit;
 using PersonnelPlatform.Application.Organization;
+using PersonnelPlatform.Application.Personnel;
 using PersonnelPlatform.Infrastructure.Audit;
 using PersonnelPlatform.Infrastructure.Health;
 using PersonnelPlatform.Infrastructure.Organization;
+using PersonnelPlatform.Infrastructure.Personnel;
 using PersonnelPlatform.Infrastructure.Persistence;
 
 namespace PersonnelPlatform.Infrastructure;
@@ -24,18 +26,15 @@ public static class DependencyInjection
         services.AddScoped<IAuditRepository, AuditRepository>();
         services.AddScoped<AuditService>();
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();
+        services.AddScoped<IPersonnelRepository, PersonnelRepository>();
 
         services.Configure<RedisOptions>(configuration.GetSection(RedisOptions.SectionName));
         services.AddSingleton<RedisTcpHealthCheck>();
 
         services
             .AddHealthChecks()
-            .AddDbContextCheck<ApplicationDbContext>(
-                name: "postgres",
-                tags: ["ready"])
-            .AddCheck<RedisTcpHealthCheck>(
-                name: "redis",
-                tags: ["ready"]);
+            .AddDbContextCheck<ApplicationDbContext>(name: "postgres", tags: ["ready"])
+            .AddCheck<RedisTcpHealthCheck>(name: "redis", tags: ["ready"]);
 
         return services;
     }
