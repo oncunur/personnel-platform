@@ -1,0 +1,81 @@
+name: dr-restore-test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup-restore:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start isolated platform
+        run: docker compose up -d --build postgres redis api worker web
+
+      - name: Wait for API readiness
+        shell: bash
+        run: |
+          for attempt in {1..60}; do
+            if curl --fail --silent http://127.0.0.1:8080/health/ready >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose ps
+          docker compose logs api
+          exit 1
+
+      - name: Seed restore marker
+        run: docker compose exec -T api sh -c "mkdir -p /app/storage && printf 'before-backup' > /app/storage/dr-restore-marker.txt"
+
+      - name: Create backup
+        run: bash scripts/ops/backup.sh backups
+
+      - name: Validate database archive
+        run: |
+          backup_dir="$(find backups -mindepth 1 -maxdepth 1 -type d | sort | tail -1)"
+          test -n "$backup_dir"
+          docker compose exec -T postgres pg_restore --list < "$backup_dir/database.dump" >/dev/null
+
+      - name: Mutate file after backup
+        run: docker compose exec -T api sh -c "printf 'after-backup' > /app/storage/dr-restore-marker.txt"
+
+      - name: Restore backup
+        env:
+          CONFIRM_RESTORE: 'YES'
+        run: |
+          backup_dir="$(find backups -mindepth 1 -maxdepth 1 -type d | sort | tail -1)"
+          bash scripts/ops/restore.sh "$backup_dir"
+
+      - name: Wait for restored API readiness
+        shell: bash
+        run: |
+          for attempt in {1..60}; do
+            if curl --fail --silent http://127.0.0.1:8080/health/ready >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose ps
+          docker compose logs api
+          exit 1
+
+      - name: Verify restored file storage
+        run: |
+          restored="$(docker compose exec -T api cat /app/storage/dr-restore-marker.txt | tr -d '\r\n')"
+          test "$restored" = 'before-backup'
+
+      - name: Probe restored platform
+        run: bash scripts/ops/health-watch.sh http://127.0.0.1:8080
+
+      - name: Show service logs on failure
+        if: failure()
+        run: docker compose logs api worker postgres redis
+
+      - name: Tear down isolated platform
+        if: always()
+        run: docker compose down -v --remove-orphans
