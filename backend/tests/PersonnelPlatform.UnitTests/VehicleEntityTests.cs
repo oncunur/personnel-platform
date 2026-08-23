@@ -19,6 +19,25 @@ public sealed class VehicleEntityTests
     }
 
     [Fact]
+    public void UpdateComplianceDates_UpdatesRenewalDatesAndVersion()
+    {
+        var row = Vehicle.Create(CompanyId, "34ABC123", null, "Ford", "Transit", 2024, new DateOnly(2026, 9, 1), null, null, Now, ActorId);
+        row.UpdateComplianceDates(new DateOnly(2027, 9, 1), new DateOnly(2027, 8, 15), Now.AddMinutes(1), ActorId);
+        Assert.Equal(new DateOnly(2027, 9, 1), row.InsuranceValidUntil);
+        Assert.Equal(new DateOnly(2027, 8, 15), row.InspectionValidUntil);
+        Assert.Equal(2, row.Version);
+    }
+
+    [Fact]
+    public void UpdateComplianceDates_WithNoChange_DoesNotIncrementVersion()
+    {
+        var date = new DateOnly(2026, 9, 1);
+        var row = Vehicle.Create(CompanyId, "34ABC124", null, "Ford", "Transit", 2024, date, null, null, Now, ActorId);
+        row.UpdateComplianceDates(date, null, Now.AddMinutes(1), ActorId);
+        Assert.Equal(1, row.Version);
+    }
+
+    [Fact]
     public void Assignment_Close_UsesExclusiveEndAndIncrementsVersion()
     {
         var row = VehicleAssignment.Create(CompanyId, Guid.NewGuid(), Guid.NewGuid(), null, null, new DateOnly(2026, 8, 1), null, null, Now, ActorId);
