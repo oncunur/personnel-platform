@@ -18,7 +18,10 @@ public sealed class WorkCalendarConfiguration : IEntityTypeConfiguration<WorkCal
         builder.Property(x => x.IsActive).HasColumnName("is_active");
         AttendanceConfigurationHelpers.ConfigureAudit(builder);
         builder.HasIndex(x => new { x.CompanyId, x.Code }).IsUnique().HasDatabaseName("ux_work_calendars_company_code");
-        builder.HasIndex(x => new { x.CompanyId, x.IsDefault }).HasDatabaseName("ix_work_calendars_company_default_model");
+        builder.HasIndex(x => x.CompanyId)
+            .IsUnique()
+            .HasFilter("is_default = TRUE AND is_active = TRUE AND deleted_at IS NULL")
+            .HasDatabaseName("ux_work_calendars_default_company");
     }
 }
 
