@@ -1,0 +1,103 @@
+name: migration-dry-run-1
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'scripts/migration/**'
+      - 'docs/migration/**'
+      - 'backend/src/PersonnelPlatform.Application/Migration/**'
+      - 'backend/src/PersonnelPlatform.Domain/Migration/**'
+      - 'backend/src/PersonnelPlatform.Infrastructure/Migration/**'
+      - 'backend/src/PersonnelPlatform.Api/Migration/**'
+      - '.github/workflows/migration-dry-run-1.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-api-dry-run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Start isolated platform
+        run: docker compose up -d --build postgres redis api
+
+      - name: Wait for API readiness
+        shell: bash
+        run: |
+          for attempt in {1..60}; do
+            if curl --fail --silent http://127.0.0.1:8080/health/ready >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose ps
+          docker compose logs api postgres
+          exit 1
+
+      - name: Execute MIG-004 synthetic dry-run
+        run: >-
+          python scripts/migration/run_dry_run.py
+          --api-base http://127.0.0.1:8080
+          --source scripts/migration/fixtures/legacy-employees.csv
+          --mapping scripts/migration/fixtures/employee-field-mapping.csv
+          --source-system SYNTHETIC_HR
+          --source-object EMPLOYEE_EXPORT
+          --target-entity Employee
+          --company-code MIGDRYRUN
+          --evidence migration-output/dry-run-1-evidence.json
+
+      - name: Validate sanitized evidence
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          evidence = json.loads(Path('migration-output/dry-run-1-evidence.json').read_text(encoding='utf-8'))
+          assert evidence['verdict'] == 'PASS_SYNTHETIC_TECHNICAL_BASELINE'
+          assert evidence['realSourceReady'] is False
+          assert len(evidence['runs']) == 2
+          assert all(evidence['gates'].values())
+          assert evidence['runs'][0]['idempotence'] == {'new': 2, 'changed': 0, 'unchanged': 0}
+          assert evidence['runs'][1]['idempotence'] == {'new': 0, 'changed': 0, 'unchanged': 2}
+          assert evidence['runs'][1]['counts']['duplicate'] == 2
+          PY
+
+      - name: Verify persisted dry-run evidence
+        shell: bash
+        run: |
+          query() {
+            docker compose exec -T postgres psql -U personnel -d personnel_platform -Atc "$1"
+          }
+          test "$(query "SELECT count(*) FROM migration.runs WHERE source_system='SYNTHETIC_HR' AND source_object='EMPLOYEE_EXPORT' AND status='RECONCILED';")" = "2"
+          test "$(query "SELECT count(*) FROM migration.stage_rows WHERE idempotence_status='NEW';")" = "2"
+          test "$(query "SELECT count(*) FROM migration.stage_rows WHERE idempotence_status='UNCHANGED' AND status='DUPLICATE';")" = "2"
+          test "$(query "SELECT count(*) FROM migration.lineage_records WHERE source_system='SYNTHETIC_HR' AND source_object='EMPLOYEE_EXPORT' AND seen_count=2;")" = "2"
+          test "$(query "SELECT count(*) FROM migration.reconciliations WHERE status='MISMATCH';")" = "0"
+          test "$(query "SELECT count(*) FROM migration.reconciliations;")" = "6"
+          test "$(query "SELECT count(*) FROM migration.stage_rows WHERE source_payload_ciphertext ILIKE '%Ayse%' OR transformed_payload_ciphertext ILIKE '%Ayse%' OR source_payload_ciphertext ILIKE '%000123%' OR transformed_payload_ciphertext ILIKE '%000123%';")" = "0"
+
+      - name: Upload sanitized evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mig-004-dry-run-1-evidence
+          path: migration-output/dry-run-1-evidence.json
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Show service logs on failure
+        if: failure()
+        run: docker compose logs api postgres redis
+
+      - name: Tear down isolated platform
+        if: always()
+        run: docker compose down -v --remove-orphans
