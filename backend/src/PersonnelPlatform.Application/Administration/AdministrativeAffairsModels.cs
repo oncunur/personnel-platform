@@ -8,10 +8,8 @@ public static class AdministrativeAffairsPermissions
     public const string ContractManage = "administration.contract.manage";
     public const string ReminderView = "administration.reminder.view";
     public const string ReminderProcess = "administration.reminder.process";
-    public const string ReferenceView = "administration.reference.view";
 }
 
-public sealed record AdministrativeResponsibleUserSummary(Guid Id, string Username);
 public sealed record CreateAdministrativeTaskRequest(Guid CompanyId, string Code, string Title, string? Description, Guid ResponsibleUserId, DateOnly DueDate, string RecurrenceUnit, int RecurrenceInterval, int ReminderDaysBefore);
 public sealed record AdministrativeTaskActionRequest(int Version, string? Note = null);
 public sealed record AdministrativeTaskSummary(Guid Id, Guid CompanyId, string Code, string Title, string? Description, Guid ResponsibleUserId, string ResponsibleUsername, DateOnly DueDate, string RecurrenceUnit, int RecurrenceInterval, int ReminderDaysBefore, string Status, int CompletionCount, DateTimeOffset? LastCompletedAt, int Version);
