@@ -78,6 +78,12 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<AssetItem> Assets => Set<AssetItem>();
     public DbSet<AssetAssignment> AssetAssignments => Set<AssetAssignment>();
 
+    public DbSet<Vehicle> Vehicles => Set<Vehicle>();
+    public DbSet<VehicleAssignment> VehicleAssignments => Set<VehicleAssignment>();
+    public DbSet<VehicleOdometerEvent> VehicleOdometerEvents => Set<VehicleOdometerEvent>();
+    public DbSet<VehicleMaintenanceRecord> VehicleMaintenanceRecords => Set<VehicleMaintenanceRecord>();
+    public DbSet<VehicleFuelRecord> VehicleFuelRecords => Set<VehicleFuelRecord>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
