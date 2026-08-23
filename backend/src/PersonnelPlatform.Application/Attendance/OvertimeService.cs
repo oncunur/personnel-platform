@@ -39,6 +39,7 @@ public sealed class OvertimeService(
                 employee.CompanyId,
                 employee.Id,
                 daily.Id,
+                daily.Version,
                 daily.AttendanceDate,
                 daily.OvertimeCandidateMinutes,
                 request.RequestedMinutes,
