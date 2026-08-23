@@ -50,6 +50,8 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<WorkCalendarDay> WorkCalendarDays => Set<WorkCalendarDay>();
     public DbSet<ShiftDefinition> Shifts => Set<ShiftDefinition>();
     public DbSet<EmployeeShiftAssignment> EmployeeShiftAssignments => Set<EmployeeShiftAssignment>();
+    public DbSet<RawAttendanceEvent> RawAttendanceEvents => Set<RawAttendanceEvent>();
+    public DbSet<DailyAttendance> DailyAttendances => Set<DailyAttendance>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
