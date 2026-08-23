@@ -3,11 +3,13 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using PersonnelPlatform.Application.Audit;
 using PersonnelPlatform.Application.Documents;
+using PersonnelPlatform.Application.Leave;
 using PersonnelPlatform.Application.Organization;
 using PersonnelPlatform.Application.Personnel;
 using PersonnelPlatform.Infrastructure.Audit;
 using PersonnelPlatform.Infrastructure.Documents;
 using PersonnelPlatform.Infrastructure.Health;
+using PersonnelPlatform.Infrastructure.Leave;
 using PersonnelPlatform.Infrastructure.Organization;
 using PersonnelPlatform.Infrastructure.Personnel;
 using PersonnelPlatform.Infrastructure.Persistence;
@@ -31,6 +33,7 @@ public static class DependencyInjection
         services.AddScoped<IPersonnelRepository, PersonnelRepository>();
         services.AddScoped<IDocumentRepository, DocumentRepository>();
         services.AddScoped<IDocumentHistoryRepository, DocumentHistoryRepository>();
+        services.AddScoped<ILeaveRepository, LeaveRepository>();
 
         var storageRoot = configuration["FileStorage:RootPath"];
         if (string.IsNullOrWhiteSpace(storageRoot)) storageRoot = Path.Combine(AppContext.BaseDirectory, "storage");
