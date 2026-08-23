@@ -57,6 +57,10 @@ public static class DailyAttendanceCalculator
         var hasCompletePair = firstIn is not null && lastOut is not null;
         var worked = hasCompletePair ? Math.Max(0, lastOut!.Minute - firstIn!.Minute - input.ShiftBreakMinutes) : 0;
         var leaveMinutes = (int)Math.Round(input.PlannedMinutes * input.LeaveDayFraction, MidpointRounding.AwayFromZero);
+        var inCount = relevant.Count(x => x.Punch.Direction == RawAttendanceDirections.In);
+        var outCount = relevant.Count(x => x.Punch.Direction == RawAttendanceDirections.Out);
+        var hasUnknown = relevant.Any(x => x.Punch.Direction == RawAttendanceDirections.Unknown);
+        var ambiguousMovements = hasUnknown || inCount > 1 || outCount > 1;
 
         if (input.LeaveDayFraction >= 1m)
         {
@@ -135,7 +139,9 @@ public static class DailyAttendanceCalculator
                 firstIn!.Punch.EventAt,
                 lastOut!.Punch.EventAt,
                 usedIds,
-                "Tatil/hafta sonu/off-day çalışması tespit edildi; fazla mesai onayı için kontrol gerekli.");
+                ambiguousMovements
+                    ? "Tatil/hafta sonu/off-day çalışmasında çoklu veya belirsiz PDKS hareketi tespit edildi; kontrol gerekli."
+                    : "Tatil/hafta sonu/off-day çalışması tespit edildi; fazla mesai onayı için kontrol gerekli.");
         }
 
         if (input.LeaveDayFraction > 0m)
@@ -152,17 +158,25 @@ public static class DailyAttendanceCalculator
                 firstIn!.Punch.EventAt,
                 lastOut!.Punch.EventAt,
                 usedIds,
-                "Kısmi izin + çalışma günü otomatik hesaplandı; saat sınırları insan kontrolü gerektirir.");
+                ambiguousMovements
+                    ? "Kısmi izin gününde çoklu veya belirsiz PDKS hareketi var; insan kontrolü gerekli."
+                    : "Kısmi izin + çalışma günü otomatik hesaplandı; saat sınırları insan kontrolü gerektirir.");
         }
 
         var late = Math.Max(0, firstIn!.Minute - (shiftStart + input.GraceInMinutes));
         var early = Math.Max(0, (shiftEnd - input.GraceOutMinutes) - lastOut!.Minute);
         var overtimeCandidate = Math.Max(0, worked - input.PlannedMinutes);
         var partial = worked < input.PlannedMinutes;
+        var reviewRequired = partial || ambiguousMovements;
+        var message = ambiguousMovements
+            ? "Birden fazla veya belirsiz PDKS hareketi tespit edildi; hesap sonucu insan kontrolü gerektirir."
+            : partial
+                ? "Çalışılan süre planlanan süreden düşük; kontrol gerekli."
+                : null;
 
         return new DailyAttendanceCalculationResult(
             partial ? DailyAttendanceStatuses.Partial : DailyAttendanceStatuses.Worked,
-            partial ? DailyAttendanceProcessingStatuses.ReviewRequired : DailyAttendanceProcessingStatuses.Calculated,
+            reviewRequired ? DailyAttendanceProcessingStatuses.ReviewRequired : DailyAttendanceProcessingStatuses.Calculated,
             input.PlannedMinutes,
             0,
             worked,
@@ -172,7 +186,7 @@ public static class DailyAttendanceCalculator
             firstIn.Punch.EventAt,
             lastOut.Punch.EventAt,
             usedIds,
-            partial ? "Çalışılan süre planlanan süreden düşük; kontrol gerekli." : null);
+            message);
     }
 
     private static int ToMinute(DateOnly attendanceDate, DateOnly eventDate, TimeOnly time) =>
