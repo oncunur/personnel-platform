@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using PersonnelPlatform.Domain.Administration;
 using PersonnelPlatform.Domain.Attendance;
 using PersonnelPlatform.Domain.Audit;
 using PersonnelPlatform.Domain.Camp;
@@ -70,6 +71,12 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<EmployeeCompensation> EmployeeCompensations => Set<EmployeeCompensation>();
     public DbSet<PayrollPeriod> PayrollPeriods => Set<PayrollPeriod>();
     public DbSet<PayrollEmployeeResult> PayrollEmployeeResults => Set<PayrollEmployeeResult>();
+
+    public DbSet<StockLocation> StockLocations => Set<StockLocation>();
+    public DbSet<StockItem> StockItems => Set<StockItem>();
+    public DbSet<StockMovement> StockMovements => Set<StockMovement>();
+    public DbSet<AssetItem> Assets => Set<AssetItem>();
+    public DbSet<AssetAssignment> AssetAssignments => Set<AssetAssignment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
