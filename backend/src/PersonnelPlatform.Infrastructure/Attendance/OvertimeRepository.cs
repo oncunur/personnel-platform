@@ -81,7 +81,7 @@ public sealed class OvertimeRepository(ApplicationDbContext dbContext) : IOverti
     }
 
     public Task<EmployeeUserLink?> FindUserLinkByUserIdAsync(Guid userId, CancellationToken cancellationToken) =>
-        dbContext.EmployeeUserLinks.AsNoTracking().FirstOrDefaultAsync(x => x.UserId == userId && x.DeletedAt == null, cancellationToken);
+        dbContext.EmployeeUserLinks.AsNoTracking().FirstOrDefaultAsync(x => x.UserId == userId && x.IsActive && x.DeletedAt == null, cancellationToken);
 
     public void Add(OvertimeRequest request) => dbContext.OvertimeRequests.Add(request);
     public Task<int> SaveChangesAsync(CancellationToken cancellationToken) => dbContext.SaveChangesAsync(cancellationToken);
