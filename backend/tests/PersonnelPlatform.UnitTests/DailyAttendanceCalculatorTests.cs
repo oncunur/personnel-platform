@@ -36,6 +36,35 @@ public sealed class DailyAttendanceCalculatorTests
     }
 
     [Fact]
+    public void Multiple_punches_require_review_even_when_worked_minutes_are_complete()
+    {
+        var date = new DateOnly(2026, 8, 24);
+        var input = new DailyAttendanceCalculationInput(
+            date,
+            new TimeOnly(8, 0),
+            new TimeOnly(17, 0),
+            60,
+            480,
+            0,
+            0,
+            WorkCalendarDayTypes.Workday,
+            0m,
+            false,
+            [
+                Punch(date, new TimeOnly(8, 0), RawAttendanceDirections.In),
+                Punch(date, new TimeOnly(12, 0), RawAttendanceDirections.Out),
+                Punch(date, new TimeOnly(13, 0), RawAttendanceDirections.In),
+                Punch(date, new TimeOnly(17, 0), RawAttendanceDirections.Out)
+            ]);
+
+        var result = DailyAttendanceCalculator.Calculate(input);
+
+        Assert.Equal(DailyAttendanceStatuses.Worked, result.Status);
+        Assert.Equal(DailyAttendanceProcessingStatuses.ReviewRequired, result.ProcessingStatus);
+        Assert.NotNull(result.Message);
+    }
+
+    [Fact]
     public void Overnight_shift_uses_next_day_out_event()
     {
         var date = new DateOnly(2026, 8, 24);
