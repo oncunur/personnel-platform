@@ -25,6 +25,7 @@ public interface INotificationRepository
     Task<IReadOnlyList<NotificationRule>> ListMatchingRulesAsync(Guid companyId, string sourceModule, string eventType, CancellationToken ct);
     Task<IReadOnlyList<Guid>> ResolveRoleUsersAsync(Guid companyId, Guid roleId, DateTimeOffset now, CancellationToken ct);
     Task<Guid?> ResolveManagerUserAsync(Guid userId, CancellationToken ct);
+    Task<bool> UserHasCompanyAccessAsync(Guid userId, Guid companyId, DateTimeOffset now, CancellationToken ct);
     Task<bool> TryInsertNotificationAsync(UserNotification notification, CancellationToken ct);
     Task<IReadOnlyList<UserNotification>> ListEscalationCandidatesAsync(IReadOnlyCollection<Guid>? companyIds, DateTimeOffset now, int take, CancellationToken ct);
 
