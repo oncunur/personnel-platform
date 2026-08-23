@@ -25,15 +25,15 @@ public sealed class ApiExceptionMiddleware(RequestDelegate next, ILogger<ApiExce
         {
             await WriteRequiredLeaveAttachmentAsync(context);
         }
-        catch (DbUpdateException exception) when (TryMapAttendanceConstraint(exception.InnerException, out _, out _))
+        catch (DbUpdateException exception) when (TryMapBusinessConstraint(exception.InnerException, out _, out _))
         {
             var postgres = (PostgresException)exception.InnerException!;
-            TryMapAttendanceConstraint(postgres, out var code, out var message);
+            TryMapBusinessConstraint(postgres, out var code, out var message);
             await WriteConflictAsync(context, code, message, postgres.ConstraintName);
         }
-        catch (PostgresException exception) when (TryMapAttendanceConstraint(exception, out _, out _))
+        catch (PostgresException exception) when (TryMapBusinessConstraint(exception, out _, out _))
         {
-            TryMapAttendanceConstraint(exception, out var code, out var message);
+            TryMapBusinessConstraint(exception, out var code, out var message);
             await WriteConflictAsync(context, code, message, exception.ConstraintName);
         }
         catch (DbUpdateException exception) when (IsRawAttendanceImmutable(exception.InnerException))
@@ -103,7 +103,7 @@ public sealed class ApiExceptionMiddleware(RequestDelegate next, ILogger<ApiExce
         && postgres.SqlState == "P0001"
         && postgres.MessageText == "RAW_ATTENDANCE_IMMUTABLE";
 
-    private static bool TryMapAttendanceConstraint(Exception? exception, out string code, out string message)
+    private static bool TryMapBusinessConstraint(Exception? exception, out string code, out string message)
     {
         code = string.Empty;
         message = string.Empty;
@@ -142,6 +142,30 @@ public sealed class ApiExceptionMiddleware(RequestDelegate next, ILogger<ApiExce
             case "ux_overtime_active_daily" when postgres.SqlState == PostgresErrorCodes.UniqueViolation:
                 code = "OVERTIME_REQUEST_ALREADY_EXISTS";
                 message = "Bu günlük puantaj için açık veya onaylanmış bir fazla mesai talebi zaten bulunuyor.";
+                return true;
+            case "ux_camps_company_code" when postgres.SqlState == PostgresErrorCodes.UniqueViolation:
+                code = "CAMP_CODE_EXISTS";
+                message = "Bu şirket için kamp kodu zaten kullanılıyor.";
+                return true;
+            case "ux_camp_rooms_camp_code" when postgres.SqlState == PostgresErrorCodes.UniqueViolation:
+                code = "CAMP_ROOM_CODE_EXISTS";
+                message = "Bu kamp içinde oda kodu zaten kullanılıyor.";
+                return true;
+            case "ux_camp_beds_room_code" when postgres.SqlState == PostgresErrorCodes.UniqueViolation:
+                code = "CAMP_BED_CODE_EXISTS";
+                message = "Bu oda içinde yatak kodu zaten kullanılıyor.";
+                return true;
+            case "ex_accommodation_rates_overlap" when postgres.SqlState == PostgresErrorCodes.ExclusionViolation:
+                code = "CAMP_RATE_DATE_CONFLICT";
+                message = "Bu kamp için tarih aralığı çakışan başka bir konaklama fiyatı bulunuyor.";
+                return true;
+            case "ex_accommodation_stays_bed_overlap" when postgres.SqlState == PostgresErrorCodes.ExclusionViolation:
+                code = "CAMP_BED_OCCUPANCY_CONFLICT";
+                message = "Seçilen yatak bu tarih aralığında başka bir personel tarafından kullanılıyor.";
+                return true;
+            case "ex_accommodation_stays_employee_overlap" when postgres.SqlState == PostgresErrorCodes.ExclusionViolation:
+                code = "CAMP_EMPLOYEE_ACCOMMODATION_CONFLICT";
+                message = "Personelin bu tarih aralığında başka bir konaklama kaydı bulunuyor.";
                 return true;
             default:
                 return false;
