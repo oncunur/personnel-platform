@@ -43,6 +43,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<LeaveRequest> LeaveRequests => Set<LeaveRequest>();
     public DbSet<LeaveApproval> LeaveApprovals => Set<LeaveApproval>();
     public DbSet<LeaveApprovalHistory> LeaveApprovalHistories => Set<LeaveApprovalHistory>();
+    public DbSet<LeaveAttachment> LeaveAttachments => Set<LeaveAttachment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
