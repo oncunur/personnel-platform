@@ -52,5 +52,6 @@ app.MapOrganizationEndpoints();
 app.MapPersonnelEndpoints();
 app.MapDocumentEndpoints();
 app.MapDocumentIntelligenceEndpoints();
+app.MapDocumentHistoryEndpoints();
 await app.RunAsync();
 public partial class Program;
