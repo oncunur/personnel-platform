@@ -168,7 +168,7 @@ public static class DailyAttendanceCalculator
         var overtimeCandidate = Math.Max(0, worked - input.PlannedMinutes);
         var partial = worked < input.PlannedMinutes;
         var reviewRequired = partial || ambiguousMovements;
-        var message = ambiguousMovements
+        var finalMessage = ambiguousMovements
             ? "Birden fazla veya belirsiz PDKS hareketi tespit edildi; hesap sonucu insan kontrolü gerektirir."
             : partial
                 ? "Çalışılan süre planlanan süreden düşük; kontrol gerekli."
@@ -186,7 +186,7 @@ public static class DailyAttendanceCalculator
             firstIn.Punch.EventAt,
             lastOut.Punch.EventAt,
             usedIds,
-            message);
+            finalMessage);
     }
 
     private static int ToMinute(DateOnly attendanceDate, DateOnly eventDate, TimeOnly time) =>
