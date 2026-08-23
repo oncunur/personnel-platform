@@ -16,6 +16,8 @@ public interface IDocumentRepository
     Task<EmployeeDocument?> FindEmployeeDocumentAsync(Guid documentId, CancellationToken cancellationToken);
     Task<bool> HasActiveDocumentOfTypeAsync(Guid employeeId, Guid documentTypeId, Guid? excludeDocumentId, CancellationToken cancellationToken);
     void AddEmployeeDocument(EmployeeDocument document);
+    Task<IReadOnlyList<EmployeeDocumentHistory>> ListDocumentHistoryAsync(Guid documentId, CancellationToken cancellationToken);
+    void AddDocumentHistory(EmployeeDocumentHistory history);
 
     Task<IReadOnlyList<DocumentAttentionItem>> ListAttentionDocumentsAsync(bool global, IReadOnlyCollection<Guid> companyIds, DateOnly fromDate, DateOnly toDate, bool expiredOnly, int limit, CancellationToken cancellationToken);
     Task<IReadOnlyList<DocumentEmployeeContext>> ListEmployeeContextsAsync(bool global, IReadOnlyCollection<Guid> companyIds, int limit, CancellationToken cancellationToken);
