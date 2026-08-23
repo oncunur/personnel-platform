@@ -8,4 +8,7 @@ public static class PersonnelPermissions
     public const string ProjectView = "personnel.project.view";
     public const string ProjectAssign = "personnel.project.assign";
     public const string IdentityView = "personnel.identity.view";
+    public const string SensitiveView = "personnel.sensitive.view";
+    public const string SensitiveReveal = "personnel.sensitive.reveal";
+    public const string SensitiveManage = "personnel.sensitive.manage";
 }
