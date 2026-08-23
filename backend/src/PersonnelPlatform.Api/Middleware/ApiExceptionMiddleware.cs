@@ -25,6 +25,17 @@ public sealed class ApiExceptionMiddleware(RequestDelegate next, ILogger<ApiExce
         {
             await WriteRequiredLeaveAttachmentAsync(context);
         }
+        catch (DbUpdateException exception) when (TryMapAttendanceConstraint(exception.InnerException, out _, out _))
+        {
+            var postgres = (PostgresException)exception.InnerException!;
+            TryMapAttendanceConstraint(postgres, out var code, out var message);
+            await WriteConflictAsync(context, code, message, postgres.ConstraintName);
+        }
+        catch (PostgresException exception) when (TryMapAttendanceConstraint(exception, out _, out _))
+        {
+            TryMapAttendanceConstraint(exception, out var code, out var message);
+            await WriteConflictAsync(context, code, message, exception.ConstraintName);
+        }
         catch (Exception exception)
         {
             logger.LogError(exception, "Unhandled exception. TraceId={TraceId}", context.TraceIdentifier);
@@ -59,8 +70,51 @@ public sealed class ApiExceptionMiddleware(RequestDelegate next, ILogger<ApiExce
             context.RequestAborted);
     }
 
+    private async Task WriteConflictAsync(HttpContext context, string code, string message, string? constraintName)
+    {
+        logger.LogInformation("Database business constraint rejected request. Constraint={ConstraintName} Code={ErrorCode} TraceId={TraceId}", constraintName, code, context.TraceIdentifier);
+        if (context.Response.HasStarted) throw new InvalidOperationException("Response already started while handling a database business constraint.");
+        context.Response.Clear();
+        context.Response.StatusCode = StatusCodes.Status409Conflict;
+        context.Response.ContentType = MediaTypeNames.Application.Json;
+        await context.Response.WriteAsJsonAsync(ApiErrorResponse.Create(code, message, context.TraceIdentifier), context.RequestAborted);
+    }
+
     private static bool IsRequiredLeaveAttachment(Exception? exception) =>
         exception is PostgresException postgres
         && postgres.SqlState == "P0001"
         && postgres.MessageText == "LEAVE_ATTACHMENT_REQUIRED";
+
+    private static bool TryMapAttendanceConstraint(Exception? exception, out string code, out string message)
+    {
+        code = string.Empty;
+        message = string.Empty;
+        if (exception is not PostgresException postgres) return false;
+
+        switch (postgres.ConstraintName)
+        {
+            case "ex_employee_shift_assignments_overlap" when postgres.SqlState == PostgresErrorCodes.ExclusionViolation:
+                code = "SHIFT_ASSIGNMENT_DATE_CONFLICT";
+                message = "Personelin bu tarih aralığında başka bir vardiya ataması bulunuyor.";
+                return true;
+            case "ux_work_calendars_default_company" when postgres.SqlState == PostgresErrorCodes.UniqueViolation:
+                code = "DEFAULT_WORK_CALENDAR_EXISTS";
+                message = "Bu şirket için zaten varsayılan çalışma takvimi bulunuyor.";
+                return true;
+            case "ux_work_calendars_company_code" when postgres.SqlState == PostgresErrorCodes.UniqueViolation:
+                code = "WORK_CALENDAR_CODE_EXISTS";
+                message = "Bu çalışma takvimi kodu zaten kullanılıyor.";
+                return true;
+            case "ux_shifts_company_code" when postgres.SqlState == PostgresErrorCodes.UniqueViolation:
+                code = "SHIFT_CODE_EXISTS";
+                message = "Bu vardiya kodu zaten kullanılıyor.";
+                return true;
+            case "ux_work_calendar_days_calendar_date" when postgres.SqlState == PostgresErrorCodes.UniqueViolation:
+                code = "WORK_CALENDAR_DAY_CONFLICT";
+                message = "Bu tarih için takvim günü başka bir işlem tarafından oluşturuldu; veriyi yenileyip tekrar deneyin.";
+                return true;
+            default:
+                return false;
+        }
+    }
 }

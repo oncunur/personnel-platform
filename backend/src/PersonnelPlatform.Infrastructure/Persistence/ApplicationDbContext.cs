@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using PersonnelPlatform.Domain.Attendance;
 using PersonnelPlatform.Domain.Audit;
 using PersonnelPlatform.Domain.Documents;
 using PersonnelPlatform.Domain.Identity;
@@ -44,6 +45,11 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<LeaveApproval> LeaveApprovals => Set<LeaveApproval>();
     public DbSet<LeaveApprovalHistory> LeaveApprovalHistories => Set<LeaveApprovalHistory>();
     public DbSet<LeaveAttachment> LeaveAttachments => Set<LeaveAttachment>();
+
+    public DbSet<WorkCalendar> WorkCalendars => Set<WorkCalendar>();
+    public DbSet<WorkCalendarDay> WorkCalendarDays => Set<WorkCalendarDay>();
+    public DbSet<ShiftDefinition> Shifts => Set<ShiftDefinition>();
+    public DbSet<EmployeeShiftAssignment> EmployeeShiftAssignments => Set<EmployeeShiftAssignment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

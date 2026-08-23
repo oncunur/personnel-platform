@@ -1,11 +1,13 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using PersonnelPlatform.Application.Attendance;
 using PersonnelPlatform.Application.Audit;
 using PersonnelPlatform.Application.Documents;
 using PersonnelPlatform.Application.Leave;
 using PersonnelPlatform.Application.Organization;
 using PersonnelPlatform.Application.Personnel;
+using PersonnelPlatform.Infrastructure.Attendance;
 using PersonnelPlatform.Infrastructure.Audit;
 using PersonnelPlatform.Infrastructure.Documents;
 using PersonnelPlatform.Infrastructure.Health;
@@ -36,6 +38,7 @@ public static class DependencyInjection
         services.AddScoped<ILeaveRepository, LeaveRepository>();
         services.AddScoped<ILeaveApprovalRepository, LeaveApprovalRepository>();
         services.AddScoped<ILeaveAttachmentRepository, LeaveAttachmentRepository>();
+        services.AddScoped<IAttendanceSetupRepository, AttendanceSetupRepository>();
 
         var storageRoot = configuration["FileStorage:RootPath"];
         if (string.IsNullOrWhiteSpace(storageRoot)) storageRoot = Path.Combine(AppContext.BaseDirectory, "storage");
