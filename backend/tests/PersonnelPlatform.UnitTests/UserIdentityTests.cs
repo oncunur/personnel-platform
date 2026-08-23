@@ -30,4 +30,19 @@ public sealed class UserIdentityTests
         Assert.Null(user.LockedUntil);
         Assert.Equal(now.AddMinutes(1), user.LastLoginAt);
     }
+
+    [Fact]
+    public void Invalidate_sessions_should_increment_security_version()
+    {
+        var now = new DateTimeOffset(2026, 8, 23, 4, 0, 0, TimeSpan.Zero);
+        var user = User.Create("admin", "ADMIN", null, null, "hash", now);
+        var previousSecurityVersion = user.SecurityVersion;
+        var previousVersion = user.Version;
+
+        user.InvalidateSessions(now.AddMinutes(1));
+
+        Assert.Equal(previousSecurityVersion + 1, user.SecurityVersion);
+        Assert.Equal(previousVersion + 1, user.Version);
+        Assert.Equal(now.AddMinutes(1), user.UpdatedAt);
+    }
 }

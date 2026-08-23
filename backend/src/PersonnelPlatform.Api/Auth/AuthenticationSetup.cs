@@ -1,6 +1,7 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using PersonnelPlatform.Application.Identity;
 
 namespace PersonnelPlatform.Api.Auth;
 
@@ -41,6 +42,30 @@ public static class AuthenticationSetup
                     ClockSkew = TimeSpan.FromSeconds(30),
                     NameClaimType = "unique_name",
                     RoleClaimType = "role"
+                };
+
+                options.Events = new JwtBearerEvents
+                {
+                    OnTokenValidated = async context =>
+                    {
+                        var subject = context.Principal?.FindFirst("sub")?.Value;
+                        var securityVersionRaw = context.Principal?.FindFirst("sv")?.Value;
+
+                        if (!Guid.TryParse(subject, out var userId)
+                            || !int.TryParse(securityVersionRaw, out var tokenSecurityVersion))
+                        {
+                            context.Fail("Token security claims are invalid.");
+                            return;
+                        }
+
+                        var repository = context.HttpContext.RequestServices.GetRequiredService<IIdentityRepository>();
+                        var user = await repository.FindUserByIdAsync(userId, context.HttpContext.RequestAborted);
+
+                        if (user is null || !user.IsActive || user.SecurityVersion != tokenSecurityVersion)
+                        {
+                            context.Fail("Token session has been invalidated.");
+                        }
+                    }
                 };
             });
 
