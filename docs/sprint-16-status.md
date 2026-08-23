@@ -14,7 +14,7 @@ Prepare the Personnel Platform for controlled legacy-data migration, business UA
 | MIG-004 | Migration dry run #1 | IN PROGRESS | Synthetic technical baseline, counts, duration, idempotence replay and sanitized evidence; real-source totals/defects still required |
 | MIG-005 | Migration dry run #2 / cutover rehearsal | PLANNED | Repeatable clean run, measured RTO/RPO-adjacent cutover timing, sign-off |
 | UAT-001 | UAT scenario catalog | DONE | Validated role-based, negative, authorization, reconciliation and end-to-end web scenarios plus execution/evidence rules |
-| UAT-002 | UAT execution & defect triage | PLANNED | Test results, severity, retest evidence |
+| UAT-002 | UAT execution & defect triage | IN PROGRESS | Validated execution/defect registers, severity, retest evidence and readiness summary; real business executions still required |
 | UAT-003 | Payroll/attendance/meal/camp reconciliation | PLANNED | Approved cross-system totals and sample-level reconciliation |
 | CUT-001 | Cutover runbook | PLANNED | Freeze, extract, load, validate, switch, rollback steps and owners |
 | CUT-002 | Go/No-Go checklist | PLANNED | Named approvers, blockers, rollback criteria, operational readiness evidence |
@@ -107,6 +107,31 @@ The catalog is intentionally bound to the current web routes rather than API-onl
 
 UAT-001 defines what must be tested and how evidence is recorded. Actual PASS/FAIL/BLOCKED results, defect severity, ownership and retest evidence belong to UAT-002.
 
+## UAT-002 execution & defect triage baseline
+
+The repository now provides a controlled execution contract without pretending synthetic CI activity is business acceptance:
+
+- `docs/uat/templates/uat-execution.csv` — immutable-style execution row schema with exact tested commit, persona, timestamps, PASS/FAIL/BLOCKED/NOT_RUN result, evidence reference, defect link and retest lineage.
+- `docs/uat/templates/uat-defects.csv` — S1-S4 defect register with lifecycle, owner, fix timestamp, retest execution and disposition.
+- `docs/uat/uat-execution-triage.md` — execution, evidence safety, defect lifecycle, retest and readiness runbook.
+- `scripts/uat/validate_execution.py` — strict cross-register validation against the UAT-001 catalog.
+- `scripts/uat/summarize_execution.py` — latest-result and open-defect aggregation producing `NO_GO`, `NOT_READY` or `UAT_READY_FOR_SIGNOFF`.
+- `scripts/uat/fixtures/` — synthetic FAIL → fix → PASS-retest and blocked-scenario fixtures used only to prove contract logic.
+- `.github/workflows/uat-execution-contracts.yml` — schema, fixture, regression and sanitized summary CI gate.
+
+Important controls:
+
+1. a real `FAIL` requires a defect reference;
+2. a `CLOSED` defect requires a same-scenario passing retest;
+3. retest lineage must point to the original failed execution and same defect;
+4. latest scenario result is selected by absolute ISO-8601 time rather than string ordering;
+5. any open S1/S2 or latest P0 failure produces `NO_GO`;
+6. unexecuted/blocked P0 scenarios produce `NOT_READY`;
+7. only all-P0 PASS plus zero open S1/S2 can produce `UAT_READY_FOR_SIGNOFF`;
+8. actual UAT results/evidence stay in an approved workspace (`uat-results/`) and are Git-ignored by default.
+
+UAT-002 remains `IN PROGRESS`. CI proves only the execution/triage machinery. No catalog scenario is considered business-PASS until a real tester executes it in the intended environment and records safe evidence.
+
 ## Current boundary
 
-MIG-001 defines what exists and where it should land. MIG-002 defines how approved source fields are normalized and previewed. MIG-003 provides controlled staging, lineage, idempotence, row-level validation and reconciliation evidence. MIG-004 proves that those controls can run end-to-end and repeatably in a synthetic isolated environment, but it still does **not** authorize writes into live business tables or replace real-source/business reconciliation. UAT-001 now defines the release-critical business acceptance surface; UAT-002 will execute that surface and triage defects. Real inventory, approved mappings, representative volumes and business totals remain required before migration dry-run closure and cutover rehearsal.
+MIG-001 defines what exists and where it should land. MIG-002 defines how approved source fields are normalized and previewed. MIG-003 provides controlled staging, lineage, idempotence, row-level validation and reconciliation evidence. MIG-004 proves that those controls can run end-to-end and repeatably in a synthetic isolated environment, but it still does **not** authorize writes into live business tables or replace real-source/business reconciliation. UAT-001 defines the release-critical business acceptance surface. UAT-002 now provides validated execution, defect, retest and readiness contracts, but remains open until real business users execute the P0/P1 scenarios. Real inventory, approved mappings, representative volumes and business totals remain required before migration dry-run closure and cutover rehearsal.
