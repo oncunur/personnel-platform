@@ -21,6 +21,7 @@ public sealed class OvertimeRequest : AuditableEntity
     public Guid CompanyId { get; private set; }
     public Guid EmployeeId { get; private set; }
     public Guid DailyAttendanceId { get; private set; }
+    public int SourceDailyVersion { get; private set; }
     public DateOnly AttendanceDate { get; private set; }
     public int CandidateMinutes { get; private set; }
     public int RequestedMinutes { get; private set; }
@@ -40,6 +41,7 @@ public sealed class OvertimeRequest : AuditableEntity
         Guid companyId,
         Guid employeeId,
         Guid dailyAttendanceId,
+        int sourceDailyVersion,
         DateOnly attendanceDate,
         int candidateMinutes,
         int requestedMinutes,
@@ -49,6 +51,7 @@ public sealed class OvertimeRequest : AuditableEntity
     {
         if (companyId == Guid.Empty || employeeId == Guid.Empty || dailyAttendanceId == Guid.Empty || actorUserId == Guid.Empty)
             throw new ArgumentException("Company, employee, daily attendance and actor are required.");
+        if (sourceDailyVersion <= 0) throw new ArgumentOutOfRangeException(nameof(sourceDailyVersion));
         if (candidateMinutes <= 0) throw new ArgumentOutOfRangeException(nameof(candidateMinutes));
         if (requestedMinutes <= 0 || requestedMinutes > candidateMinutes) throw new ArgumentOutOfRangeException(nameof(requestedMinutes));
 
@@ -57,6 +60,7 @@ public sealed class OvertimeRequest : AuditableEntity
             CompanyId = companyId,
             EmployeeId = employeeId,
             DailyAttendanceId = dailyAttendanceId,
+            SourceDailyVersion = sourceDailyVersion,
             AttendanceDate = attendanceDate,
             CandidateMinutes = candidateMinutes,
             RequestedMinutes = requestedMinutes,
