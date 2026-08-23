@@ -7,6 +7,7 @@ public interface IPayrollRepository
 {
     Task<Employee?> FindEmployeeAsync(Guid employeeId, CancellationToken cancellationToken);
     Task<EmployeeCompensation?> FindCompensationAsync(Guid compensationId, CancellationToken cancellationToken);
+    Task<EmployeeCompensation?> FindOverlappingCompensationAsync(Guid employeeId, DateOnly validFrom, DateOnly? validUntilExclusive, CancellationToken cancellationToken);
     Task<IReadOnlyList<EmployeeCompensationSummary>> ListCompensationsAsync(Guid employeeId, CancellationToken cancellationToken);
     void AddCompensation(EmployeeCompensation compensation);
 
