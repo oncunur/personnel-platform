@@ -124,17 +124,19 @@ export default function Personel360Page() {
   async function assignProject(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true);
     try {
-      const fd = new FormData(event.currentTarget);
+      const form = event.currentTarget;
+      const fd = new FormData(form);
       const response = await authFetch(`/api/v1/personnel/employees/${employeeId}/project-assignments`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ projectId: fd.get("projectId"), costCenterId: fd.get("costCenterId") || null, validFrom: fd.get("validFrom"), validUntil: fd.get("validUntil") || null, allocationPercent: Number(fd.get("allocationPercent")) }) });
       if (!response?.ok) { const error = response ? await response.json().catch(() => null) as { error?: { message?: string } } | null : null; setMessage(error?.error?.message ?? "Proje atanamadı."); return; }
-      const row = await response.json() as Assignment; setAssignments(current => [row, ...current]); event.currentTarget.reset(); setMessage("Proje ataması oluşturuldu.");
+      const row = await response.json() as Assignment; setAssignments(current => [row, ...current]); form.reset(); setMessage("Proje ataması oluşturuldu.");
     } finally { setBusy(false); }
   }
 
   async function uploadDocument(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true);
     try {
-      const form = new FormData(event.currentTarget);
+      const formElement = event.currentTarget;
+      const form = new FormData(formElement);
       const response = await authFetch(`/api/v1/documents/employees/${employeeId}`, { method: "POST", body: form });
       if (!response?.ok) {
         const error = response ? await response.json().catch(() => null) as { error?: { message?: string } } | null : null;
@@ -143,7 +145,7 @@ export default function Personel360Page() {
       const row = await response.json() as EmployeeDocument;
       setDocuments(current => [row, ...current]);
       if (permissions.has("documents.missing.view")) setMissingDocuments((await json<MissingDocument[]>(`/api/v1/documents/employees/${employeeId}/missing`)) ?? []);
-      event.currentTarget.reset(); setMessage("Belge güvenli depolama alanına kaydedildi.");
+      formElement.reset(); setMessage("Belge güvenli depolama alanına kaydedildi.");
     } finally { setBusy(false); }
   }
 
