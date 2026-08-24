@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { Icon, IconName } from "../components/Icon";
 
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
 type RoleSummary = { id: string; code: string; name: string };
@@ -8,49 +10,97 @@ type PermissionSummary = { id: string; code: string; name: string; module: strin
 type ScopeSummary = { scopeType: string; scopeId: string | null; validFrom: string; validUntil: string | null };
 type MeResponse = { userId: string; username: string; email: string | null; securityVersion: number; roles: RoleSummary[]; permissions: PermissionSummary[]; scopes: ScopeSummary[] };
 type AuthResponse = { accessToken: string; accessTokenExpiresAt: string };
+type ModuleItem = { href: string; title: string; description: string; icon: IconName; prefixes: string[] };
+
+const modules: ModuleItem[] = [
+  { href: "/personnel", title: "Personel Yönetimi", description: "Personel kartları, organizasyon bilgileri ve Personel 360.", icon: "people", prefixes: ["personnel."] },
+  { href: "/attendance", title: "Puantaj ve Vardiya", description: "Takvim, vardiya, günlük puantaj ve fazla mesai süreçleri.", icon: "calendar", prefixes: ["attendance."] },
+  { href: "/payroll", title: "Bordro ve Ücret", description: "Ücret geçmişi, dönem hesaplama ve bordro onay akışı.", icon: "wallet", prefixes: ["payroll."] },
+  { href: "/leave", title: "İzin Yönetimi", description: "İzin talepleri, bakiyeler ve yönetici onayları.", icon: "calendar", prefixes: ["leave."] },
+  { href: "/camp", title: "Kamp ve Konaklama", description: "Kamp, oda, yatak ve konaklama maliyetleri.", icon: "building", prefixes: ["camp."] },
+  { href: "/assets", title: "Zimmet ve Stok", description: "Demirbaş, zimmet ve stok hareketlerinin yönetimi.", icon: "box", prefixes: ["administration.asset.", "administration.stock."] },
+  { href: "/workflow", title: "Talep ve Onaylar", description: "Kurumsal talepler, onay adımları ve SLA takibi.", icon: "workflow", prefixes: ["workflow."] },
+  { href: "/reports", title: "Raporlama ve Maliyet", description: "Yönetim göstergeleri, maliyet defteri ve dışa aktarımlar.", icon: "chart", prefixes: ["reporting.", "finance.cost."] },
+  { href: "/organization", title: "Organizasyon", description: "Şirket, şube, departman, pozisyon ve proje yapısı.", icon: "building", prefixes: ["organization."] },
+  { href: "/security", title: "Sistem Yönetimi", description: "Kullanıcı, rol, yetki, kapsam ve denetim kayıtları.", icon: "settings", prefixes: ["system.", "audit."] },
+];
 
 export default function DashboardPage() {
   const [me, setMe] = useState<MeResponse | null>(null);
-  const [message, setMessage] = useState("Oturum doğrulanıyor…");
+  const [message, setMessage] = useState("Oturum ve yetkiler doğrulanıyor…");
   useEffect(() => { void loadSession(); }, []);
 
   async function loadSession() {
     let accessToken = sessionStorage.getItem("pp_access_token") ?? await refreshAccessToken();
     if (!accessToken) { window.location.replace("/login"); return; }
     let response = await fetchMe(accessToken);
-    if (response.status === 401) { accessToken = await refreshAccessToken(); if (!accessToken) { window.location.replace("/login"); return; } response = await fetchMe(accessToken); }
-    if (!response.ok) { setMessage("Oturum bilgisi alınamadı."); return; }
-    setMe(await response.json() as MeResponse); setMessage("Oturum aktif.");
+    if (response.status === 401) {
+      accessToken = await refreshAccessToken();
+      if (!accessToken) { window.location.replace("/login"); return; }
+      response = await fetchMe(accessToken);
+    }
+    if (!response.ok) { setMessage("Oturum bilgileri şu anda alınamadı."); return; }
+    setMe(await response.json() as MeResponse);
+    setMessage("Oturumunuz güvenli ve kullanıma hazır.");
   }
-  async function refreshAccessToken(): Promise<string | null> { try { const response = await fetch(`${apiBase}/api/v1/auth/refresh`, { method: "POST", credentials: "include" }); if (!response.ok) { clearLocalSession(); return null; } const body = await response.json() as AuthResponse; sessionStorage.setItem("pp_access_token", body.accessToken); sessionStorage.setItem("pp_access_token_expires_at", body.accessTokenExpiresAt); return body.accessToken; } catch { return null; } }
+  async function refreshAccessToken(): Promise<string | null> {
+    try {
+      const response = await fetch(`${apiBase}/api/v1/auth/refresh`, { method: "POST", credentials: "include" });
+      if (!response.ok) { clearLocalSession(); return null; }
+      const body = await response.json() as AuthResponse;
+      sessionStorage.setItem("pp_access_token", body.accessToken);
+      sessionStorage.setItem("pp_access_token_expires_at", body.accessTokenExpiresAt);
+      return body.accessToken;
+    } catch { return null; }
+  }
   function fetchMe(accessToken: string) { return fetch(`${apiBase}/api/v1/auth/me`, { headers: { Authorization: `Bearer ${accessToken}` }, credentials: "include" }); }
-  async function logout() { try { await fetch(`${apiBase}/api/v1/auth/logout`, { method: "POST", credentials: "include" }); } finally { clearLocalSession(); window.location.replace("/login"); } }
   function clearLocalSession() { sessionStorage.removeItem("pp_access_token"); sessionStorage.removeItem("pp_access_token_expires_at"); }
 
-  const canOpenSecurity = me?.permissions.some(x => ["system.user.view", "system.role.view", "audit.view"].includes(x.code)) ?? false;
-  const canOpenOrganization = me?.permissions.some(x => x.code.startsWith("organization.")) ?? false;
-  const canOpenPersonnel = me?.permissions.some(x => x.code === "personnel.view") ?? false;
-  const canOpenDocuments = me?.permissions.some(x => x.code.startsWith("documents.")) ?? false;
-  const canOpenLeave = me?.permissions.some(x => x.code.startsWith("leave.")) ?? false;
-  const canOpenLeaveApprovals = me?.permissions.some(x => ["leave.manager.approve", "leave.approve", "leave.approver.manage"].includes(x.code)) ?? false;
-  const canOpenAttendance = me?.permissions.some(x => x.code.startsWith("attendance.")) ?? false;
-  const canOpenDailyAttendance = me?.permissions.some(x => ["attendance.raw.view", "attendance.raw.ingest", "attendance.daily.view", "attendance.daily.calculate"].includes(x.code)) ?? false;
-  const canOpenOvertime = me?.permissions.some(x => x.code.startsWith("attendance.overtime.")) ?? false;
-  const canOpenCamp = me?.permissions.some(x => x.code.startsWith("camp.")) ?? false;
-  const canOpenMeal = me?.permissions.some(x => x.code.startsWith("meal.")) ?? false;
-  const canOpenPayroll = me?.permissions.some(x => x.code.startsWith("payroll.")) ?? false;
-  const canOpenAdministration = me?.permissions.some(x => x.code.startsWith("administration.stock.") || x.code.startsWith("administration.asset.")) ?? false;
-  const canOpenVehicles = me?.permissions.some(x => x.code.startsWith("administration.vehicle.")) ?? false;
-  const canOpenAdminAffairs = me?.permissions.some(x => x.code.startsWith("administration.task.") || x.code.startsWith("administration.contract.") || x.code.startsWith("administration.reminder.")) ?? false;
-  const canOpenWorkflow = me?.permissions.some(x => x.code.startsWith("workflow.")) ?? false;
-  const canOpenNotifications = me?.permissions.some(x => x.code.startsWith("notification.")) ?? false;
-  const canOpenReports = me?.permissions.some(x => x.code.startsWith("reporting.") || x.code.startsWith("finance.cost.")) ?? false;
-  const canOpenIntegrations = me?.permissions.some(x => x.code.startsWith("integration.")) ?? false;
-  const canOpenImports = me?.permissions.some(x => x.code.startsWith("integration.import.")) ?? false;
-  const canOpenErp = me?.permissions.some(x => x.code.startsWith("erp.")) ?? false;
+  const permissionCodes = useMemo(() => me?.permissions.map((item) => item.code) ?? [], [me]);
+  const visibleModules = modules.filter((item) => item.prefixes.some((prefix) => permissionCodes.some((permission) => permission.startsWith(prefix))));
+  const uniqueScopeTypes = [...new Set(me?.scopes.map((scope) => scope.scopeType) ?? [])];
 
-  return <main className="shell">
-    <section className="hero compact"><span className="eyebrow">SPRINT 14 · PLATFORM</span><h1>Platform Dashboard</h1><p>{message}</p>{me ? <div className="session-summary"><strong>{me.username}</strong><span>{me.email ?? "E-posta tanımlı değil"}</span><span>Security version: {me.securityVersion}</span><span>Roller: {me.roles.map(x => x.code).join(", ") || "—"}</span><span>Scope: {me.scopes.map(x => x.scopeType).join(", ") || "—"}</span></div> : null}<div className="actions action-row">{canOpenPersonnel ? <a className="primary" href="/personnel">Personel</a> : null}{canOpenDocuments ? <a className="primary" href="/documents">Özlük & Belgeler</a> : null}{canOpenLeave ? <a className="primary" href="/leave">İzin Yönetimi</a> : null}{canOpenLeaveApprovals ? <a className="primary" href="/leave/approvals">İzin Onay Kutusu</a> : null}{canOpenAttendance ? <a className="primary" href="/attendance">Takvim & Vardiya</a> : null}{canOpenDailyAttendance ? <a className="primary" href="/attendance/daily">Günlük Puantaj</a> : null}{canOpenOvertime ? <a className="primary" href="/attendance/overtime">Fazla Mesai</a> : null}{canOpenCamp ? <a className="primary" href="/camp">Kamp & Konaklama</a> : null}{canOpenMeal ? <a className="primary" href="/meal">Yemek Takibi</a> : null}{canOpenPayroll ? <a className="primary" href="/payroll">Bordro & Ücret</a> : null}{canOpenAdministration ? <a className="primary" href="/assets">Zimmet & Stok</a> : null}{canOpenVehicles ? <a className="primary" href="/vehicles">Araç Yönetimi</a> : null}{canOpenAdminAffairs ? <a className="primary" href="/administration">İdari İşler</a> : null}{canOpenWorkflow ? <a className="primary" href="/workflow">Talep & Workflow</a> : null}{canOpenNotifications ? <a className="primary" href="/notifications">Notification Center</a> : null}{canOpenReports ? <a className="primary" href="/reports">Raporlama & Maliyet</a> : null}{canOpenIntegrations ? <a className="primary" href="/integrations">Integration Center</a> : null}{canOpenImports ? <a className="primary" href="/imports">Excel Import</a> : null}{canOpenErp ? <a className="primary" href="/erp">ERP Center</a> : null}{canOpenOrganization ? <a className="primary" href="/organization">Organizasyon</a> : null}{canOpenSecurity ? <a className="primary" href="/security">Security Console</a> : null}<button className="secondary-button" type="button" onClick={logout}>Çıkış yap</button></div></section>
-    <section className="grid" aria-label="Platform durum kartları"><article className="card"><span>Aktif</span><h2>Identity / Session</h2></article><article className="card"><span>Aktif</span><h2>Role / Permission / Scope</h2></article><article className="card"><span>Aktif</span><h2>Organization Core</h2></article><article className="card"><span>Aktif</span><h2>Personnel Core / Personel 360</h2></article><article className="card"><span>Aktif</span><h2>Özlük & Belgeler</h2></article><article className="card"><span>Aktif</span><h2>İzin Yönetimi</h2></article><article className="card"><span>Aktif</span><h2>Puantaj / PDKS / Fazla Mesai</h2></article><article className="card"><span>Aktif</span><h2>Kamp / Konaklama</h2></article><article className="card"><span>Aktif</span><h2>Yemek Takibi</h2></article><article className="card"><span>Aktif</span><h2>Bordro & Ücret</h2></article><article className="card"><span>Aktif</span><h2>Zimmet & Stok</h2></article><article className="card"><span>Aktif</span><h2>Araç Yönetimi</h2></article><article className="card"><span>Aktif</span><h2>İdari İşler</h2></article><article className="card"><span>Aktif</span><h2>Talep & Workflow</h2></article><article className="card"><span>Aktif</span><h2>Notification / Action Center</h2></article><article className="card"><span>Aktif</span><h2>Cost Ledger / Reporting / Project 360</h2></article><article className="card"><span>Aktif</span><h2>Integration / Staging / Terminal APIs</h2></article><article className="card"><span>Aktif</span><h2>Excel Import Framework</h2></article><article className="card"><span>Aktif</span><h2>ERP Export / Reconciliation</h2></article></section>
+  return <main className="page-shell">
+    <section className="overview-banner">
+      <div className="overview-content">
+        <span className="overview-kicker"><span className="status-dot"/> Oturum aktif</span>
+        <h1>{me ? `Hoş geldiniz, ${me.username}` : "Personel ve İdari İşler Platformu"}</h1>
+        <p>Günlük insan kaynakları ve idari operasyonlarınıza tek, sade ve güvenli çalışma alanından ulaşın.</p>
+      </div>
+      <div className="overview-profile">
+        <span>Oturum özeti</span>
+        <strong>{me?.email ?? "Kullanıcı bilgileri yükleniyor"}</strong>
+        <small>{message}</small>
+        <div className="role-chips">{me?.roles.slice(0, 4).map((role) => <span className="role-chip" key={role.id}>{role.name}</span>)}</div>
+      </div>
+    </section>
+
+    <section className="stat-grid" aria-label="Oturum göstergeleri">
+      <article className="stat-card"><span className="stat-icon"><Icon name="people"/></span><span className="stat-copy"><strong>{me?.roles.length ?? "—"}</strong><span>Aktif rol</span></span></article>
+      <article className="stat-card"><span className="stat-icon"><Icon name="settings"/></span><span className="stat-copy"><strong>{me?.permissions.length ?? "—"}</strong><span>Tanımlı yetki</span></span></article>
+      <article className="stat-card"><span className="stat-icon"><Icon name="building"/></span><span className="stat-copy"><strong>{me?.scopes.length ?? "—"}</strong><span>Erişim kapsamı</span></span></article>
+      <article className="stat-card"><span className="stat-icon"><Icon name="workflow"/></span><span className="stat-copy"><strong>{visibleModules.length || "—"}</strong><span>Kullanılabilir modül</span></span></article>
+    </section>
+
+    <section className="content-grid">
+      <div className="panel">
+        <div className="panel-heading"><div><span className="page-eyebrow">Hızlı erişim</span><h2>Sık kullanılan çalışma alanları</h2><p>Yetkilerinize göre kullanabileceğiniz temel modüller.</p></div><strong>{visibleModules.length}</strong></div>
+        <div className="module-grid">
+          {visibleModules.slice(0, 8).map((item) => <Link className="module-card" href={item.href} key={item.href}>
+            <span className="module-icon"><Icon name={item.icon}/></span>
+            <span className="module-card-copy"><strong>{item.title}</strong><span>{item.description}</span><small>Modülü aç <Icon name="arrow" size={14}/></small></span>
+          </Link>)}
+          {me && visibleModules.length === 0 ? <p className="muted">Hesabınız için erişilebilir bir operasyon modülü bulunmuyor.</p> : null}
+        </div>
+      </div>
+      <aside className="panel">
+        <div className="panel-heading"><div><span className="page-eyebrow">Erişim özeti</span><h2>Rol ve kapsamlar</h2><p>Bu oturumda etkin olan erişim çerçeveniz.</p></div></div>
+        <div className="stack">
+          <div><span className="page-eyebrow">Roller</span><div className="role-chips">{me?.roles.map((role) => <span className="role-chip" key={role.id}>{role.code}</span>) ?? <span className="muted">Yükleniyor…</span>}</div></div>
+          <div><span className="page-eyebrow">Kapsam türleri</span><div className="role-chips">{uniqueScopeTypes.map((scope) => <span className="role-chip" key={scope}>{scope}</span>)}{me && uniqueScopeTypes.length === 0 ? <span className="muted">Kapsam bulunmuyor</span> : null}</div></div>
+          <div className="notice"><span className="status-dot"/><span>{message}</span></div>
+        </div>
+      </aside>
+    </section>
   </main>;
 }
