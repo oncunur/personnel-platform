@@ -6,6 +6,21 @@ on:
   pull_request:
 
 jobs:
+  native-local-scripts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate local launch commands
+        run: |
+          sh -n scripts/native-dev-up.sh
+          sh -n scripts/native-dev-down.sh
+      - name: Reject unsafe database names
+        run: |
+          if NATIVE_DB_NAME='unsafe;name' sh scripts/native-dev-up.sh; then
+            echo 'Unsafe database name was accepted.' >&2
+            exit 1
+          fi
+
   backend:
     runs-on: ubuntu-latest
     steps:

@@ -13,19 +13,16 @@ Personnel & Administrative Affairs platform implemented as a modular monolith.
 
 ## Current implementation
 
-Sprint 0 platform foundation is complete. Sprint 1 identity work currently includes:
+The platform now covers the Sprint 0–16 product baseline, including:
 
-- User and refresh-token persistence
-- PBKDF2-SHA512 password hashing
-- Login with failed-attempt lockout
-- HMAC-SHA256 JWT access tokens
-- Rotating refresh tokens stored as SHA-256 hashes
-- HttpOnly refresh-token cookie for the web client
-- `/api/v1/auth/login`, `/refresh`, `/logout`, `/me`
-- Development-only bootstrap admin
-- Login and authenticated dashboard screens
-
-Role, permission and scope authorization will be added next in Sprint 1.
+- MFA, session security, role/permission and company-scope authorization
+- Organization, personnel, sensitive profile and digital personnel documents
+- Leave, attendance, shifts, daily calculation and overtime approvals
+- Camp, meal, payroll, cost reporting and ERP reconciliation
+- Assets, stock, vehicles and administrative-affairs operations
+- Workflow approvals, notifications, integrations and import operations
+- Audit, monitoring, backup/restore, migration staging and UAT contracts
+- Responsive Turkish web interface for daily operational use
 
 ## Repository layout
 
@@ -46,7 +43,21 @@ personnel-platform/
 └── .github/workflows/
 ```
 
-## Quick start with Docker
+## Low-resource local start without Docker
+
+For macOS development, PostgreSQL and Redis can run as lightweight native services while the API and web application run directly on the computer:
+
+```bash
+bash scripts/native-dev-up.sh
+```
+
+The default mode does not start the background Worker, reducing idle CPU use. See the one-time setup and troubleshooting guide:
+
+- [`docs/development/native-local-development.md`](docs/development/native-local-development.md)
+
+## Docker Compose start
+
+Docker remains available for isolated full-stack and CI-equivalent testing:
 
 ```bash
 cp .env.example .env
@@ -98,3 +109,4 @@ npm run dev
 
 - [`docs/sprint-0-status.md`](docs/sprint-0-status.md)
 - [`docs/sprint-1-status.md`](docs/sprint-1-status.md)
+- [`docs/sprint-16-status.md`](docs/sprint-16-status.md)
