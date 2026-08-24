@@ -302,6 +302,7 @@ label, .field-label { color: var(--ink-600); font-size: .76rem; font-weight: 680
 .operation-disclosure[open] .operation-disclosure-mark { transform: rotate(45deg); }
 .operation-disclosure-body { padding: 16px; }
 .operation-disclosure-body > .inline-form, .operation-disclosure-body > .stack { margin: 0; }
+.compact-list + .operation-disclosure, .table-wrap + .operation-disclosure { margin-top: 16px; }
 .organization-toolbar { display: grid; grid-template-columns: minmax(220px, 320px) minmax(0, 1fr); gap: 18px; align-items: end; }
 .org-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; }
 .org-kpis span { display: grid; min-height: 62px; align-content: center; padding: 10px 12px; border-radius: 11px; background: var(--surface-soft); color: var(--ink-500); font-size: .68rem; }
