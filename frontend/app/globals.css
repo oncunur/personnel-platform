@@ -196,6 +196,25 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .security-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); gap: 16px; margin-top: 18px; }
 .organization-grid, .document-attention-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }
 .organization-grid > .panel { margin-top: 0; }
+.organization-grid .inline-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.process-guide { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0 0 16px; }
+.process-guide-item { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 15px 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); box-shadow: var(--shadow-sm); }
+.process-guide-number { display: grid; width: 32px; height: 32px; flex: 0 0 32px; place-items: center; border-radius: 10px; background: var(--brand-800); color: #fff; font-size: .74rem; font-weight: 800; }
+.process-guide-item > span:last-child { display: grid; min-width: 0; gap: 3px; }
+.process-guide-item strong { font-size: .8rem; }
+.process-guide-item small { color: var(--ink-500); font-size: .7rem; line-height: 1.4; }
+.file-upload-surface { display: grid; grid-template-columns: minmax(240px, 1.5fr) minmax(200px, 1fr) auto; gap: 16px; align-items: end; padding: 18px; border: 1px dashed #aebfca; border-radius: 14px; background: var(--surface-soft); }
+.file-upload-surface > div { display: grid; align-self: center; gap: 3px; }
+.file-upload-surface > div strong { font-size: .8rem; }
+.file-upload-surface > div small { color: var(--ink-500); font-size: .7rem; }
+.organization-row { display: grid; width: 100%; min-height: 54px; grid-template-columns: minmax(0, 1fr) minmax(130px, .8fr); gap: 14px; align-items: center; padding: 11px 12px; border: 1px solid var(--line-soft); border-radius: 10px; background: var(--surface); color: var(--ink-950); text-align: left; cursor: pointer; }
+.organization-row:hover { border-color: #aac1cd; background: var(--surface-soft); }
+.organization-row.selected { border-color: #9acbd0; background: var(--info-bg); box-shadow: inset 3px 0 var(--info); }
+.organization-row.static { cursor: default; }
+.organization-row.static:hover { border-color: var(--line-soft); background: var(--surface); }
+.organization-row > span { display: grid; min-width: 0; gap: 3px; font-size: .76rem; }
+.organization-row > span:last-child { justify-items: end; color: var(--ink-600); text-align: right; }
+.organization-row small { color: var(--ink-500); font-size: .7rem; }
 .workflow-step-list { display: grid; gap: 10px; margin-bottom: 14px; }
 .workflow-step { display: grid; grid-template-columns: 36px minmax(150px, 1.2fr) minmax(140px, .7fr) minmax(180px, 1fr) auto; gap: 12px; align-items: end; padding: 13px; border: 1px solid var(--line-soft); border-radius: 12px; background: var(--surface-soft); }
 .workflow-step-number { display: grid; width: 32px; height: 32px; place-items: center; align-self: center; border-radius: 10px; background: var(--brand-800); color: #fff; font-size: .76rem; font-weight: 800; }
@@ -341,6 +360,8 @@ pre { overflow-x: auto; padding: 18px; border-radius: 12px; background: #0d2135;
   .organization-toolbar { grid-template-columns: 1fr; }
   .org-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .security-grid, .organization-grid, .document-attention-grid { grid-template-columns: 1fr; }
+  .process-guide { grid-template-columns: 1fr; }
+  .file-upload-surface { grid-template-columns: 1fr; }
   .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 640px) {
@@ -358,6 +379,9 @@ pre { overflow-x: auto; padding: 18px; border-radius: 12px; background: #0d2135;
   .overview-banner { padding: 24px 21px; border-radius: 18px; }
   .stat-grid, .module-grid, .grid { grid-template-columns: 1fr; }
   .organization-toolbar, .filter-grid, .inline-form, .document-form, .document-type-form { grid-template-columns: 1fr; }
+  .organization-grid .inline-form { grid-template-columns: 1fr; }
+  .organization-row { grid-template-columns: 1fr; }
+  .organization-row > span:last-child { justify-items: start; text-align: left; }
   .filter-actions { justify-content: stretch; }
   .filter-actions button { flex: 1; }
   .data-table .action-row { flex-wrap: wrap; }

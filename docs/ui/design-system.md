@@ -69,6 +69,14 @@ JSON, UUID, harici kayıt kimliği ve benzeri teknik değerler ana görev metnin
 
 Seçilebilir tablo satırları `selectable-table` kullanır ve seçili kayıt `selected-row` ile hem zemin hem sol kenar vurgusu alır. İş akışı adımları `workflow-step` içinde sıra, ad, hedef türü ve hedefi sabit bir yapıda gösterir. Değiştirilemeyen güvenlik/işlem geçmişleri normal form alanlarından ayrılır; hata veya süre aşımı varsa `attention-panel` varyantıyla görünür hale gelir.
 
+### Dosya işi ve içe aktarma
+
+Çok adımlı dosya işlemleri, kullanıcının nerede olduğunu anlatan üç parçalı `process-guide` ile başlar: yükleme, kolon eşleme, doğrulama ve işleme. Dosya seçimi `file-upload-surface` içinde hedef kapsamıyla birlikte gösterilir. Seçili işin toplam, başarılı ve hatalı satır sayıları ayrı bir özet yüzeyinde yer alır; satır hataları normal geçmiş tablosuna karıştırılmaz ve kritik `attention-panel` içinde açıklanır.
+
+### Organizasyon ilişkileri
+
+Şube, departman, pozisyon, proje ve maliyet merkezi listeleri düz metin dizileri yerine `organization-row` kullanır. Birincil ad ve kod solda, bağlı şube/üst departman/proje gibi ilişki sağda gösterilir. Satır seçim yaptırıyorsa buton davranışı ve `selected` durumu taşır; yalnız bilgi veriyorsa `static` varyantı kullanılır.
+
 ### Form yüzeyi
 
 Listeyle aynı panelde bulunan oluşturma veya güncelleme formu `form-surface` ile ayrılır. Böylece form alanları ile mevcut kayıtlar birbirine karışmaz. Formun kısa başlığı yapılan işlemi, yardımcı metni ise işlemin etkisini açıklar.
