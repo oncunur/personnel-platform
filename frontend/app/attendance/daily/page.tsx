@@ -1,6 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { Icon } from "../../components/Icon";
+import { PageHeader } from "../../components/PageHeader";
 
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
 
@@ -133,41 +136,60 @@ export default function DailyAttendancePage() {
   async function refresh(): Promise<string | null> { try { const response = await fetch(`${apiBase}/api/v1/auth/refresh`, { method: "POST", credentials: "include" }); if (!response.ok) return null; const body = await response.json() as AuthResponse; sessionStorage.setItem("pp_access_token", body.accessToken); return body.accessToken; } catch { return null; } }
   async function errorMessage(response: Response | null, fallback: string) { if (!response) return fallback; const body = await response.json().catch(() => null) as { error?: { message?: string } } | null; return body?.error?.message ?? fallback; }
 
-  return <main className="shell">
-    <a className="back" href="/attendance">← Takvim & Vardiya</a>
-    <section className="hero compact"><span className="eyebrow">SPRINT 5 · PDKS</span><h1>Günlük Puantaj</h1><p>{message}</p></section>
+  const reviewCount = dailyRows.filter(row => row.processingStatus === "REVIEW_REQUIRED").length;
+  const overtimeMinutes = dailyRows.reduce((total, row) => total + row.overtimeCandidateMinutes, 0);
+  const workedMinutes = dailyRows.reduce((total, row) => total + row.workedMinutes, 0);
 
-    <section className="panel audit-panel">
-      <div className="panel-heading"><div><span className="eyebrow dark">SEÇİM</span><h2>Personel & Tarih</h2></div></div>
-      <div className="inline-form">
-        <label className="field-label">Personel<select value={employeeId} onChange={e => void selectEmployee(e.target.value)}><option value="">Seçin</option>{employees.map(x => <option key={x.id} value={x.id}>{x.employeeNo} · {x.firstName} {x.lastName}</option>)}</select></label>
+  return <main className="page-shell">
+    <PageHeader eyebrow="Puantaj ve Vardiya" title="Günlük Puantaj" description="Ham giriş-çıkış olaylarını ve hesaplanmış günlük çalışma sonuçlarını personel bazında inceleyin." status={message} actions={<Link className="secondary-button" href="/attendance/overtime">Fazla mesai merkezi <Icon name="arrow" size={15}/></Link>}/>
+
+    <section className="stat-grid" aria-label="Günlük puantaj göstergeleri">
+      <article className="stat-card"><span className="stat-icon"><Icon name="people"/></span><span className="stat-copy"><strong>{employees.length}</strong><span>Aktif personel</span></span></article>
+      <article className="stat-card"><span className="stat-icon"><Icon name="workflow"/></span><span className="stat-copy"><strong>{rawEvents.length}</strong><span>Seçili gün olayı</span></span></article>
+      <article className="stat-card"><span className="stat-icon"><Icon name="settings"/></span><span className="stat-copy"><strong className={reviewCount ? "review-count" : ""}>{reviewCount}</strong><span>Kontrol gereken</span></span></article>
+      <article className="stat-card"><span className="stat-icon"><Icon name="calendar"/></span><span className="stat-copy"><strong>{Math.round(workedMinutes / 60)} sa</strong><span>Aylık çalışma</span></span></article>
+    </section>
+
+    <section className="panel workspace-panel">
+      <div className="workspace-copy"><span className="page-eyebrow">Çalışma kapsamı</span><h2>{selectedEmployee ? `${selectedEmployee.firstName} ${selectedEmployee.lastName}` : "Personel seçin"}</h2><p>Ham olaylar seçili güne, hesaplanan sonuçlar ay başından seçili güne kadar getirilir.</p></div>
+      <div className="inline-form workspace-select">
+        <label className="field-label">Personel<select value={employeeId} onChange={e => void selectEmployee(e.target.value)}><option value="">Personel seçin</option>{employees.map(x => <option key={x.id} value={x.id}>{x.employeeNo} · {x.firstName} {x.lastName}</option>)}</select></label>
         <label className="field-label">Tarih<input type="date" value={date} onChange={e => void changeDate(e.target.value)}/></label>
-        {permissions.has("attendance.daily.calculate") ? <button className="primary-button" disabled={busy || !employeeId} onClick={() => void calculate()}>Günlük Puantajı Hesapla</button> : null}
+        {permissions.has("attendance.daily.calculate") ? <button className="primary-button" disabled={busy || !employeeId} onClick={() => void calculate()}>{busy ? "Hesaplanıyor…" : "Puantajı hesapla"}</button> : null}
       </div>
     </section>
 
-    {permissions.has("attendance.raw.ingest") && selectedEmployee ? <section className="panel audit-panel">
-      <div className="panel-heading"><div><span className="eyebrow dark">HAM PDKS</span><h2>Test / Manuel Olay Girişi</h2></div></div>
-      <p>Bu kayıt eklendikten sonra değiştirilemez veya silinemez. Gerçek PDKS entegrasyonu aynı API'yi idempotent externalEventId ile kullanacaktır.</p>
+    <div className="content-stack">
+    {permissions.has("attendance.raw.ingest") && selectedEmployee ? <section className="panel">
+      <div className="panel-heading"><div><span className="page-eyebrow">Manuel olay</span><h2>Ham PDKS olayı ekleyin</h2><p>Bu kayıt eklendikten sonra değiştirilemez veya silinemez.</p></div></div>
+      <div className="notice"><Icon name="settings" size={17}/><span>Gerçek PDKS ve entegrasyon kayıtlarında tekrarları engellemek için benzersiz dış olay kimliği kullanılır.</span></div>
       <form className="inline-form" onSubmit={ingest}>
-        <label className="field-label">Kaynak<select name="source" defaultValue="MANUAL"><option value="MANUAL">MANUAL</option><option value="PDKS">PDKS</option><option value="IMPORT">IMPORT</option><option value="INTEGRATION">INTEGRATION</option></select></label>
-        <label className="field-label">Hareket<select name="direction" defaultValue="IN"><option value="IN">IN</option><option value="OUT">OUT</option><option value="UNKNOWN">UNKNOWN</option></select></label>
+        <label className="field-label">Kaynak<select name="source" defaultValue="MANUAL"><option value="MANUAL">Manuel</option><option value="PDKS">PDKS</option><option value="IMPORT">İçe aktarım</option><option value="INTEGRATION">Entegrasyon</option></select></label>
+        <label className="field-label">Hareket<select name="direction" defaultValue="IN"><option value="IN">Giriş</option><option value="OUT">Çıkış</option><option value="UNKNOWN">Bilinmiyor</option></select></label>
         <label className="field-label">Tarih<input name="eventDate" type="date" defaultValue={date} required/></label>
         <label className="field-label">Saat<input name="eventTime" type="time" required/></label>
         <label className="field-label">Cihaz<input name="deviceCode" maxLength={100}/></label>
         <label className="field-label">External Event ID<input name="externalEventId" maxLength={200}/></label>
-        <button className="primary-button" disabled={busy}>Ham Olay Ekle</button>
+        <button className="primary-button" disabled={busy}>{busy ? "Kaydediliyor…" : "Ham olay ekle"}</button>
       </form>
     </section> : null}
 
-    {permissions.has("attendance.raw.view") ? <section className="panel audit-panel">
-      <div className="panel-heading"><div><span className="eyebrow dark">HAM KAYITLAR</span><h2>{date} PDKS Olayları</h2></div><strong>{rawEvents.length}</strong></div>
-      <div className="table-wrap"><table className="data-table"><thead><tr><th>Yerel Saat</th><th>Yön</th><th>Kaynak</th><th>Cihaz</th><th>External ID</th><th>UTC Offset</th></tr></thead><tbody>{rawEvents.length === 0 ? <tr><td colSpan={6}>Ham PDKS olayı yok.</td></tr> : rawEvents.map(x => <tr key={x.id}><td>{x.localDate} {x.localTime}</td><td><strong>{x.direction}</strong></td><td>{x.source}</td><td>{x.deviceCode ?? "—"}</td><td>{x.externalEventId ?? "—"}</td><td>{x.utcOffsetMinutes} dk</td></tr>)}</tbody></table></div>
+    {permissions.has("attendance.raw.view") ? <section className="panel">
+      <div className="panel-heading"><div><span className="page-eyebrow">Ham kayıtlar</span><h2>{formatDate(date)} PDKS olayları</h2><p>Seçili günün değiştirilemez giriş ve çıkış olayları.</p></div><strong>{rawEvents.length}</strong></div>
+      <div className="table-wrap"><table className="data-table"><thead><tr><th>Yerel saat</th><th>Yön</th><th>Kaynak</th><th>Cihaz</th><th>Dış olay kimliği</th><th>UTC farkı</th></tr></thead><tbody>{rawEvents.map(x => <tr key={x.id}><td><strong>{x.localTime}</strong><small>{formatDate(x.localDate)}</small></td><td><span className={`status-badge ${x.direction === "IN" ? "success" : x.direction === "OUT" ? "warning" : ""}`}>{directionLabel(x.direction)}</span></td><td>{sourceLabel(x.source)}</td><td>{x.deviceCode ?? "—"}</td><td>{x.externalEventId ?? "—"}</td><td>{x.utcOffsetMinutes} dk</td></tr>)}{rawEvents.length === 0 ? <tr><td className="empty-row" colSpan={6}>{employeeId ? "Seçili gün için ham PDKS olayı yok." : "Kayıtları görüntülemek için personel seçin."}</td></tr> : null}</tbody></table></div>
     </section> : null}
 
-    {permissions.has("attendance.daily.view") ? <section className="panel audit-panel">
-      <div className="panel-heading"><div><span className="eyebrow dark">GÜNLÜK PUANTAJ</span><h2>Aylık Sonuçlar</h2></div><strong>{dailyRows.length}</strong></div>
-      <div className="table-wrap"><table className="data-table"><thead><tr><th>Tarih</th><th>Durum</th><th>İşlem</th><th>Plan</th><th>Çalışılan</th><th>İzin</th><th>Geç</th><th>Erken</th><th>Pot. FM</th><th>Kontrol</th></tr></thead><tbody>{dailyRows.length === 0 ? <tr><td colSpan={10}>Henüz hesaplanmış günlük puantaj yok.</td></tr> : dailyRows.map(x => <tr key={x.id}><td>{x.attendanceDate}</td><td><strong>{x.status}</strong></td><td><span className={`status-badge ${x.processingStatus === "REVIEW_REQUIRED" ? "danger" : "success"}`}>{x.processingStatus}</span></td><td>{x.plannedMinutes}</td><td>{x.workedMinutes}</td><td>{x.leaveMinutes}</td><td>{x.lateMinutes}</td><td>{x.earlyLeaveMinutes}</td><td>{x.overtimeCandidateMinutes}</td><td>{x.calculationMessage ?? "—"}</td></tr>)}</tbody></table></div>
+    {permissions.has("attendance.daily.view") ? <section className={`panel attention-panel ${reviewCount ? "danger" : "success"}`}>
+      <div className="panel-heading"><div><span className="page-eyebrow">Hesaplanan puantaj</span><h2>Aylık günlük sonuçlar</h2><p>Ay başından seçili tarihe kadar hesaplanan çalışma özeti.</p></div><strong>{dailyRows.length}</strong></div>
+      <div className="selected-summary"><div className="selected-summary-copy"><strong>{Math.round(workedMinutes / 60)} saat çalışılan · {overtimeMinutes} dk fazla mesai adayı</strong><small>{reviewCount ? `${reviewCount} gün manuel kontrol gerektiriyor.` : "Hesaplanan günlerde kontrol gerektiren kayıt yok."}</small></div><span className={`status-badge ${reviewCount ? "danger" : "success"}`}>{reviewCount ? "Kontrol gerekli" : "Güncel"}</span></div>
+      <div className="table-wrap"><table className="data-table"><thead><tr><th>Tarih</th><th>Durum</th><th>İşlem</th><th>Plan</th><th>Çalışılan</th><th>İzin</th><th>Geç</th><th>Erken</th><th>FM adayı</th><th>Kontrol</th></tr></thead><tbody>{dailyRows.map(x => <tr key={x.id}><td>{formatDate(x.attendanceDate)}</td><td><strong>{attendanceStatusLabel(x.status)}</strong></td><td><span className={`status-badge ${x.processingStatus === "REVIEW_REQUIRED" ? "danger" : "success"}`}>{processingLabel(x.processingStatus)}</span></td><td>{x.plannedMinutes} dk</td><td>{x.workedMinutes} dk</td><td>{x.leaveMinutes} dk</td><td>{x.lateMinutes} dk</td><td>{x.earlyLeaveMinutes} dk</td><td><strong>{x.overtimeCandidateMinutes} dk</strong></td><td>{x.calculationMessage ?? "—"}</td></tr>)}{dailyRows.length === 0 ? <tr><td className="empty-row" colSpan={10}>{employeeId ? "Henüz hesaplanmış günlük puantaj yok." : "Sonuçları görüntülemek için personel seçin."}</td></tr> : null}</tbody></table></div>
     </section> : null}
+    </div>
   </main>;
 }
+
+function formatDate(value: string) { return new Intl.DateTimeFormat("tr-TR", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(`${value}T00:00:00`)); }
+function directionLabel(value: string) { return value === "IN" ? "Giriş" : value === "OUT" ? "Çıkış" : "Bilinmiyor"; }
+function sourceLabel(value: string) { return value === "MANUAL" ? "Manuel" : value === "IMPORT" ? "İçe aktarım" : value === "INTEGRATION" ? "Entegrasyon" : value; }
+function processingLabel(value: string) { return value === "REVIEW_REQUIRED" ? "Kontrol gerekli" : value === "CALCULATED" ? "Hesaplandı" : value; }
+function attendanceStatusLabel(value: string) { return value === "PRESENT" ? "Çalıştı" : value === "ABSENT" ? "Devamsız" : value === "LEAVE" ? "İzinli" : value === "OFF_DAY" ? "Çalışma dışı" : value; }
