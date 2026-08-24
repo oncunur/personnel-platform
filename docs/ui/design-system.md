@@ -73,6 +73,8 @@ Tablolarda satırın kendisi işlem başlatmaz. Seçim veya ayrıntı açma gör
 
 Çok adımlı dosya işlemleri, kullanıcının nerede olduğunu anlatan üç parçalı `process-guide` ile başlar: yükleme, kolon eşleme, doğrulama ve işleme. Dosya seçimi `file-upload-surface` içinde hedef kapsamıyla birlikte gösterilir. Seçili işin toplam, başarılı ve hatalı satır sayıları ayrı bir özet yüzeyinde yer alır; satır hataları normal geçmiş tablosuna karıştırılmaz ve kritik `attention-panel` içinde açıklanır.
 
+Kimlik doğrulama ekranları teknik güvenlik terimlerini kullanıcıya yüklemez. İlk ek doğrulama kurulumu numaralı adımlarla anlatılır; kurulum anahtarı kopyalanabilir, destekleyen mobil cihazlarda doğrulama uygulaması doğrudan açılabilir ve 6 haneli kod alanı tek kullanımlık kod girişine uygun davranır. Gizli kurulum bağlantısı normal arayüzde ham metin olarak gösterilmez.
+
 ### Organizasyon ilişkileri
 
 Şube, departman, pozisyon, proje ve maliyet merkezi listeleri düz metin dizileri yerine `organization-row` kullanır. Birincil ad ve kod solda, bağlı şube/üst departman/proje gibi ilişki sağda gösterilir. Satır seçim yaptırıyorsa buton davranışı ve `selected` durumu taşır; yalnız bilgi veriyorsa `static` varyantı kullanılır.
