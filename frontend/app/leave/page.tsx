@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
 import { Icon } from "../components/Icon";
+import { OperationDisclosure } from "../components/OperationDisclosure";
 import { PageHeader } from "../components/PageHeader";
 
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
@@ -193,7 +194,7 @@ export default function LeavePage() {
     <div className="content-stack">
     {permissions.has("leave.create") ? <section className="panel">
       <div className="panel-heading"><div><span className="page-eyebrow">Yeni talep</span><h2>İzin taslağı oluşturun</h2><p>Talep önce taslak olarak kaydedilir; ardından belge ve bakiye kontrolleriyle onaya gönderilir.</p></div></div>
-      <form className="inline-form" onSubmit={createLeave}>
+      <OperationDisclosure title="Yeni izin talebi başlat" description="Personel, izin türü ve tarih aralığını seçerek bir taslak oluşturun."><form className="inline-form" onSubmit={createLeave}>
         <label className="field-label">Personel<select name="employeeId" required><option value="">Seçin</option>{employees.map(x => <option key={x.id} value={x.id}>{x.employeeNo} · {x.firstName} {x.lastName}</option>)}</select></label>
         <label className="field-label">İzin Türü<select name="leaveTypeId" required><option value="">Seçin</option>{types.filter(x => x.id).map(x => <option key={x.id} value={x.id}>{x.code} · {x.name}{x.attachmentRequired ? " · Ek zorunlu" : ""}</option>)}</select></label>
         <label className="field-label">Başlangıç<input name="startDate" type="date" required/></label>
@@ -202,20 +203,20 @@ export default function LeavePage() {
         <label className="field-label">Bitiş Bölümü<select name="endDayPart" defaultValue="FULL_DAY"><option value="FULL_DAY">Tam Gün</option><option value="FIRST_HALF">İlk Yarım</option><option value="SECOND_HALF">İkinci Yarım</option></select></label>
         <label className="field-label">Açıklama<input name="reason" maxLength={2000}/></label>
         <button className="primary-button" disabled={busy}>{busy ? "Kaydediliyor…" : "Taslak oluştur"}</button>
-      </form>
+      </form></OperationDisclosure>
     </section> : null}
 
     {permissions.has("leave.view") ? <section className="panel">
       <div className="panel-heading"><div><span className="page-eyebrow">Talep takibi</span><h2>İzin kayıtları</h2><p>Talep durumlarını, ekleri ve kullanılabilir işlemleri birlikte izleyin.</p></div><strong>{rows.length}</strong></div>
-      <div className="table-wrap"><table className="data-table"><thead><tr><th>Personel</th><th>İzin</th><th>Tarih</th><th>Gün</th><th>Durum</th><th>Ekler</th><th>İşlem</th></tr></thead><tbody>
+      <div className="table-wrap responsive-table-wrap" role="region" aria-label="İzin kayıtları" tabIndex={0}><table className="data-table responsive-table"><thead><tr><th>Personel</th><th>İzin</th><th>Tarih</th><th>Gün</th><th>Durum</th><th>Ekler</th><th>İşlem</th></tr></thead><tbody>
         {rows.map(row => <tr key={row.id}>
-          <td><strong>{row.employeeName}</strong><small>{row.employeeNo}</small></td>
-          <td>{row.leaveTypeName}<small>{row.leaveTypeCode}{attachmentRequired(row) ? " · Ek zorunlu" : ""}</small></td>
-          <td>{formatDate(row.startDate)} → {formatDate(row.endDate)}<small>{dayPartLabel(row.startDayPart)} / {dayPartLabel(row.endDayPart)}</small></td>
-          <td><strong>{row.requestedDays}</strong></td>
-          <td><span className={`status-badge ${leaveStatusClass(row.status)}`}>{leaveStatusLabel(row.status)}</span></td>
-          <td><div className="action-row">{permissions.has("leave.attachment.view") ? <button className="table-button" disabled={busy} onClick={() => void loadAttachments(row.id)}>{loadedAttachmentLeaves.has(row.id) ? `Yenile (${attachmentsByLeave[row.id]?.length ?? 0})` : "Ekleri göster"}</button> : null}{permissions.has("leave.attachment.upload") && row.status === "DRAFT" ? <label className="table-button">Ek yükle<input hidden type="file" accept="application/pdf,image/jpeg,image/png" onChange={event => void uploadAttachment(row, event)}/></label> : null}</div>{(attachmentsByLeave[row.id] ?? []).map(file => <div key={file.id}><button className="table-button document-open" disabled={busy} onClick={() => void openAttachment(file.id)}>{file.fileName}</button></div>)}</td>
-          <td><div className="action-row">{permissions.has("leave.submit") && row.status === "DRAFT" ? <button className="table-button" disabled={busy} onClick={() => void act(row, "submit")}>Onaya gönder</button> : null}{permissions.has("leave.submit") && ["DRAFT", "SUBMITTED", "PENDING_APPROVAL"].includes(row.status) ? <button className="table-button button-danger" disabled={busy} onClick={() => void act(row, "withdraw")}>Geri çek</button> : null}</div></td>
+          <td data-label="Personel"><strong>{row.employeeName}</strong><small>{row.employeeNo}</small></td>
+          <td data-label="İzin">{row.leaveTypeName}<small>{row.leaveTypeCode}{attachmentRequired(row) ? " · Ek zorunlu" : ""}</small></td>
+          <td data-label="Tarih">{formatDate(row.startDate)} → {formatDate(row.endDate)}<small>{dayPartLabel(row.startDayPart)} / {dayPartLabel(row.endDayPart)}</small></td>
+          <td data-label="Gün"><strong>{row.requestedDays}</strong></td>
+          <td data-label="Durum"><span className={`status-badge ${leaveStatusClass(row.status)}`}>{leaveStatusLabel(row.status)}</span></td>
+          <td data-label="Ekler"><div className="action-row">{permissions.has("leave.attachment.view") ? <button className="table-button" disabled={busy} onClick={() => void loadAttachments(row.id)}>{loadedAttachmentLeaves.has(row.id) ? `Yenile (${attachmentsByLeave[row.id]?.length ?? 0})` : "Ekleri göster"}</button> : null}{permissions.has("leave.attachment.upload") && row.status === "DRAFT" ? <label className="table-button">Ek yükle<input hidden type="file" accept="application/pdf,image/jpeg,image/png" onChange={event => void uploadAttachment(row, event)}/></label> : null}</div>{(attachmentsByLeave[row.id] ?? []).map(file => <div key={file.id}><button className="table-button document-open" disabled={busy} onClick={() => void openAttachment(file.id)}>{file.fileName}</button></div>)}</td>
+          <td data-label="İşlem"><div className="action-row">{permissions.has("leave.submit") && row.status === "DRAFT" ? <button className="table-button" disabled={busy} onClick={() => void act(row, "submit")}>Onaya gönder</button> : null}{permissions.has("leave.submit") && ["DRAFT", "SUBMITTED", "PENDING_APPROVAL"].includes(row.status) ? <button className="table-button button-danger" disabled={busy} onClick={() => void act(row, "withdraw")}>Geri çek</button> : null}</div></td>
         </tr>)}
         {rows.length === 0 ? <tr><td className="empty-row" colSpan={7}>Henüz izin talebi bulunmuyor.</td></tr> : null}
       </tbody></table></div>
@@ -224,7 +225,7 @@ export default function LeavePage() {
     {permissions.has("leave.balance.view") ? <section className="panel">
       <div className="panel-heading"><div><span className="page-eyebrow">Bakiye yönetimi</span><h2>Personel izin bakiyesi</h2><p>Personel seçerek dönemsel hakediş ve kullanılabilir günleri görüntüleyin.</p></div><strong>{balances.length}</strong></div>
       <div className="selection-bar"><label className="field-label">Personel<select value={selectedEmployeeId} onChange={e => void selectEmployee(e.target.value)}><option value="">Personel seçin</option>{employees.map(x => <option key={x.id} value={x.id}>{x.employeeNo} · {x.firstName} {x.lastName}</option>)}</select></label><div className="selection-context"><strong>{selectedEmployeeId ? `${balances.length} bakiye kaydı` : "Personel bekleniyor"}</strong><span>Seçim yalnız bakiye bölümünü etkiler.</span></div></div>
-      {permissions.has("leave.balance.manage") && selectedEmployeeId ? <div className="form-surface"><div className="form-surface-heading"><div><strong>Hakediş veya düzeltme ekleyin</strong><span>Değişiklik, seçili personelin izin bakiyesine uygulanır.</span></div></div><form className="inline-form" onSubmit={createEntitlement}>
+      {permissions.has("leave.balance.manage") && selectedEmployeeId ? <OperationDisclosure title="Hakediş veya düzeltme ekle" description="Değişiklik, seçili personelin izin bakiyesine uygulanır."><form className="inline-form" onSubmit={createEntitlement}>
         <label className="field-label">Bakiye Takipli İzin<select name="leaveTypeId" required><option value="">Seçin</option>{types.filter(x => x.balanceRequired).map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select></label>
         <label className="field-label">Dönem Başlangıç<input name="periodStart" type="date" required/></label>
         <label className="field-label">Dönem Bitiş<input name="periodEnd" type="date" required/></label>
@@ -233,8 +234,8 @@ export default function LeavePage() {
         <label className="field-label">Düzeltme<input name="adjustmentDays" type="number" step="0.5" defaultValue={0}/></label>
         <label className="field-label">Not<input name="note" maxLength={1000}/></label>
         <button className="primary-button" disabled={busy}>{busy ? "Kaydediliyor…" : "Hakedişi kaydet"}</button>
-      </form></div> : null}
-      <div className="table-wrap"><table className="data-table"><thead><tr><th>İzin türü</th><th>Dönem</th><th>Hakediş</th><th>Devir</th><th>Rezerve</th><th>Kullanılan</th><th>Kullanılabilir</th></tr></thead><tbody>{balances.map(x => <tr key={x.id}><td><strong>{x.leaveTypeName}</strong><small>{x.leaveTypeCode}</small></td><td>{formatDate(x.periodStart)} → {formatDate(x.periodEnd)}</td><td>{x.entitledDays}</td><td>{x.carryOverDays}</td><td>{x.reservedDays}</td><td>{x.usedDays}</td><td><strong className="amount-positive">{x.availableDays}</strong></td></tr>)}{balances.length === 0 ? <tr><td className="empty-row" colSpan={7}>{selectedEmployeeId ? "Seçili personel için bakiye kaydı bulunmuyor." : "Bakiye görüntülemek için personel seçin."}</td></tr> : null}</tbody></table></div>
+      </form></OperationDisclosure> : null}
+      <div className="table-wrap responsive-table-wrap" role="region" aria-label="Personel izin bakiyesi" tabIndex={0}><table className="data-table responsive-table"><thead><tr><th>İzin türü</th><th>Dönem</th><th>Hakediş</th><th>Devir</th><th>Rezerve</th><th>Kullanılan</th><th>Kullanılabilir</th></tr></thead><tbody>{balances.map(x => <tr key={x.id}><td data-label="İzin türü"><strong>{x.leaveTypeName}</strong><small>{x.leaveTypeCode}</small></td><td data-label="Dönem">{formatDate(x.periodStart)} → {formatDate(x.periodEnd)}</td><td data-label="Hakediş">{x.entitledDays}</td><td data-label="Devir">{x.carryOverDays}</td><td data-label="Rezerve">{x.reservedDays}</td><td data-label="Kullanılan">{x.usedDays}</td><td data-label="Kullanılabilir"><strong className="amount-positive">{x.availableDays}</strong></td></tr>)}{balances.length === 0 ? <tr><td className="empty-row" colSpan={7}>{selectedEmployeeId ? "Seçili personel için bakiye kaydı bulunmuyor." : "Bakiye görüntülemek için personel seçin."}</td></tr> : null}</tbody></table></div>
     </section> : null}
     </div>
   </main>;
