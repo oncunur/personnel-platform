@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useActionDialog } from "../components/ActionDialog";
 import { Icon } from "../components/Icon";
 import { PageHeader } from "../components/PageHeader";
 
@@ -18,6 +19,7 @@ type Fuel = { id: string; odometerKm: number; liters: number; totalCost: number;
 type AuthResponse = { accessToken: string };
 
 const today = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+const nextDate = (value: string) => { const date = new Date(`${value}T00:00:00`); date.setDate(date.getDate() + 1); return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10); };
 const nowLocal = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 const formatDate = (value: string | null) => value ? new Date(`${value}T00:00:00`).toLocaleDateString("tr-TR") : "—";
 const vehicleStatus = (value: string) => value === "ACTIVE" ? "Aktif" : value === "MAINTENANCE" ? "Bakımda" : value === "OUT_OF_SERVICE" ? "Servis dışı" : value === "RETIRED" ? "Emekli" : value;
@@ -36,6 +38,7 @@ export default function VehiclesPage() {
   const [vehicleId, setVehicleId] = useState("");
   const [message, setMessage] = useState("Araç verileri yükleniyor…");
   const [busy, setBusy] = useState(false);
+  const { ask, dialog } = useActionDialog();
   const permissions = useMemo(() => new Set(me?.permissions.map(x => x.code) ?? []), [me]);
   const selectedVehicle = vehicles.find(x => x.id === vehicleId) ?? null;
   const companyEmployees = employees.filter(x => !companyId || x.companyId === companyId);
@@ -96,7 +99,7 @@ export default function VehiclesPage() {
     try {
       const response = await authFetch(`/api/v1/administration/vehicles/${selectedVehicle.id}/status`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ version: selectedVehicle.version, status }) });
       if (!response?.ok) { setMessage(await errorMessage(response, "Durum değiştirilemedi.")); return; }
-      setMessage(`Araç durumu ${status} olarak güncellendi.`); await reloadVehicles();
+      setMessage(`Araç durumu “${vehicleStatus(status)}” olarak güncellendi.`); await reloadVehicles();
     } finally { setBusy(false); }
   }
 
@@ -119,9 +122,21 @@ export default function VehiclesPage() {
   }
 
   async function closeAssignment(row: Assignment) {
-    const end = window.prompt("Atama bitiş tarihi [hariç] (YYYY-MM-DD)", today()); if (!end) return;
-    const response = await authFetch(`/api/v1/administration/vehicles/assignments/${row.id}/close`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ version: row.version, validUntilExclusive: end }) });
-    setMessage(response?.ok ? "Araç ataması kapatıldı." : await errorMessage(response, "Atama kapatılamadı.")); await reloadVehicles();
+    const earliestEnd = nextDate(row.validFrom);
+    const suggestedEnd = earliestEnd > today() ? earliestEnd : today();
+    const result = await ask({
+      title: "Sürücü atamasını sonlandırın",
+      description: `${row.employeeName} için ${row.plate} araç atamasının bitiş tarihini belirleyin. Seçilen tarih atamaya dahil değildir.`,
+      confirmLabel: "Atamayı bitir",
+      tone: "success",
+      fields: [{ name: "end", label: "Atama bitiş tarihi", type: "date", initialValue: suggestedEnd, min: earliestEnd, required: true }],
+    });
+    if (!result) return;
+    setBusy(true);
+    try {
+      const response = await authFetch(`/api/v1/administration/vehicles/assignments/${row.id}/close`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ version: row.version, validUntilExclusive: result.end }) });
+      setMessage(response?.ok ? "Araç ataması kapatıldı." : await errorMessage(response, "Atama kapatılamadı.")); await reloadVehicles();
+    } finally { setBusy(false); }
   }
 
   async function json<T>(path: string): Promise<T | null> { const r = await authFetch(path); return r?.ok ? await r.json() as T : null; }
@@ -158,7 +173,7 @@ export default function VehiclesPage() {
         {permissions.has("administration.vehicle.assign") ? <article className="panel"><div className="panel-heading"><div><span className="eyebrow dark">Sürücü ataması</span><h2>Personeli araca atayın</h2><p>Başlangıç ve planlı bitiş tarihini belirleyin.</p></div></div><div className="form-surface"><form className="stack" onSubmit={e => submit(e, `/api/v1/administration/vehicles/${selectedVehicle.id}/assignments`, fd => ({ vehicleId: selectedVehicle.id, employeeId: fd.get("employeeId"), validFrom: fd.get("validFrom"), validUntilExclusive: fd.get("validUntil") || null, note: fd.get("note") || null }), "Araç personele atandı.")}><label className="field-label">Personel<select name="employeeId" required><option value="">Personel seçin</option>{companyEmployees.map(x => <option key={x.id} value={x.id}>{x.employeeNo} · {x.firstName} {x.lastName}</option>)}</select></label><label className="field-label">Başlangıç<input name="validFrom" type="date" defaultValue={today()} required/></label><label className="field-label">Planlanan bitiş (hariç)<input name="validUntil" type="date"/></label><label className="field-label">Not<input name="note"/></label><button className="primary-button" disabled={busy}>Atamayı başlat</button></form></div></article> : null}
       </section> : null}
 
-      {permissions.has("administration.vehicle.view") ? <section className="panel"><div className="panel-heading"><div><span className="eyebrow dark">Sürücü geçmişi</span><h2>Araç atamaları</h2><p>Aktif atamaları bitiş tarihiyle kapatabilirsiniz.</p></div><strong>{assignments.length}</strong></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Araç</th><th>Personel</th><th>Başlangıç</th><th>Bitiş</th><th>Durum</th><th>İşlem</th></tr></thead><tbody>{assignments.length?assignments.map(x => <tr key={x.id}><td><strong>{x.plate}</strong></td><td>{x.employeeNo} · {x.employeeName}</td><td>{formatDate(x.validFrom)}</td><td>{x.validUntilExclusive?formatDate(x.validUntilExclusive):"Süresiz"}</td><td><span className={`status-badge ${x.status==="ACTIVE"?"success":""}`}>{assignmentStatus(x.status)}</span></td><td>{x.status === "ACTIVE" && permissions.has("administration.vehicle.assign") ? <button className="secondary-button button-success" onClick={() => void closeAssignment(x)}>Atamayı bitir</button> : "—"}</td></tr>):<tr><td className="empty-row" colSpan={6}>Henüz sürücü ataması yok.</td></tr>}</tbody></table></div></section> : null}
+      {permissions.has("administration.vehicle.view") ? <section className="panel"><div className="panel-heading"><div><span className="eyebrow dark">Sürücü geçmişi</span><h2>Araç atamaları</h2><p>Aktif atamaları bitiş tarihiyle kapatabilirsiniz.</p></div><strong>{assignments.length}</strong></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Araç</th><th>Personel</th><th>Başlangıç</th><th>Bitiş</th><th>Durum</th><th>İşlem</th></tr></thead><tbody>{assignments.length?assignments.map(x => <tr key={x.id}><td><strong>{x.plate}</strong></td><td>{x.employeeNo} · {x.employeeName}</td><td>{formatDate(x.validFrom)}</td><td>{x.validUntilExclusive?formatDate(x.validUntilExclusive):"Süresiz"}</td><td><span className={`status-badge ${x.status==="ACTIVE"?"success":""}`}>{assignmentStatus(x.status)}</span></td><td>{x.status === "ACTIVE" && permissions.has("administration.vehicle.assign") ? <button className="secondary-button button-success" type="button" disabled={busy} onClick={() => void closeAssignment(x)}>Atamayı bitir</button> : "—"}</td></tr>):<tr><td className="empty-row" colSpan={6}>Henüz sürücü ataması yok.</td></tr>}</tbody></table></div></section> : null}
 
       {selectedVehicle && permissions.has("administration.vehicle.odometer.record") ? <section className="panel"><div className="panel-heading"><div><span className="eyebrow dark">Kilometre defteri</span><h2>{selectedVehicle.plate} kilometre kayıtları</h2><p>Yeni değer önceki kayıtlardan düşük olamaz.</p></div><strong>{odometer.length}</strong></div><div className="form-surface"><form className="inline-form" onSubmit={e => submit(e, `/api/v1/administration/vehicles/${selectedVehicle.id}/odometer`, fd => ({ odometerKm: Number(fd.get("km")), occurredAt: fd.get("occurredAt"), source: "MANUAL", externalEventId: null, note: fd.get("note") || null }), "Kilometre olayı kaydedildi.")}><label className="field-label">Kilometre<input name="km" type="number" min="0" defaultValue={selectedVehicle.currentOdometerKm ?? 0} required/></label><label className="field-label">Kayıt zamanı<input name="occurredAt" type="datetime-local" defaultValue={nowLocal()} required/></label><label className="field-label">Not<input name="note"/></label><button className="primary-button" disabled={busy}>Kilometreyi kaydet</button></form></div>{odometer.length?<div className="compact-list">{odometer.map(x => <div className="role-row" key={x.id}><strong>{x.odometerKm.toLocaleString("tr-TR")} km</strong><span>{new Date(x.occurredAt).toLocaleString("tr-TR")} · Manuel kayıt</span></div>)}</div>:<p className="panel-description">Henüz kilometre kaydı yok.</p>}</section> : null}
 
@@ -167,5 +182,6 @@ export default function VehiclesPage() {
         {permissions.has("administration.vehicle.fuel.record") ? <article className="panel"><div className="panel-heading"><div><span className="eyebrow dark">Yakıt</span><h2>Yeni yakıt kaydı</h2><p>Litre, maliyet ve kilometre bilgisini kaydedin.</p></div><strong>{fuel.length}</strong></div><div className="form-surface"><form className="stack" onSubmit={e => submit(e, `/api/v1/administration/vehicles/${selectedVehicle.id}/fuel`, fd => ({ odometerKm: Number(fd.get("km")), fueledAt: fd.get("fueledAt"), liters: Number(fd.get("liters")), totalCost: Number(fd.get("cost")), currency: fd.get("currency"), station: fd.get("station") || null, source: "MANUAL", externalEventId: null }), "Yakıt kaydı oluşturuldu.")}><label className="field-label">Kilometre<input name="km" type="number" defaultValue={selectedVehicle.currentOdometerKm ?? 0} required/></label><label className="field-label">Yakıt zamanı<input name="fueledAt" type="datetime-local" defaultValue={nowLocal()} required/></label><label className="field-label">Litre<input name="liters" type="number" min="0.001" step="0.001" required/></label><label className="field-label">Toplam maliyet<input name="cost" type="number" min="0" step="0.01" required/></label><label className="field-label">Para birimi<input name="currency" defaultValue="TRY" maxLength={3} required/></label><label className="field-label">İstasyon<input name="station"/></label><button className="primary-button" disabled={busy}>Yakıtı kaydet</button></form></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Zaman</th><th>KM</th><th>Litre</th><th>Maliyet</th><th>İstasyon</th></tr></thead><tbody>{fuel.length?fuel.map(x => <tr key={x.id}><td>{new Date(x.fueledAt).toLocaleString("tr-TR")}</td><td>{x.odometerKm.toLocaleString("tr-TR")}</td><td>{x.liters.toLocaleString("tr-TR")}</td><td><strong>{x.totalCost.toLocaleString("tr-TR",{minimumFractionDigits:2})} {x.currency}</strong></td><td>{x.station ?? "—"}</td></tr>):<tr><td className="empty-row" colSpan={5}>Henüz yakıt kaydı yok.</td></tr>}</tbody></table></div></article> : null}
       </section> : null}
     </div>
+    {dialog}
   </main>;
 }

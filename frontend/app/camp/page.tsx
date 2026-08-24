@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useActionDialog } from "../components/ActionDialog";
 import { Icon } from "../components/Icon";
 import { PageHeader } from "../components/PageHeader";
 
@@ -23,6 +24,12 @@ function localDate(offsetDays = 0) {
   d.setDate(d.getDate() + offsetDays);
   const offset = d.getTimezoneOffset() * 60000;
   return new Date(d.getTime() - offset).toISOString().slice(0, 10);
+}
+
+function nextDate(value: string) {
+  const date = new Date(`${value}T00:00:00`);
+  date.setDate(date.getDate() + 1);
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 }
 
 function formatDate(value: string | null) {
@@ -48,6 +55,7 @@ export default function CampPage() {
   const [employeeId, setEmployeeId] = useState("");
   const [message, setMessage] = useState("Kamp verileri yükleniyor…");
   const [busy, setBusy] = useState(false);
+  const { ask, dialog } = useActionDialog();
   const permissions = useMemo(() => new Set(me?.permissions.map(x => x.code) ?? []), [me]);
   const selectedCamp = useMemo(() => camps.find(x => x.id === campId) ?? null, [camps, campId]);
   const activeStays = useMemo(() => stays.filter(x => x.status === "ACTIVE"), [stays]);
@@ -146,18 +154,38 @@ export default function CampPage() {
   }
 
   async function closeStay(row: Stay) {
-    const checkOut = window.prompt("Çıkış tarihi (YYYY-MM-DD, bu tarih konaklamaya dahil değildir):", localDate(1));
-    if (!checkOut) return;
-    const response = await authFetch(`/api/v1/camp/stays/${row.id}/close`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ checkOutDateExclusive: checkOut, version: row.version }) });
-    if (!response?.ok) { setMessage(await errorMessage(response, "Konaklama kapatılamadı.")); return; }
-    setMessage("Konaklama kapatıldı ve toplam maliyet snapshot olarak sabitlendi."); await reloadStays();
+    const earliestCheckOut = nextDate(row.checkInDate);
+    const suggestedCheckOut = earliestCheckOut > localDate(1) ? earliestCheckOut : localDate(1);
+    const result = await ask({
+      title: "Konaklamayı sonlandırın",
+      description: `${row.employeeName} için ${row.campName} konaklamasının çıkış tarihini belirleyin. Seçilen tarih konaklamaya dahil değildir.`,
+      confirmLabel: "Çıkışı kaydet",
+      tone: "success",
+      fields: [{ name: "checkOut", label: "Çıkış tarihi", type: "date", initialValue: suggestedCheckOut, min: earliestCheckOut, required: true }],
+    });
+    if (!result) return;
+    setBusy(true);
+    try {
+      const response = await authFetch(`/api/v1/camp/stays/${row.id}/close`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ checkOutDateExclusive: result.checkOut, version: row.version }) });
+      if (!response?.ok) { setMessage(await errorMessage(response, "Konaklama kapatılamadı.")); return; }
+      setMessage("Konaklama kapatıldı ve toplam maliyet sabitlendi."); await reloadStays();
+    } finally { setBusy(false); }
   }
 
   async function cancelStay(row: Stay) {
-    if (!window.confirm("Bu konaklama kaydı iptal edilsin mi?")) return;
-    const response = await authFetch(`/api/v1/camp/stays/${row.id}/cancel`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ version: row.version }) });
-    if (!response?.ok) { setMessage(await errorMessage(response, "Konaklama iptal edilemedi.")); return; }
-    setMessage("Konaklama iptal edildi."); await reloadStays();
+    const confirmed = await ask({
+      title: "Konaklama iptal edilsin mi?",
+      description: `${row.employeeName} için ${row.campName} konaklama kaydı iptal durumuna alınacak.`,
+      confirmLabel: "Konaklamayı iptal et",
+      tone: "danger",
+    });
+    if (!confirmed) return;
+    setBusy(true);
+    try {
+      const response = await authFetch(`/api/v1/camp/stays/${row.id}/cancel`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ version: row.version }) });
+      if (!response?.ok) { setMessage(await errorMessage(response, "Konaklama iptal edilemedi.")); return; }
+      setMessage("Konaklama iptal edildi."); await reloadStays();
+    } finally { setBusy(false); }
   }
 
   async function json<T>(path: string): Promise<T | null> { const response = await authFetch(path); return response?.ok ? await response.json() as T : null; }
@@ -210,8 +238,9 @@ export default function CampPage() {
       </section> : null}
 
       {permissions.has("camp.stay.view") ? <section className="panel"><div className="panel-heading"><div><span className="eyebrow dark">Konaklama kayıtları</span><h2>Güncel ve geçmiş yerleşimler</h2><p>Aktif konaklamaları kapatabilir veya hatalı kaydı iptal edebilirsiniz.</p></div><strong>{stays.length}</strong></div>
-        <div className="table-wrap"><table className="data-table"><thead><tr><th>Personel</th><th>Kamp</th><th>Oda / yatak</th><th>Giriş</th><th>Çıkış</th><th>Gece</th><th>Maliyet</th><th>Durum</th><th>İşlem</th></tr></thead><tbody>{stays.length === 0 ? <tr><td className="empty-row" colSpan={9}>Henüz konaklama kaydı yok.</td></tr> : stays.map(x => <tr key={x.id}><td><strong>{x.employeeName}</strong><small>{x.employeeNo}</small></td><td>{x.campCode} · {x.campName}</td><td>{x.roomCode} / {x.bedCode}</td><td>{formatDate(x.checkInDate)}</td><td>{formatDate(x.checkOutDateExclusive)}</td><td>{x.nights}</td><td><strong>{x.currentOrFinalCost.toLocaleString("tr-TR", { minimumFractionDigits: 2 })} {x.currencySnapshot}</strong><small>Gecelik {x.nightlyRateSnapshot.toLocaleString("tr-TR")}</small></td><td><span className={`status-badge ${x.status === "ACTIVE" ? "success" : x.status === "CANCELLED" ? "danger" : ""}`}>{stayStatus(x.status)}</span></td><td>{x.status === "ACTIVE" && permissions.has("camp.stay.manage") ? <div className="action-row"><button className="secondary-button button-success" onClick={() => void closeStay(x)}>Çıkış yap</button><button className="secondary-button button-danger" onClick={() => void cancelStay(x)}>İptal et</button></div> : "—"}</td></tr>)}</tbody></table></div>
+        <div className="table-wrap"><table className="data-table"><thead><tr><th>Personel</th><th>Kamp</th><th>Oda / yatak</th><th>Giriş</th><th>Çıkış</th><th>Gece</th><th>Maliyet</th><th>Durum</th><th>İşlem</th></tr></thead><tbody>{stays.length === 0 ? <tr><td className="empty-row" colSpan={9}>Henüz konaklama kaydı yok.</td></tr> : stays.map(x => <tr key={x.id}><td><strong>{x.employeeName}</strong><small>{x.employeeNo}</small></td><td>{x.campCode} · {x.campName}</td><td>{x.roomCode} / {x.bedCode}</td><td>{formatDate(x.checkInDate)}</td><td>{formatDate(x.checkOutDateExclusive)}</td><td>{x.nights}</td><td><strong>{x.currentOrFinalCost.toLocaleString("tr-TR", { minimumFractionDigits: 2 })} {x.currencySnapshot}</strong><small>Gecelik {x.nightlyRateSnapshot.toLocaleString("tr-TR")}</small></td><td><span className={`status-badge ${x.status === "ACTIVE" ? "success" : x.status === "CANCELLED" ? "danger" : ""}`}>{stayStatus(x.status)}</span></td><td>{x.status === "ACTIVE" && permissions.has("camp.stay.manage") ? <div className="action-row"><button className="secondary-button button-success" type="button" disabled={busy} onClick={() => void closeStay(x)}>Çıkış yap</button><button className="secondary-button button-danger" type="button" disabled={busy} onClick={() => void cancelStay(x)}>İptal et</button></div> : "—"}</td></tr>)}</tbody></table></div>
       </section> : null}
     </div>
+    {dialog}
   </main>;
 }

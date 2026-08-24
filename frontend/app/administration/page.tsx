@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useActionDialog } from "../components/ActionDialog";
 import { Icon } from "../components/Icon";
 import { PageHeader } from "../components/PageHeader";
 
@@ -29,6 +30,7 @@ export default function AdministrationPage() {
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [message, setMessage] = useState("İdari takip verileri yükleniyor…");
   const [busy, setBusy] = useState(false);
+  const { ask, dialog } = useActionDialog();
   const permissions = useMemo(() => new Set(me?.permissions.map(x => x.code) ?? []), [me]);
   const openTasks = tasks.filter(x => x.status === "OPEN");
   const expiringContracts = contracts.filter(x => ["EXPIRING", "EXPIRED"].includes(x.effectiveStatus));
@@ -44,7 +46,7 @@ export default function AdministrationPage() {
     const companyRows = current.permissions.some(x => x.code === "organization.company.view") ? await json<Company[]>("/api/v1/organization/companies") : [];
     setCompanies(companyRows ?? []);
     if (companyRows?.length) setCompanyId(companyRows[0].id);
-    setMessage("Tekrar eden görev, kontrat ve reminder eventleri hazır.");
+    setMessage("Tekrar eden görevler, kontratlar ve hatırlatmalar hazır.");
   }
 
   async function reload(cid = companyId) {
@@ -67,24 +69,50 @@ export default function AdministrationPage() {
   }
 
   async function taskAction(row: Task, action: "complete" | "pause" | "resume" | "close") {
-    const note = action === "complete" ? window.prompt("Tamamlama notu (opsiyonel)", "") : null;
-    const response = await authFetch(`/api/v1/administration/affairs/tasks/${row.id}/${action}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ version: row.version, note }) });
-    setMessage(response?.ok ? `Görev işlemi tamamlandı: ${action}.` : await errorMessage(response, "Görev işlemi tamamlanamadı.")); await reload();
+    const labels = {
+      complete: { title: "Görevi tamamlayın", description: "Tamamlanma kaydı oluşturulacak; tekrarlanan görevse yeni dönem planlanacak.", confirm: "Tamamlandı olarak işaretle", tone: "success" as const, result: "Görev tamamlandı." },
+      pause: { title: "Görevi duraklatın", description: "Görev siz yeniden başlatana kadar beklemede kalacak.", confirm: "Görevi duraklat", tone: "default" as const, result: "Görev duraklatıldı." },
+      resume: { title: "Görevi yeniden başlatın", description: "Görev tekrar açık duruma alınacak.", confirm: "Devam ettir", tone: "success" as const, result: "Görev yeniden başlatıldı." },
+      close: { title: "Görevi kalıcı olarak kapatın", description: "Görev kapatılacak ve açık iş listesinden kaldırılacak.", confirm: "Görevi kapat", tone: "danger" as const, result: "Görev kapatıldı." },
+    }[action];
+    const result = await ask({
+      title: labels.title,
+      description: `${row.title}. ${labels.description}`,
+      confirmLabel: labels.confirm,
+      tone: labels.tone,
+      fields: action === "complete" ? [{ name: "note", label: "Tamamlama notu (isteğe bağlı)", multiline: true }] : [],
+    });
+    if (!result) return;
+    const note = result.note?.trim() || null;
+    setBusy(true);
+    try {
+      const response = await authFetch(`/api/v1/administration/affairs/tasks/${row.id}/${action}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ version: row.version, note }) });
+      setMessage(response?.ok ? labels.result : await errorMessage(response, "Görev işlemi tamamlanamadı.")); await reload();
+    } finally { setBusy(false); }
   }
 
   async function closeContract(row: Contract) {
-    if (!window.confirm(`${row.contractNo} kontratı kapatılsın mı?`)) return;
-    const response = await authFetch(`/api/v1/administration/affairs/contracts/${row.id}/close`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ version: row.version }) });
-    setMessage(response?.ok ? "Kontrat kapatıldı." : await errorMessage(response, "Kontrat kapatılamadı.")); await reload();
+    const confirmed = await ask({
+      title: "Kontrat kapatılsın mı?",
+      description: `${row.contractNo} · ${row.title} kontratı kapalı duruma alınacak ve vade takibinden çıkarılacak.`,
+      confirmLabel: "Kontratı kapat",
+      tone: "danger",
+    });
+    if (!confirmed) return;
+    setBusy(true);
+    try {
+      const response = await authFetch(`/api/v1/administration/affairs/contracts/${row.id}/close`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ version: row.version }) });
+      setMessage(response?.ok ? "Kontrat kapatıldı." : await errorMessage(response, "Kontrat kapatılamadı.")); await reload();
+    } finally { setBusy(false); }
   }
 
   async function processReminders() {
     setBusy(true);
     try {
       const response = await authFetch("/api/v1/administration/affairs/reminders/process", { method: "POST" });
-      if (!response?.ok) { setMessage(await errorMessage(response, "Reminder işleme başarısız.")); return; }
+      if (!response?.ok) { setMessage(await errorMessage(response, "Hatırlatma taraması tamamlanamadı.")); return; }
       const result = await response.json() as ReminderRun;
-      setMessage(`Reminder taraması: ${result.candidates} aday, ${result.created} yeni, ${result.duplicates} mevcut.`); await reload();
+      setMessage(`Hatırlatma taraması: ${result.candidates} aday, ${result.created} yeni, ${result.duplicates} mevcut.`); await reload();
     } finally { setBusy(false); }
   }
 
@@ -122,5 +150,6 @@ export default function AdministrationPage() {
 
       {permissions.has("administration.reminder.view") ? <section className={`panel attention-panel ${importantReminders.length?"warning":""}`}><div className="panel-heading"><div><span className="eyebrow dark">Hatırlatmalar</span><h2>Yaklaşan idari olaylar</h2><p>Araç belgeleri, görevler ve kontratlar için üretilen takip kayıtları.</p></div>{permissions.has("administration.reminder.process") ? <button className="primary-button" disabled={busy} onClick={() => void processReminders()}>Hatırlatmaları tara</button> : null}</div><div className="table-wrap"><table className="data-table"><thead><tr><th>Oluşma</th><th>Önem</th><th>Tür</th><th>Son tarih</th><th>Mesaj</th></tr></thead><tbody>{reminders.length === 0 ? <tr><td className="empty-row" colSpan={5}>Henüz hatırlatma yok.</td></tr> : reminders.map(x => <tr key={x.id}><td>{new Date(x.createdAt).toLocaleString("tr-TR")}</td><td><span className={`status-badge ${["HIGH","CRITICAL"].includes(x.severity)?"danger":x.severity==="MEDIUM"?"warning":""}`}>{x.severity==="CRITICAL"?"Kritik":x.severity==="HIGH"?"Yüksek":x.severity==="MEDIUM"?"Orta":"Bilgi"}</span></td><td>{x.eventType}</td><td>{formatDate(x.dueDate)}</td><td>{x.message}</td></tr>)}</tbody></table></div></section> : null}
     </div>
+    {dialog}
   </main>;
 }

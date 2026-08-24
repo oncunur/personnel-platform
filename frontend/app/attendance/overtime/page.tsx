@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useActionDialog } from "../../components/ActionDialog";
 import { Icon } from "../../components/Icon";
 import { PageHeader } from "../../components/PageHeader";
 
@@ -33,6 +34,7 @@ export default function OvertimePage() {
   const [inbox, setInbox] = useState<Inbox[]>([]);
   const [message, setMessage] = useState("Fazla mesai merkezi yükleniyor…");
   const [busy, setBusy] = useState(false);
+  const { ask, dialog } = useActionDialog();
   const permissions = useMemo(() => new Set(me?.permissions.map(x => x.code) ?? []), [me]);
 
   useEffect(() => { void initialize(); }, []);
@@ -63,14 +65,18 @@ export default function OvertimePage() {
   }
 
   async function createRequest(daily: DailyAttendance) {
-    const raw = window.prompt(`Aday fazla mesai: ${daily.overtimeCandidateMinutes} dk. Talep edilecek dakika:`, String(daily.overtimeCandidateMinutes));
-    if (raw === null) return;
-    const requestedMinutes = Number(raw);
-    if (!Number.isInteger(requestedMinutes) || requestedMinutes <= 0 || requestedMinutes > daily.overtimeCandidateMinutes) {
-      setMessage("Talep dakikası sıfırdan büyük ve aday dakikadan küçük/eşit olmalıdır.");
-      return;
-    }
-    const reason = window.prompt("Fazla mesai gerekçesi (isteğe bağlı):", "") ?? null;
+    const result = await ask({
+      title: "Fazla mesai talebi oluşturun",
+      description: `${formatDate(daily.attendanceDate)} tarihinde ${daily.overtimeCandidateMinutes} dakika fazla mesai adayı hesaplandı.`,
+      confirmLabel: "Talebi oluştur",
+      fields: [
+        { name: "requestedMinutes", label: "Talep edilecek dakika", type: "number", initialValue: String(daily.overtimeCandidateMinutes), min: 1, max: daily.overtimeCandidateMinutes, step: 1, required: true },
+        { name: "reason", label: "Fazla mesai gerekçesi (isteğe bağlı)", multiline: true },
+      ],
+    });
+    if (!result) return;
+    const requestedMinutes = Number(result.requestedMinutes);
+    const reason = result.reason.trim() || null;
     setBusy(true);
     try {
       const response = await authFetch("/api/v1/attendance/overtime", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dailyAttendanceId: daily.id, requestedMinutes, reason }) });
@@ -81,17 +87,20 @@ export default function OvertimePage() {
   }
 
   async function decide(item: Inbox, approve: boolean) {
-    let approvedMinutes: number | null = null;
-    if (approve && item.status === "PENDING_HR") {
-      const raw = window.prompt(`Talep: ${item.requestedMinutes} dk. Nihai onaylanacak dakika:`, String(item.requestedMinutes));
-      if (raw === null) return;
-      approvedMinutes = Number(raw);
-      if (!Number.isInteger(approvedMinutes) || approvedMinutes <= 0 || approvedMinutes > item.requestedMinutes) {
-        setMessage("Onaylanan dakika sıfırdan büyük ve talep dakikasından küçük/eşit olmalıdır.");
-        return;
-      }
-    }
-    const note = window.prompt(approve ? "Onay notu (isteğe bağlı):" : "Red nedeni (önerilir):", "") ?? null;
+    const isHrApproval = approve && item.status === "PENDING_HR";
+    const result = await ask({
+      title: approve ? "Fazla mesaiyi onaylayın" : "Fazla mesaiyi reddedin",
+      description: `${item.employeeName} için ${formatDate(item.attendanceDate)} tarihli ${item.requestedMinutes} dakikalık talep.`,
+      confirmLabel: approve ? "Kararı onayla" : "Talebi reddet",
+      tone: approve ? "success" : "danger",
+      fields: [
+        ...(isHrApproval ? [{ name: "approvedMinutes", label: "Nihai onaylanacak dakika", type: "number" as const, initialValue: String(item.requestedMinutes), min: 1, max: item.requestedMinutes, step: 1, required: true }] : []),
+        { name: "note", label: approve ? "Onay notu (isteğe bağlı)" : "Red açıklaması (isteğe bağlı)", multiline: true },
+      ],
+    });
+    if (!result) return;
+    const approvedMinutes = isHrApproval ? Number(result.approvedMinutes) : null;
+    const note = result.note.trim() || null;
     setBusy(true);
     try {
       const response = await authFetch(`/api/v1/attendance/overtime/${item.id}/decision`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ approve, approvedMinutes, note, version: item.version }) });
@@ -102,6 +111,13 @@ export default function OvertimePage() {
   }
 
   async function cancel(row: Overtime) {
+    const confirmed = await ask({
+      title: "Fazla mesai talebi iptal edilsin mi?",
+      description: `${row.employeeName} için ${formatDate(row.attendanceDate)} tarihli ${row.requestedMinutes} dakikalık talep iptal edilecek.`,
+      confirmLabel: "Talebi iptal et",
+      tone: "danger",
+    });
+    if (!confirmed) return;
     setBusy(true);
     try {
       const response = await authFetch(`/api/v1/attendance/overtime/${row.id}/cancel`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ version: row.version }) });
@@ -164,6 +180,7 @@ export default function OvertimePage() {
       <div className="table-wrap"><table className="data-table"><thead><tr><th>Personel</th><th>Tarih</th><th>Kaynak</th><th>Aday</th><th>Talep</th><th>Onaylanan</th><th>Durum</th><th>İşlem</th></tr></thead><tbody>{rows.map(x => <tr key={x.id}><td><strong>{x.employeeName}</strong><small>{x.employeeNo}</small></td><td>{formatDate(x.attendanceDate)}</td><td>Günlük v{x.sourceDailyVersion}</td><td>{x.candidateMinutes} dk</td><td>{x.requestedMinutes} dk</td><td><strong>{x.approvedMinutes} dk</strong></td><td><span className={`status-badge ${overtimeStatusClass(x.status)}`}>{overtimeStatusLabel(x.status)}</span></td><td>{permissions.has("attendance.overtime.request") && x.status === "PENDING_MANAGER" ? <button className="table-button button-danger" disabled={busy} onClick={() => void cancel(x)}>İptal et</button> : null}</td></tr>)}{rows.length === 0 ? <tr><td className="empty-row" colSpan={8}>Fazla mesai talebi bulunmuyor.</td></tr> : null}</tbody></table></div>
     </section> : null}
     </div>
+    {dialog}
   </main>;
 }
 

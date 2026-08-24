@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useActionDialog } from "../components/ActionDialog";
 import { Icon } from "../components/Icon";
 import { PageHeader } from "../components/PageHeader";
 
@@ -31,11 +32,12 @@ export default function IntegrationsPage() {
   const [mappings, setMappings] = useState<Mapping[]>([]);
   const [queue, setQueue] = useState<Staging[]>([]);
   const [monitor, setMonitor] = useState<Monitoring | null>(null);
-  const [message, setMessage] = useState("Integration Center yükleniyor…");
+  const [message, setMessage] = useState("Entegrasyon merkezi yükleniyor…");
   const [oneTimeKey, setOneTimeKey] = useState("");
   const [systemForm, setSystemForm] = useState({ code: "", name: "", systemType: "PDKS" });
   const [deviceForm, setDeviceForm] = useState({ code: "", name: "", deviceType: "PDKS_TERMINAL", scopedCampId: "" });
   const [mappingForm, setMappingForm] = useState({ entityType: "EMPLOYEE", externalCode: "", internalEntityId: "" });
+  const { ask, dialog } = useActionDialog();
   const selectedSystem = useMemo(() => systems.find(x => x.id === systemId) ?? null, [systems, systemId]);
 
   useEffect(() => { void bootstrap(); }, []);
@@ -50,7 +52,7 @@ export default function IntegrationsPage() {
     const firstCompany = cs[0]?.id ?? ss[0]?.companyId ?? "";
     if (firstCompany) setCompanyId(firstCompany);
     if (ss[0]) setSystemId(ss[0].id);
-    setMessage("Sistem/device, mapping, staging queue ve monitoring tek merkezde yönetilir.");
+    setMessage("Sistemler, cihazlar, veri eşlemeleri, işlem kuyruğu ve bağlantı sağlığı hazır.");
   }
 
   async function loadCompanyData(id: string) {
@@ -93,7 +95,13 @@ export default function IntegrationsPage() {
   }
 
   async function rotateKey(device: Device) {
-    if (!confirm(`${device.code} cihaz anahtarı yenilensin mi? Eski anahtar hemen geçersiz olur.`)) return;
+    const confirmed = await ask({
+      title: "Cihaz anahtarı yenilensin mi?",
+      description: `${device.code} cihazının mevcut anahtarı hemen geçersiz olacak. Yeni anahtar yalnız bir kez gösterilecek.`,
+      confirmLabel: "Anahtarı yenile",
+      tone: "danger",
+    });
+    if (!confirmed) return;
     const response = await authFetch(`/api/v1/integrations/devices/${device.id}/rotate-key`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ version: device.version }) });
     if (!response?.ok) return setMessage(await apiError(response, "Anahtar yenilenemedi."));
     const credential = await response.json() as Credential; setOneTimeKey(credential.plaintextKey); setMessage("Yeni cihaz anahtarı üretildi. Bu değer yalnız bu yanıtta gösterilir."); await loadSystemDetails(systemId);
@@ -102,14 +110,14 @@ export default function IntegrationsPage() {
   async function createMapping(event: FormEvent) {
     event.preventDefault(); if (!systemId) return;
     const response = await authFetch("/api/v1/integrations/mappings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ integrationSystemId: systemId, ...mappingForm }) });
-    if (!response?.ok) return setMessage(await apiError(response, "Mapping oluşturulamadı."));
-    setMappingForm(x => ({ ...x, externalCode: "", internalEntityId: "" })); setMessage("External entity mapping oluşturuldu."); await loadSystemDetails(systemId);
+    if (!response?.ok) return setMessage(await apiError(response, "Veri eşleştirmesi oluşturulamadı."));
+    setMappingForm(x => ({ ...x, externalCode: "", internalEntityId: "" })); setMessage("Harici sistem kodu platform kaydıyla eşleştirildi."); await loadSystemDetails(systemId);
   }
 
   async function reprocess(row: Staging) {
     const response = await authFetch(`/api/v1/integrations/queue/${row.id}/reprocess`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ version: row.version }) });
     if (!response?.ok) return setMessage(await apiError(response, "Kayıt yeniden kuyruğa alınamadı."));
-    setMessage("Staging kaydı yeniden RECEIVED durumuna alındı; worker tekrar işleyecek."); await loadCompanyData(companyId);
+    setMessage("Kuyruk kaydı yeniden alındı durumuna geçirildi; arka plan işlemi tekrar deneyecek."); await loadCompanyData(companyId);
   }
 
   async function authFetch(path: string, init?: RequestInit): Promise<Response | null> {
@@ -148,5 +156,6 @@ export default function IntegrationsPage() {
 
       {monitor ? <section className="panel"><div className="panel-heading"><div><span className="eyebrow dark">Bağlantı sağlığı</span><h2>Sistem ve cihaz durumu</h2><p>Son olay, işleme zamanı ve cihaz bağlantılarını sistem bazında izleyin.</p></div><strong>{monitor.systems.length}</strong></div><div className="system-health-grid">{monitor.systems.map(s => <article className={`health-card ${s.queue.technicalError||s.queue.deadLetter?"has-error":""}`} key={s.systemId}><div className="panel-heading"><div><span className="eyebrow dark">{systemTypeLabel(s.systemType)}</span><h2>{s.systemCode} · {s.systemName}</h2><p>Son olay: {dateTime(s.lastEventAt)} · Son işleme: {dateTime(s.lastProcessedAt)}</p></div><span className={`status-badge ${s.queue.technicalError||s.queue.deadLetter?"danger":"success"}`}>{s.queue.technicalError+s.queue.deadLetter?`${s.queue.technicalError+s.queue.deadLetter} hata`:"Sağlıklı"}</span></div><div className="detail-grid"><div className="detail-item"><span>İş kuralı hatası</span><strong>{s.queue.businessError}</strong></div><div className="detail-item"><span>Teknik hata</span><strong>{s.queue.technicalError}</strong></div><div className="detail-item"><span>İşlenemeyen</span><strong>{s.queue.deadLetter}</strong></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Cihaz</th><th>Sağlık</th><th>Son bağlantı</th><th>Son hata</th></tr></thead><tbody>{s.devices.length === 0 ? <tr><td className="empty-row" colSpan={4}>Bağlı cihaz yok.</td></tr> : s.devices.map(d => <tr key={d.deviceId}><td><strong>{d.deviceCode}</strong><small>{d.deviceName}</small></td><td><span className={`status-badge ${d.health==="HEALTHY"?"success":d.health==="STALE"?"warning":"danger"}`}>{healthLabel(d.health)}</span></td><td>{dateTime(d.lastSeenAt)}</td><td>{d.lastErrorMessage ?? "—"}<small>{dateTime(d.lastErrorAt)}</small></td></tr>)}</tbody></table></div></article>)}</div></section> : null}
     </div>
+    {dialog}
   </main>;
 }

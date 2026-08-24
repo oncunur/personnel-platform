@@ -52,7 +52,7 @@ export default function ReportsPage() {
     if (companyRows.length === 0) companyRows = current.scopes.filter(x => x.scopeType === "COMPANY" && x.scopeId).map(x => ({ id: x.scopeId!, code: "SCOPE", name: x.scopeId! }));
     setCompanies(companyRows);
     if (companyRows.length) setCompanyId(companyRows[0].id);
-    setMessage("Maliyet ledger ve raporlama merkezi hazır.");
+    setMessage("Maliyet kayıtları ve raporlama merkezi hazır.");
   }
 
   async function loadCompany() {
@@ -76,9 +76,9 @@ export default function ReportsPage() {
     setBusy(true);
     try {
       const r = await authFetch(`/api/v1/finance/cost-ledger/sync?companyId=${companyId}`, { method: "POST" });
-      if (!r?.ok) { setMessage(await errorMessage(r, "Maliyet ledger işlenemedi.")); return; }
+      if (!r?.ok) { setMessage(await errorMessage(r, "Maliyet kayıtları işlenemedi.")); return; }
       const body = await r.json() as { payrollEntriesCreated: number; mealEntriesCreated: number; accommodationEntriesCreated: number; duplicates: number };
-      setMessage(`Ledger işlendi: bordro ${body.payrollEntriesCreated}, yemek ${body.mealEntriesCreated}, konaklama ${body.accommodationEntriesCreated}, mevcut ${body.duplicates}.`);
+      setMessage(`Maliyet kayıtları işlendi: bordro ${body.payrollEntriesCreated}, yemek ${body.mealEntriesCreated}, konaklama ${body.accommodationEntriesCreated}, daha önce eklenen ${body.duplicates}.`);
       await loadCompany();
     } finally { setBusy(false); }
   }

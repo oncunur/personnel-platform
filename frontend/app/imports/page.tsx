@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useActionDialog } from "../components/ActionDialog";
 import { Icon } from "../components/Icon";
 import { PageHeader } from "../components/PageHeader";
 
@@ -62,6 +63,7 @@ export default function ImportsPage() {
   const [errors, setErrors] = useState<ImportRow[]>([]);
   const [message, setMessage] = useState("Veri içe aktarma merkezi yükleniyor…");
   const [busy, setBusy] = useState(false);
+  const { ask, dialog } = useActionDialog();
   const companySystems = useMemo(() => systems.filter(x => x.companyId === companyId && x.isActive), [systems, companyId]);
   const activeJobs = useMemo(() => jobs.filter(x => !["COMPLETED", "PARTIAL", "FAILED"].includes(x.status)), [jobs]);
   const completedJobs = useMemo(() => jobs.filter(x => ["COMPLETED", "PARTIAL"].includes(x.status)), [jobs]);
@@ -99,7 +101,7 @@ export default function ImportsPage() {
       if (!response?.ok) { setMessage(await apiError(response, "Excel yüklenemedi.")); return; }
       const result = await response.json() as ImportUpload;
       setJob(result.job); setPreview(result.previewRows); setMapping(result.suggestedMapping); setValidation(null); setErrors([]);
-      setMessage(`${result.job.totalRows} satır alındı. Kolon mapping'i kontrol edip doğrulayın.`);
+      setMessage(`${result.job.totalRows} satır alındı. Kolon eşlemesini kontrol edip doğrulayın.`);
       fileInput.value = ""; await loadJobs();
     } finally { setBusy(false); }
   }
@@ -119,11 +121,16 @@ export default function ImportsPage() {
 
   async function processImport() {
     if (!job || job.status !== "READY") return;
-    if (!confirm(`${job.totalRows} satırlık import işlensin mi? Geçerli satırlar yazılacak, hatalı satırlar ayrı tutulacak.`)) return;
+    const confirmed = await ask({
+      title: "Geçerli satırlar aktarılsın mı?",
+      description: `${job.originalFileName} dosyasındaki ${job.totalRows} satır işlenecek; geçerli satırlar kaydedilirken hatalı satırlar inceleme için ayrılacak.`,
+      confirmLabel: "Aktarımı başlat",
+    });
+    if (!confirmed) return;
     setBusy(true);
     try {
       const response = await authFetch(`/api/v1/imports/${job.id}/process`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ version: job.version }) });
-      if (!response?.ok) { setMessage(await apiError(response, "Import işlenemedi.")); return; }
+      if (!response?.ok) { setMessage(await apiError(response, "İçe aktarma işlenemedi.")); return; }
       const result = await response.json() as ProcessResult; setJob(result.job);
       setMessage(`İçe aktarma tamamlandı: ${result.importedRows} başarılı, ${result.errorRows} satır hatalı.`);
       await Promise.all([loadErrors(result.job.id), loadJobs()]);
@@ -133,7 +140,7 @@ export default function ImportsPage() {
   async function openJob(row: ImportJob) {
     setJob(row); setPreview([]); setMapping(row.mapping ?? {}); setValidation(null);
     await loadErrors(row.id);
-    setMessage(`${row.originalFileName} · ${row.status}`);
+    setMessage(`${row.originalFileName} · ${statusOf(row.status).label}`);
   }
 
   async function loadErrors(id: string) {
@@ -203,5 +210,6 @@ export default function ImportsPage() {
 
       <section className="panel"><div className="panel-heading"><div><span className="eyebrow dark">Geçmiş</span><h2>İçe aktarma işleri</h2><p>Daha önce yüklenen dosyaları ve sonuçlarını inceleyin.</p></div><strong>{jobs.length}</strong></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Dosya</th><th>Aktarım türü</th><th>Durum</th><th>Satır</th><th>Başarılı / Hata</th><th>Zaman</th><th>İşlem</th></tr></thead><tbody>{jobs.length === 0 ? <tr><td className="empty-row" colSpan={7}>Henüz bir dosya yüklenmedi.</td></tr> : jobs.map(x => { const status = statusOf(x.status); return <tr key={x.id} className={job?.id === x.id ? "selected-row" : ""}><td><strong>{x.originalFileName}</strong><small>{x.id.slice(0, 8)}</small></td><td>{targetLabels[x.targetType] ?? x.targetType}</td><td><span className={`status-badge ${status.tone}`}>{status.label}</span></td><td>{x.totalRows}</td><td><span className="amount-positive">{x.successRows}</span> / <span className={x.errorRows ? "amount-negative" : ""}>{x.errorRows}</span></td><td>{dateTime(x.createdAt)}<small>{x.completedAt ? `Tamamlanma: ${dateTime(x.completedAt)}` : ""}</small></td><td><button className="secondary-button" type="button" onClick={() => void openJob(x)}>İncele</button></td></tr>; })}</tbody></table></div></section>
     </div>
+    {dialog}
   </main>;
 }

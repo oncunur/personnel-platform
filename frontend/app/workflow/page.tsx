@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useActionDialog } from "../components/ActionDialog";
 import { Icon } from "../components/Icon";
 import { PageHeader } from "../components/PageHeader";
 
@@ -38,6 +39,7 @@ export default function WorkflowPage() {
   const [draftSteps, setDraftSteps] = useState<DraftStep[]>([]);
   const [message, setMessage] = useState("Workflow merkezi yükleniyor…");
   const [busy, setBusy] = useState(false);
+  const { ask, dialog } = useActionDialog();
   const permissions = useMemo(() => new Set(me?.permissions.map(x => x.code) ?? []), [me]);
   const selectedType = types.find(x => x.id === selectedTypeId) ?? null;
   const companyEmployees = employees.filter(x => x.companyId === companyId);
@@ -109,11 +111,27 @@ export default function WorkflowPage() {
   async function openRequest(id: string) { const row = await json<RequestDetail>(`/api/v1/workflow/requests/${id}`); if (row) setDetail(row); }
 
   async function action(kind: "submit" | "cancel" | "approve" | "reject") {
-    if (!detail) return; const comment = kind === "submit" ? null : window.prompt("Açıklama / not", "") ?? null; setBusy(true);
+    if (!detail) return;
+    const labels = {
+      submit: { title: "Talebi onaya gönderin", description: "Taslak talep tanımlı onay akışına alınacak.", confirm: "Onaya gönder", tone: "default" as const, result: "Talep onaya gönderildi." },
+      cancel: { title: "Talebi iptal edin", description: "Açık talep iptal durumuna alınacak ve işlem geçmişinde korunacak.", confirm: "Talebi iptal et", tone: "danger" as const, result: "Talep iptal edildi." },
+      approve: { title: "Talebi onaylayın", description: "Kararınız kaydedilecek ve sonraki adıma geçilecek.", confirm: "Talebi onayla", tone: "success" as const, result: "Talep onaylandı." },
+      reject: { title: "Talebi reddedin", description: "Talep reddedilecek ve kararınız zaman çizelgesine eklenecek.", confirm: "Talebi reddet", tone: "danger" as const, result: "Talep reddedildi." },
+    }[kind];
+    const result = await ask({
+      title: labels.title,
+      description: labels.description,
+      confirmLabel: labels.confirm,
+      tone: labels.tone,
+      fields: kind === "submit" ? [] : [{ name: "comment", label: kind === "reject" ? "Red gerekçesi" : "Açıklama / not (isteğe bağlı)", required: kind === "reject", multiline: true }],
+    });
+    if (!result) return;
+    const comment = result.comment?.trim() || null;
+    setBusy(true);
     try {
       const r = await authFetch(`/api/v1/workflow/requests/${detail.request.id}/${kind}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ version: detail.request.version, comment }) });
       if (!r?.ok) { setMessage(await errorMessage(r, "İşlem tamamlanamadı.")); return; }
-      const body = await r.json() as RequestDetail; setDetail(body); setMessage(`Talep işlemi tamamlandı: ${kind}.`); await reloadCompany();
+      const body = await r.json() as RequestDetail; setDetail(body); setMessage(labels.result); await reloadCompany();
     } finally { setBusy(false); }
   }
 
@@ -154,5 +172,6 @@ export default function WorkflowPage() {
 
       {permissions.has("workflow.sla.view") ? <section className={`panel attention-panel ${criticalSla.length?"danger":"success"}`}><div className="panel-heading"><div><span className="eyebrow dark">Hizmet süresi uyarıları</span><h2>Yaklaşan ve aşılan hedefler</h2><p>{criticalSla.length?`${criticalSla.length} kritik veya yüksek öncelikli uyarı bulunuyor.`:"Kritik hizmet süresi uyarısı yok."}</p></div><strong>{slaEvents.length}</strong></div><div className="compact-list">{slaEvents.length?slaEvents.map(x => <div className="role-row" key={x.id}><strong><span className={`status-badge ${["HIGH","CRITICAL"].includes(x.severity)?"danger":"warning"}`}>{x.severity==="CRITICAL"?"Kritik":x.severity==="HIGH"?"Yüksek":"Uyarı"}</span> {x.requestNo}</strong><span>{x.message} · {new Date(x.createdAt).toLocaleString("tr-TR")}</span></div>):<p className="muted">Hizmet süresi uyarısı yok.</p>}</div></section> : null}
     </div>
+    {dialog}
   </main>;
 }

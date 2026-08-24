@@ -169,7 +169,7 @@ export default function DailyAttendancePage() {
         <label className="field-label">Tarih<input name="eventDate" type="date" defaultValue={date} required/></label>
         <label className="field-label">Saat<input name="eventTime" type="time" required/></label>
         <label className="field-label">Cihaz<input name="deviceCode" maxLength={100}/></label>
-        <label className="field-label">External Event ID<input name="externalEventId" maxLength={200}/></label>
+        <label className="field-label">Dış sistem kayıt no<input name="externalEventId" maxLength={200}/></label>
         <button className="primary-button" disabled={busy}>{busy ? "Kaydediliyor…" : "Ham olay ekle"}</button>
       </form>
     </section> : null}

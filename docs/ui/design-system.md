@@ -67,7 +67,7 @@ Birbiriyle ilişkili oluşturma işlemleri iki sütunlu `organization-grid` içi
 
 JSON, UUID, harici kayıt kimliği ve benzeri teknik değerler ana görev metninin yerine geçmez. Kullanıcının karar vermesi için gerekli değilse `technical-details` içinde kapalı başlar; gerekli olduğu tabloda ise açıklayıcı Türkçe sütun adıyla ve ikincil görsel ağırlıkla gösterilir.
 
-Seçilebilir tablo satırları `selectable-table` kullanır ve seçili kayıt `selected-row` ile hem zemin hem sol kenar vurgusu alır. İş akışı adımları `workflow-step` içinde sıra, ad, hedef türü ve hedefi sabit bir yapıda gösterir. Değiştirilemeyen güvenlik/işlem geçmişleri normal form alanlarından ayrılır; hata veya süre aşımı varsa `attention-panel` varyantıyla görünür hale gelir.
+Tablolarda satırın kendisi işlem başlatmaz. Seçim veya ayrıntı açma görevi görünür bir düğmeyle sunulur; seçilen kayıt `selected-row` ile hem zemin hem sol kenar vurgusu alır. İş akışı adımları `workflow-step` içinde sıra, ad, hedef türü ve hedefi sabit bir yapıda gösterir. Değiştirilemeyen güvenlik/işlem geçmişleri normal form alanlarından ayrılır; hata veya süre aşımı varsa `attention-panel` varyantıyla görünür hale gelir.
 
 ### Dosya işi ve içe aktarma
 
@@ -112,6 +112,10 @@ Tablolar liste taraması için kullanılır. Birincil kimlik ilk sütunda vurgul
 ### Onay kutusu ve dikkat panelleri
 
 Karar bekleyen kayıtlar normal geçmiş listelerinden ayrı bir panelde gösterilir. Onay eylemi `button-success`, red veya geri alma eylemi `button-danger` kullanır; her iki eylem de metinle açıkça adlandırılır. `attention-panel` sol kenar vurgusuyla bilgilendirme, yaklaşan süre, kritik gecikme veya başarılı durum varyantı alabilir. Renk hiçbir zaman tek başına karar veya belge durumunu anlatmaz; durum etiketi ve açıklama eşlik eder.
+
+### İşlem penceresi
+
+Onay, ret, iptal, kapatma ve tarih/miktar isteyen kısa işlemler tarayıcının yerleşik uyarı kutularını kullanmaz. Ortak `ActionDialog` penceresi işlemin kapsamını, etkisini ve ana eylemini açıklar. Tehlikeli eylem kırmızı, olumlu karar yeşil, nötr işlem kurumsal ana eylem rengiyle sunulur. Pencere doğal klavye odağı, Escape ile vazgeçme, arka planı ayıran perde ve mobilde tam genişlik eylemleri sağlar; kapandığında odak işlemi başlatan kontrole döner.
 
 ## Erişilebilirlik tabanı
 
