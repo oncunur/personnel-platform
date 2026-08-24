@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ReactNode, useEffect, useMemo, useState } from "react";
+import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { Icon, IconName } from "./Icon";
 
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
@@ -52,9 +52,21 @@ export function AppFrame({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [me, setMe] = useState<MeResponse | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
   const isPublic = publicRoutes.has(pathname);
   useEffect(() => { if (!isPublic) void loadSession(); }, [isPublic]);
   useEffect(() => setMenuOpen(false), [pathname]);
+  useEffect(() => {
+    if (!menuOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") closeMenu(true); };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [menuOpen]);
+
+  function closeMenu(returnFocus = false) {
+    setMenuOpen(false);
+    if (returnFocus) window.requestAnimationFrame(() => menuButtonRef.current?.focus());
+  }
 
   async function loadSession() {
     let token = sessionStorage.getItem("pp_access_token") ?? await refresh();
@@ -97,14 +109,15 @@ export function AppFrame({ children }: { children: ReactNode }) {
 
   if (isPublic) return <>{children}</>;
   return <div className="app-frame">
-    <aside className={`app-sidebar ${menuOpen ? "is-open" : ""}`} aria-label="Ana navigasyon">
-      <div className="app-brand"><span className="app-logo" aria-hidden="true">Pİ</span><span className="app-brand-copy"><strong>Personel & İdari</strong><small>İşler Platformu</small></span><button className="sidebar-close" type="button" onClick={() => setMenuOpen(false)} aria-label="Menüyü kapat"><Icon name="close"/></button></div>
+    <a className="skip-link" href="#main-content">Ana içeriğe geç</a>
+    <aside id="app-navigation" className={`app-sidebar ${menuOpen ? "is-open" : ""}`} aria-label="Ana navigasyon">
+      <div className="app-brand"><span className="app-logo" aria-hidden="true">Pİ</span><span className="app-brand-copy"><strong>Personel & İdari</strong><small>İşler Platformu</small></span><button className="sidebar-close" type="button" onClick={() => closeMenu(true)} aria-label="Menüyü kapat"><Icon name="close"/></button></div>
       <nav className="app-nav">
-        {me ? visibleGroups.map((group) => <div className="nav-group" key={group.label}><span className="nav-group-label">{group.label}</span>{group.items.map((item) => <Link className={`nav-link ${activeHref === item.href ? "is-active" : ""}`} href={item.href} key={item.href}><span className="nav-icon"><Icon name={item.icon}/></span><span>{item.label}</span></Link>)}</div>) : <div className="nav-loading"><span/><span/><span/><span/><span/></div>}
+        {me ? visibleGroups.map((group) => <div className="nav-group" key={group.label}><span className="nav-group-label">{group.label}</span>{group.items.map((item) => <Link className={`nav-link ${activeHref === item.href ? "is-active" : ""}`} href={item.href} key={item.href} aria-current={activeHref === item.href ? "page" : undefined}><span className="nav-icon"><Icon name={item.icon}/></span><span>{item.label}</span></Link>)}</div>) : <div className="nav-loading" aria-label="Menü yükleniyor"><span/><span/><span/><span/><span/></div>}
       </nav>
       <div className="app-sidebar-footer"><div className="sidebar-user"><span className="user-avatar">{initials}</span><span><strong>{me?.username ?? "Oturum yükleniyor"}</strong><small>{me?.email ?? "Personel Platformu"}</small></span></div><button className="icon-button inverse" type="button" onClick={() => void logout()} aria-label="Çıkış yap"><Icon name="logout"/></button></div>
     </aside>
-    {menuOpen ? <button className="sidebar-scrim" type="button" aria-label="Menüyü kapat" onClick={() => setMenuOpen(false)}/> : null}
-    <div className="app-main"><header className="app-topbar"><div className="topbar-context"><button className="mobile-menu-button" type="button" onClick={() => setMenuOpen(true)} aria-label="Menüyü aç"><Icon name="menu"/></button><span>Personel Platformu</span><strong>{pageLabel}</strong></div><div className="topbar-status"><span className="status-dot"/> Güvenli oturum</div></header><div className="app-content">{children}</div></div>
+    {menuOpen ? <button className="sidebar-scrim" type="button" aria-label="Menüyü kapat" onClick={() => closeMenu(true)}/> : null}
+    <div className="app-main"><header className="app-topbar"><div className="topbar-context"><button ref={menuButtonRef} className="mobile-menu-button" type="button" onClick={() => setMenuOpen(true)} aria-label="Menüyü aç" aria-expanded={menuOpen} aria-controls="app-navigation"><Icon name="menu"/></button><span>Personel Platformu</span><strong>{pageLabel}</strong></div><div className="topbar-status"><span className="status-dot" aria-hidden="true"/> Güvenli oturum</div></header><div className="app-content" id="main-content" tabIndex={-1}>{children}</div></div>
   </div>;
 }

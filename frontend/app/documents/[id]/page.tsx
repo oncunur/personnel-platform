@@ -2,6 +2,8 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
+import { Icon } from "../../components/Icon";
+import { PageHeader } from "../../components/PageHeader";
 
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
 
@@ -18,6 +20,15 @@ type HistoryRow = {
   id: string; employeeDocumentId: string; action: string; fromStatus: string | null; toStatus: string;
   changedBy: string; changedAt: string; reason: string | null;
 };
+
+const documentStatuses: Record<string, { label: string; tone: string }> = {
+  ACTIVE: { label: "Aktif", tone: "success" }, VALID: { label: "Geçerli", tone: "success" },
+  EXPIRING: { label: "Süresi yaklaşıyor", tone: "warning" }, EXPIRED: { label: "Süresi doldu", tone: "danger" },
+  ARCHIVED: { label: "Arşivlendi", tone: "" }, CANCELLED: { label: "İptal edildi", tone: "danger" }, REPLACED: { label: "Yenilendi", tone: "" },
+};
+const actionLabels: Record<string, string> = { CREATED: "Oluşturuldu", RENEWED: "Yenilendi", CANCELLED: "İptal edildi", ARCHIVED: "Arşivlendi", UPDATED: "Güncellendi" };
+function statusOf(value: string) { return documentStatuses[value] ?? { label: value, tone: "" }; }
+function formatDate(value: string | null) { return value ? new Date(value).toLocaleDateString("tr-TR") : "—"; }
 
 export default function DocumentDetailPage() {
   const params = useParams<{ id: string }>();
@@ -90,30 +101,39 @@ export default function DocumentDetailPage() {
     try { const response = await fetch(`${apiBase}/api/v1/auth/refresh`, { method: "POST", credentials: "include" }); if (!response.ok) return null; const body = await response.json() as AuthResponse; sessionStorage.setItem("pp_access_token", body.accessToken); return body.accessToken; } catch { return null; }
   }
 
-  if (!document) return <main className="shell"><a className="back" href="/documents">← Belge Merkezi</a><section className="panel"><p>{message}</p></section></main>;
+  if (!document) return <main className="page-shell"><PageHeader eyebrow="Belge detayı" title="Belge kaydı" description="Belge bilgileri yükleniyor veya erişim kontrol ediliyor." status={message} actions={<a className="secondary-button" href="/documents">Belge merkezine dön</a>}/></main>;
   const terminal = document.status === "ARCHIVED" || document.status === "CANCELLED";
+  const status = statusOf(document.status);
 
-  return <main className="shell">
-    <a className="back" href="/documents">← Belge Merkezi</a>
-    <section className="hero compact"><span className="eyebrow">BELGE DETAYI</span><h1>{document.documentTypeName}</h1><p>{message}</p><div className="session-summary"><strong>{document.documentTypeCode}</strong><span>{document.documentNumber ?? "Belge no yok"}</span><span>{document.status}</span><span>v{document.version}</span></div><div className="actions action-row"><a className="primary" href={`/personnel/${document.employeeId}`}>Personel 360</a>{document.fileName && permissions.has("documents.file.view") ? <button className="secondary-button" disabled={busy} onClick={() => void openFile()}>Dosyayı Aç</button> : null}{!terminal && permissions.has("documents.employee.cancel") ? <button className="secondary-button" disabled={busy} onClick={() => void cancelDocument()}>Belgeyi İptal Et</button> : null}</div></section>
+  return <main className="page-shell">
+    <PageHeader eyebrow="Belge detayı" title={document.documentTypeName} description={`${document.documentTypeCode} · ${document.documentNumber ?? "Belge numarası yok"}`} status={message} actions={<><a className="secondary-button" href="/documents">Belge merkezi</a><a className="secondary-button" href={`/personnel/${document.employeeId}`}>Personel 360</a>{document.fileName && permissions.has("documents.file.view") ? <button className="secondary-button" type="button" disabled={busy} onClick={() => void openFile()}><Icon name="box" size={17}/>Dosyayı aç</button> : null}{!terminal && permissions.has("documents.employee.cancel") ? <button className="secondary-button button-danger" type="button" disabled={busy} onClick={() => void cancelDocument()}>Belgeyi iptal et</button> : null}</>}/>
 
-    <section className="security-grid">
-      <article className="panel"><div className="panel-heading"><div><span className="eyebrow dark">MEVCUT KAYIT</span><h2>Belge Bilgileri</h2></div></div><div className="detail-grid"><Item label="Belge No" value={document.documentNumber}/><Item label="Düzenlenme" value={document.issueDate}/><Item label="Geçerlilik Başlangıç" value={document.validFrom}/><Item label="Geçerlilik Bitiş" value={document.validUntil}/><Item label="Dosya" value={document.fileName}/><Item label="Boyut" value={document.fileSizeBytes ? `${Math.round(document.fileSizeBytes / 1024)} KB` : null}/></div></article>
-
-      {!terminal && permissions.has("documents.employee.renew") ? <article className="panel"><div className="panel-heading"><div><span className="eyebrow dark">YENİ VERSİYON</span><h2>Belgeyi Yenile</h2></div></div><form className="auth-form" onSubmit={renew}>
-        <label>Belge No<input name="documentNumber" defaultValue={document.documentNumber ?? ""}/></label>
-        <label>Düzenlenme<input name="issueDate" type="date"/></label>
-        <label>Geçerlilik Başlangıç<input name="validFrom" type="date"/></label>
-        <label>Geçerlilik Bitiş<input name="validUntil" type="date"/></label>
-        <label>Düzenleyen Kurum<input name="issuingAuthority"/></label>
-        <label>Ülke<input name="countryCode" maxLength={3}/></label>
-        <label>Yeni Dosya<input name="file" type="file" accept="application/pdf,image/jpeg,image/png"/></label>
-        <button className="primary-button" disabled={busy}>Yeni Versiyonu Oluştur</button>
-      </form></article> : null}
+    <section className="stat-grid" aria-label="Belge özeti">
+      <article className="stat-card"><span className="stat-icon"><Icon name="box"/></span><span className="stat-copy"><strong><span className={`status-badge ${status.tone}`}>{status.label}</span></strong><span>Belge durumu</span></span></article>
+      <article className="stat-card"><span className="stat-icon"><Icon name="calendar"/></span><span className="stat-copy"><strong>{formatDate(document.validUntil)}</strong><span>Geçerlilik bitişi</span></span></article>
+      <article className="stat-card"><span className="stat-icon"><Icon name="workflow"/></span><span className="stat-copy"><strong>v{document.version}</strong><span>Kayıt sürümü</span></span></article>
+      <article className="stat-card"><span className="stat-icon"><Icon name="chart"/></span><span className="stat-copy"><strong>{history.length}</strong><span>Geçmiş hareketi</span></span></article>
     </section>
 
-    <section className="panel audit-panel"><div className="panel-heading"><div><span className="eyebrow dark">VERSİYON / İŞLEM İZİ</span><h2>Belge Geçmişi</h2></div><strong>{history.length}</strong></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Tarih</th><th>İşlem</th><th>Durum</th><th>Neden</th></tr></thead><tbody>{history.length === 0 ? <tr><td colSpan={4}>Henüz history kaydı yok.</td></tr> : history.map(x => <tr key={x.id}><td>{new Date(x.changedAt).toLocaleString("tr-TR")}</td><td>{x.action}</td><td>{x.fromStatus ? `${x.fromStatus} → ${x.toStatus}` : x.toStatus}</td><td>{x.reason ?? "—"}</td></tr>)}</tbody></table></div></section>
+    <div className="content-stack">
+      <section className="security-grid">
+      <article className="panel"><div className="panel-heading"><div><span className="eyebrow dark">Mevcut kayıt</span><h2>Belge bilgileri</h2><p>Belgenin kimlik, geçerlilik ve dosya ayrıntıları.</p></div></div><div className="detail-grid"><Item label="Belge no" value={document.documentNumber}/><Item label="Düzenlenme" value={formatDate(document.issueDate)}/><Item label="Geçerlilik başlangıcı" value={formatDate(document.validFrom)}/><Item label="Geçerlilik bitişi" value={formatDate(document.validUntil)}/><Item label="Dosya" value={document.fileName}/><Item label="Boyut" value={document.fileSizeBytes ? `${Math.round(document.fileSizeBytes / 1024)} KB` : null}/></div>{document.replacesDocumentId ? <div className="selected-summary"><span className="selected-summary-copy"><strong>Bu kayıt önceki bir belgenin yenilenmiş sürümüdür.</strong><small>Eski kayıt numarası: {document.replacesDocumentId.slice(0, 8)}</small></span></div> : null}</article>
+
+      {!terminal && permissions.has("documents.employee.renew") ? <article className="panel"><div className="panel-heading"><div><span className="eyebrow dark">Yeni sürüm</span><h2>Belgeyi yenile</h2><p>Yeni bilgilerle bir sürüm oluşturulur; mevcut kayıt geçmişte korunur.</p></div></div><form className="stack" onSubmit={renew}>
+        <label className="field-label">Belge no<input name="documentNumber" defaultValue={document.documentNumber ?? ""}/></label>
+        <label className="field-label">Düzenlenme<input name="issueDate" type="date"/></label>
+        <label className="field-label">Geçerlilik başlangıcı<input name="validFrom" type="date"/></label>
+        <label className="field-label">Geçerlilik bitişi<input name="validUntil" type="date"/></label>
+        <label className="field-label">Düzenleyen kurum<input name="issuingAuthority"/></label>
+        <label className="field-label">Ülke kodu<input name="countryCode" maxLength={3} defaultValue="TR"/></label>
+        <label className="field-label">Yeni dosya<input name="file" type="file" accept="application/pdf,image/jpeg,image/png"/></label>
+        <button className="primary-button" disabled={busy}><Icon name="plus" size={17}/>Yeni sürümü oluştur</button>
+      </form></article> : null}
+      </section>
+
+      <section className="panel"><div className="panel-heading"><div><span className="eyebrow dark">Sürüm ve işlem izi</span><h2>Belge geçmişi</h2><p>Belge üzerinde yapılan tüm durum ve sürüm değişiklikleri.</p></div><strong>{history.length}</strong></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Tarih</th><th>İşlem</th><th>Durum değişimi</th><th>Neden</th></tr></thead><tbody>{history.length === 0 ? <tr><td className="empty-row" colSpan={4}>Bu belge için geçmiş hareketi bulunmuyor.</td></tr> : history.map(x => <tr key={x.id}><td>{new Date(x.changedAt).toLocaleString("tr-TR")}<small>{x.changedBy}</small></td><td>{actionLabels[x.action] ?? x.action}</td><td>{x.fromStatus ? `${statusOf(x.fromStatus).label} → ${statusOf(x.toStatus).label}` : statusOf(x.toStatus).label}</td><td>{x.reason ?? "—"}</td></tr>)}</tbody></table></div></section>
+    </div>
   </main>;
 }
 
-function Item({ label, value }: { label: string; value?: string | null }) { return <div className="detail-item"><small>{label}</small><strong>{value || "—"}</strong></div>; }
+function Item({ label, value }: { label: string; value?: string | null }) { return <div className="detail-item"><span>{label}</span><strong>{value || "—"}</strong></div>; }
