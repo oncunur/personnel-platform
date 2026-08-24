@@ -1,6 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { Icon } from "../../components/Icon";
+import { PageHeader } from "../../components/PageHeader";
 
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
 
@@ -130,24 +133,41 @@ export default function OvertimePage() {
   async function refresh(): Promise<string | null> { try { const response = await fetch(`${apiBase}/api/v1/auth/refresh`, { method: "POST", credentials: "include" }); if (!response.ok) return null; const body = await response.json() as AuthResponse; sessionStorage.setItem("pp_access_token", body.accessToken); return body.accessToken; } catch { return null; } }
   async function errorMessage(response: Response | null, fallback: string) { if (!response) return fallback; const body = await response.json().catch(() => null) as { error?: { message?: string } } | null; return body?.error?.message ?? fallback; }
 
-  return <main className="shell">
-    <a className="back" href="/attendance/daily">← Günlük Puantaj</a>
-    <section className="hero compact"><span className="eyebrow">SPRINT 5 · FAZLA MESAİ</span><h1>Fazla Mesai Merkezi</h1><p>{message}</p></section>
+  const approvedCount = rows.filter(row => row.status === "APPROVED").length;
+  const pendingCount = rows.filter(row => row.status.startsWith("PENDING")).length;
+  const approvedMinutes = rows.reduce((total, row) => total + row.approvedMinutes, 0);
 
-    {permissions.has("attendance.overtime.request") && permissions.has("attendance.daily.view") ? <section className="panel audit-panel">
-      <div className="panel-heading"><div><span className="eyebrow dark">ADAY → TALEP</span><h2>Puantaj Fazla Mesai Adayları</h2></div><strong>{dailyRows.length}</strong></div>
-      <label className="field-label">Personel<select value={employeeId} onChange={e => void selectEmployee(e.target.value)}><option value="">Seçin</option>{employees.map(x => <option key={x.id} value={x.id}>{x.employeeNo} · {x.firstName} {x.lastName}</option>)}</select></label>
-      <div className="table-wrap"><table className="data-table"><thead><tr><th>Tarih</th><th>Aday FM</th><th>Puantaj Durumu</th><th></th></tr></thead><tbody>{dailyRows.length === 0 ? <tr><td colSpan={4}>Seçili personelin bu ay için FM adayı bulunmuyor.</td></tr> : dailyRows.map(x => <tr key={x.id}><td>{x.attendanceDate}</td><td><strong>{x.overtimeCandidateMinutes} dk</strong></td><td>{x.processingStatus}</td><td><button className="table-button" disabled={busy} onClick={() => void createRequest(x)}>Talep Oluştur</button></td></tr>)}</tbody></table></div>
+  return <main className="page-shell">
+    <PageHeader eyebrow="Puantaj ve Vardiya" title="Fazla Mesai Merkezi" description="Puantaj adaylarını talebe dönüştürün, yönetici ve İK kararlarını izleyin." status={message} actions={<Link className="secondary-button" href="/attendance/daily">Günlük puantaja dön <Icon name="arrow" size={15}/></Link>}/>
+
+    <section className="stat-grid" aria-label="Fazla mesai göstergeleri">
+      <article className="stat-card"><span className="stat-icon"><Icon name="workflow"/></span><span className="stat-copy"><strong>{rows.length}</strong><span>Toplam talep</span></span></article>
+      <article className="stat-card"><span className="stat-icon"><Icon name="calendar"/></span><span className="stat-copy"><strong>{pendingCount}</strong><span>Onay bekleyen</span></span></article>
+      <article className="stat-card"><span className="stat-icon"><Icon name="people"/></span><span className="stat-copy"><strong>{approvedCount}</strong><span>Onaylanan</span></span></article>
+      <article className="stat-card"><span className="stat-icon"><Icon name="chart"/></span><span className="stat-copy"><strong>{approvedMinutes} dk</strong><span>Toplam onay</span></span></article>
+    </section>
+
+    <div className="content-stack">
+    {permissions.has("attendance.overtime.request") && permissions.has("attendance.daily.view") ? <section className="panel">
+      <div className="panel-heading"><div><span className="page-eyebrow">Adaydan talebe</span><h2>Puantaj fazla mesai adayları</h2><p>Seçili personelin bu ay oluşan fazla mesai adaylarını talebe dönüştürün.</p></div><strong>{dailyRows.length}</strong></div>
+      <div className="selection-bar"><label className="field-label">Personel<select value={employeeId} onChange={e => void selectEmployee(e.target.value)}><option value="">Personel seçin</option>{employees.map(x => <option key={x.id} value={x.id}>{x.employeeNo} · {x.firstName} {x.lastName}</option>)}</select></label><div className="selection-context"><strong>{employeeId ? `${dailyRows.length} aday kayıt` : "Personel bekleniyor"}</strong><span>Ay başından bugüne kadar olan adaylar gösterilir.</span></div></div>
+      <div className="table-wrap"><table className="data-table"><thead><tr><th>Tarih</th><th>FM adayı</th><th>Puantaj işlemi</th><th>İşlem</th></tr></thead><tbody>{dailyRows.map(x => <tr key={x.id}><td>{formatDate(x.attendanceDate)}</td><td><strong>{x.overtimeCandidateMinutes} dk</strong></td><td><span className={`status-badge ${x.processingStatus === "REVIEW_REQUIRED" ? "danger" : "success"}`}>{processingLabel(x.processingStatus)}</span></td><td><button className="table-button button-success" disabled={busy} onClick={() => void createRequest(x)}>Talep oluştur</button></td></tr>)}{dailyRows.length === 0 ? <tr><td className="empty-row" colSpan={4}>{employeeId ? "Seçili personelin bu ay için fazla mesai adayı bulunmuyor." : "Adayları görüntülemek için personel seçin."}</td></tr> : null}</tbody></table></div>
     </section> : null}
 
-    {(permissions.has("attendance.overtime.manager.approve") || permissions.has("attendance.overtime.hr.approve")) ? <section className="panel audit-panel">
-      <div className="panel-heading"><div><span className="eyebrow dark">ONAY KUTUSU</span><h2>Bekleyen Fazla Mesailer</h2></div><strong>{inbox.length}</strong></div>
-      <div className="table-wrap"><table className="data-table"><thead><tr><th>Personel</th><th>Tarih</th><th>Aday</th><th>Talep</th><th>Adım</th><th></th></tr></thead><tbody>{inbox.length === 0 ? <tr><td colSpan={6}>Bekleyen onay yok.</td></tr> : inbox.map(x => <tr key={x.id}><td><strong>{x.employeeName}</strong><small>{x.employeeNo}</small></td><td>{x.attendanceDate}</td><td>{x.candidateMinutes} dk</td><td>{x.requestedMinutes} dk</td><td>{x.status === "PENDING_MANAGER" ? "Yönetici" : "HR"}</td><td><div className="actions action-row"><button className="table-button" disabled={busy} onClick={() => void decide(x, true)}>Onayla</button><button className="table-button" disabled={busy} onClick={() => void decide(x, false)}>Reddet</button></div></td></tr>)}</tbody></table></div>
+    {(permissions.has("attendance.overtime.manager.approve") || permissions.has("attendance.overtime.hr.approve")) ? <section className="panel attention-panel warning">
+      <div className="panel-heading"><div><span className="page-eyebrow">Onay kutusu</span><h2>Bekleyen fazla mesailer</h2><p>Yetki adımınıza ulaşan talepler için karar verin.</p></div><strong>{inbox.length}</strong></div>
+      <div className="table-wrap"><table className="data-table"><thead><tr><th>Personel</th><th>Tarih</th><th>Aday</th><th>Talep</th><th>Adım</th><th>İşlem</th></tr></thead><tbody>{inbox.map(x => <tr key={x.id}><td><strong>{x.employeeName}</strong><small>{x.employeeNo}</small></td><td>{formatDate(x.attendanceDate)}</td><td>{x.candidateMinutes} dk</td><td><strong>{x.requestedMinutes} dk</strong></td><td><span className="status-badge warning">{x.status === "PENDING_MANAGER" ? "Yönetici" : "İK nihai"}</span></td><td><div className="action-row"><button className="table-button button-success" disabled={busy || !x.canDecide} onClick={() => void decide(x, true)}>Onayla</button><button className="table-button button-danger" disabled={busy || !x.canDecide} onClick={() => void decide(x, false)}>Reddet</button></div></td></tr>)}{inbox.length === 0 ? <tr><td className="empty-row" colSpan={6}>Bekleyen fazla mesai onayı yok.</td></tr> : null}</tbody></table></div>
     </section> : null}
 
-    {permissions.has("attendance.overtime.view") ? <section className="panel audit-panel">
-      <div className="panel-heading"><div><span className="eyebrow dark">KAYITLAR</span><h2>Fazla Mesai Talepleri</h2></div><strong>{rows.length}</strong></div>
-      <div className="table-wrap"><table className="data-table"><thead><tr><th>Personel</th><th>Tarih</th><th>Kaynak</th><th>Aday</th><th>Talep</th><th>Onaylanan</th><th>Durum</th><th></th></tr></thead><tbody>{rows.length === 0 ? <tr><td colSpan={8}>Fazla mesai talebi bulunmuyor.</td></tr> : rows.map(x => <tr key={x.id}><td><strong>{x.employeeName}</strong><small>{x.employeeNo}</small></td><td>{x.attendanceDate}</td><td>Daily v{x.sourceDailyVersion}</td><td>{x.candidateMinutes} dk</td><td>{x.requestedMinutes} dk</td><td><strong>{x.approvedMinutes} dk</strong></td><td><span className={`status-badge ${x.status === "APPROVED" ? "success" : x.status === "REJECTED" ? "danger" : ""}`}>{x.status}</span></td><td>{permissions.has("attendance.overtime.request") && x.status === "PENDING_MANAGER" ? <button className="table-button" disabled={busy} onClick={() => void cancel(x)}>İptal</button> : null}</td></tr>)}</tbody></table></div>
+    {permissions.has("attendance.overtime.view") ? <section className="panel">
+      <div className="panel-heading"><div><span className="page-eyebrow">Talep geçmişi</span><h2>Fazla mesai talepleri</h2><p>Taleplerin aday, istenen ve nihai onaylanan dakika karşılaştırması.</p></div><strong>{rows.length}</strong></div>
+      <div className="table-wrap"><table className="data-table"><thead><tr><th>Personel</th><th>Tarih</th><th>Kaynak</th><th>Aday</th><th>Talep</th><th>Onaylanan</th><th>Durum</th><th>İşlem</th></tr></thead><tbody>{rows.map(x => <tr key={x.id}><td><strong>{x.employeeName}</strong><small>{x.employeeNo}</small></td><td>{formatDate(x.attendanceDate)}</td><td>Günlük v{x.sourceDailyVersion}</td><td>{x.candidateMinutes} dk</td><td>{x.requestedMinutes} dk</td><td><strong>{x.approvedMinutes} dk</strong></td><td><span className={`status-badge ${overtimeStatusClass(x.status)}`}>{overtimeStatusLabel(x.status)}</span></td><td>{permissions.has("attendance.overtime.request") && x.status === "PENDING_MANAGER" ? <button className="table-button button-danger" disabled={busy} onClick={() => void cancel(x)}>İptal et</button> : null}</td></tr>)}{rows.length === 0 ? <tr><td className="empty-row" colSpan={8}>Fazla mesai talebi bulunmuyor.</td></tr> : null}</tbody></table></div>
     </section> : null}
+    </div>
   </main>;
 }
+
+function formatDate(value: string) { return new Intl.DateTimeFormat("tr-TR", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(`${value}T00:00:00`)); }
+function processingLabel(value: string) { return value === "REVIEW_REQUIRED" ? "Kontrol gerekli" : value === "CALCULATED" ? "Hesaplandı" : value; }
+function overtimeStatusLabel(value: string) { return value === "PENDING_MANAGER" ? "Yönetici onayı" : value === "PENDING_HR" ? "İK onayı" : value === "APPROVED" ? "Onaylandı" : value === "REJECTED" ? "Reddedildi" : value === "CANCELLED" ? "İptal edildi" : value; }
+function overtimeStatusClass(value: string) { return value === "APPROVED" ? "success" : ["REJECTED", "CANCELLED"].includes(value) ? "danger" : value.startsWith("PENDING") ? "warning" : ""; }

@@ -85,6 +85,10 @@ Tablolar liste taraması için kullanılır. Birincil kimlik ilk sütunda vurgul
 - Yükleme sırasında düzenin sıçramasını azaltan iskelet yüzeyler kullanılır.
 - Boş durum; ne olmadığını ve kullanıcının sonraki adımını açıklar.
 
+### Onay kutusu ve dikkat panelleri
+
+Karar bekleyen kayıtlar normal geçmiş listelerinden ayrı bir panelde gösterilir. Onay eylemi `button-success`, red veya geri alma eylemi `button-danger` kullanır; her iki eylem de metinle açıkça adlandırılır. `attention-panel` sol kenar vurgusuyla bilgilendirme, yaklaşan süre, kritik gecikme veya başarılı durum varyantı alabilir. Renk hiçbir zaman tek başına karar veya belge durumunu anlatmaz; durum etiketi ve açıklama eşlik eder.
+
 ## Erişilebilirlik tabanı
 
 - Klavye odağı `:focus-visible` ile belirgindir.

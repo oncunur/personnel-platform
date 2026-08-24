@@ -121,10 +121,13 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .message-strip::before { width: 7px; height: 7px; border-radius: 50%; background: var(--accent-500); content: ""; }
 .content-stack { display: grid; gap: 16px; }
 .content-stack > .panel { margin-top: 0; }
+.content-stack > .security-grid { margin-top: 0; }
 .workspace-panel { display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 360px); gap: 22px; align-items: end; margin-bottom: 16px; }
 .workspace-copy h2 { margin: 3px 0 4px; font-size: 1rem; }
 .workspace-copy p { margin: 0; color: var(--ink-500); font-size: .78rem; }
 .workspace-select { min-width: 0; }
+.workspace-panel .inline-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.workspace-panel .inline-form .primary-button { grid-column: 1 / -1; }
 .selection-bar { display: flex; align-items: end; justify-content: space-between; gap: 16px; margin-bottom: 16px; padding: 13px 14px; border: 1px solid var(--line-soft); border-radius: 12px; background: var(--surface-soft); }
 .selection-bar > .field-label { width: min(100%, 420px); }
 .selection-context { display: grid; justify-items: end; color: var(--ink-500); font-size: .72rem; text-align: right; }
@@ -226,6 +229,9 @@ label, .field-label { color: var(--ink-600); font-size: .76rem; font-weight: 680
 .action-row { display: flex; flex-wrap: wrap; gap: 9px; align-items: center; }
 .actions { margin-top: 22px; }
 .button-danger { border-color: #efc4c8; color: var(--danger); }
+.button-success { border-color: #a9d8c2; color: var(--success); }
+.button-success:hover { border-color: #7fc29f; background: var(--success-bg); }
+.data-table .action-row { flex-wrap: nowrap; }
 
 /* Tables */
 .table-wrap { width: 100%; overflow-x: auto; border: 1px solid var(--line-soft); border-radius: 13px; }
@@ -244,6 +250,7 @@ label, .field-label { color: var(--ink-600); font-size: .76rem; font-weight: 680
 .table-footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding-top: 14px; }
 .table-footer span { color: var(--ink-500); font-size: .75rem; }
 .empty-row { padding: 30px !important; color: var(--ink-500); text-align: center !important; }
+.table-wrap > .empty-row { margin: 0; }
 
 /* Status and feedback */
 .status-badge { display: inline-flex; align-items: center; gap: 5px; padding: 5px 9px; border-radius: 999px; background: var(--surface-soft); color: var(--ink-600); font-size: .66rem; font-weight: 780; white-space: nowrap; }
@@ -251,6 +258,12 @@ label, .field-label { color: var(--ink-600); font-size: .76rem; font-weight: 680
 .status-badge.danger { background: var(--danger-bg); color: var(--danger); }
 .status-badge.warning { background: var(--warning-bg); color: var(--warning); }
 .error-box { padding: 12px 14px; border: 1px solid #efc6ca; border-radius: 10px; background: var(--danger-bg); color: var(--danger); font-size: .82rem; line-height: 1.5; }
+.attention-panel { position: relative; overflow: hidden; }
+.attention-panel::before { position: absolute; inset: 0 auto 0 0; width: 3px; background: var(--info); content: ""; }
+.attention-panel.warning::before { background: var(--warning); }
+.attention-panel.danger::before { background: var(--danger); }
+.attention-panel.success::before { background: var(--success); }
+.review-count { color: var(--danger); font-weight: 780; }
 
 /* Public and authentication surfaces */
 .auth-shell { display: grid; min-height: 100vh; place-items: center; padding: 24px; background: radial-gradient(circle at top left, #e7f5f3, transparent 34%), var(--canvas); }
@@ -308,6 +321,7 @@ pre { overflow-x: auto; padding: 18px; border-radius: 12px; background: #0d2135;
   .page-actions { width: 100%; }
   .page-actions > * { flex: 1; }
   .selection-bar { align-items: stretch; flex-direction: column; }
+  .workspace-panel .inline-form { grid-template-columns: 1fr; }
   .selection-bar > .field-label { width: 100%; }
   .selection-context { justify-items: start; text-align: left; }
   .overview-banner { padding: 24px 21px; border-radius: 18px; }
@@ -315,6 +329,7 @@ pre { overflow-x: auto; padding: 18px; border-radius: 12px; background: #0d2135;
   .organization-toolbar, .filter-grid, .inline-form, .document-form, .document-type-form { grid-template-columns: 1fr; }
   .filter-actions { justify-content: stretch; }
   .filter-actions button { flex: 1; }
+  .data-table .action-row { flex-wrap: wrap; }
   .panel { padding: 16px; border-radius: 14px; }
   .table-footer { align-items: flex-start; flex-direction: column; }
   .shell { padding: 28px 15px; }
