@@ -52,10 +52,12 @@ export function AppFrame({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [me, setMe] = useState<MeResponse | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [navQuery, setNavQuery] = useState("");
+  const [openGroups, setOpenGroups] = useState<Set<string>>(() => new Set(["Genel"]));
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const isPublic = publicRoutes.has(pathname);
   useEffect(() => { if (!isPublic) void loadSession(); }, [isPublic]);
-  useEffect(() => setMenuOpen(false), [pathname]);
+  useEffect(() => { setMenuOpen(false); setNavQuery(""); }, [pathname]);
   useEffect(() => {
     if (!menuOpen) return;
     const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") closeMenu(true); };
@@ -96,6 +98,14 @@ export function AppFrame({ children }: { children: ReactNode }) {
     }
   }
 
+  function toggleGroup(label: string) {
+    setOpenGroups((current) => {
+      const next = new Set(current);
+      if (next.has(label)) next.delete(label); else next.add(label);
+      return next;
+    });
+  }
+
   const permissions = useMemo(() => new Set(me?.permissions.map((item) => item.code) ?? []), [me]);
   const visibleGroups = useMemo(() => navGroups.map((group) => ({ ...group, items: group.items.filter((item) =>
     item.href === "/dashboard" || item.prefixes.some((prefix) => [...permissions].some((permission) => permission.startsWith(prefix)))
@@ -103,6 +113,19 @@ export function AppFrame({ children }: { children: ReactNode }) {
   const activeHref = visibleGroups.flatMap((group) => group.items)
     .filter((item) => pathname === item.href || pathname.startsWith(`${item.href}/`))
     .sort((a, b) => b.href.length - a.href.length)[0]?.href;
+  const activeGroupLabel = visibleGroups.find((group) => group.items.some((item) => item.href === activeHref))?.label;
+  const normalizedNavQuery = navQuery.trim().toLocaleLowerCase("tr-TR");
+  const filteredGroups = useMemo(() => {
+    if (!normalizedNavQuery) return visibleGroups;
+    return visibleGroups.map((group) => {
+      if (group.label.toLocaleLowerCase("tr-TR").includes(normalizedNavQuery)) return group;
+      return { ...group, items: group.items.filter((item) => item.label.toLocaleLowerCase("tr-TR").includes(normalizedNavQuery)) };
+    }).filter((group) => group.items.length > 0);
+  }, [normalizedNavQuery, visibleGroups]);
+  useEffect(() => {
+    if (!activeGroupLabel) return;
+    setOpenGroups((current) => current.has(activeGroupLabel) ? current : new Set([...current, activeGroupLabel]));
+  }, [activeGroupLabel]);
   const pageLabel = Object.entries(pageLabels).filter(([route]) => pathname === route || pathname.startsWith(`${route}/`))
     .sort(([a], [b]) => b.length - a.length)[0]?.[1] ?? "Platform";
   const initials = (me?.username ?? "K").slice(0, 2).toLocaleUpperCase("tr-TR");
@@ -113,7 +136,18 @@ export function AppFrame({ children }: { children: ReactNode }) {
     <aside id="app-navigation" className={`app-sidebar ${menuOpen ? "is-open" : ""}`} aria-label="Ana navigasyon">
       <div className="app-brand"><span className="app-logo" aria-hidden="true">Pİ</span><span className="app-brand-copy"><strong>Personel & İdari</strong><small>İşler Platformu</small></span><button className="sidebar-close" type="button" onClick={() => closeMenu(true)} aria-label="Menüyü kapat"><Icon name="close"/></button></div>
       <nav className="app-nav">
-        {me ? visibleGroups.map((group) => <div className="nav-group" key={group.label}><span className="nav-group-label">{group.label}</span>{group.items.map((item) => <Link className={`nav-link ${activeHref === item.href ? "is-active" : ""}`} href={item.href} key={item.href} aria-current={activeHref === item.href ? "page" : undefined}><span className="nav-icon"><Icon name={item.icon}/></span><span>{item.label}</span></Link>)}</div>) : <div className="nav-loading" aria-label="Menü yükleniyor"><span/><span/><span/><span/><span/></div>}
+        {me ? <><label className="nav-search"><span className="nav-search-icon"><Icon name="search" size={17}/></span><span className="nav-search-label">Menüde ara</span><input type="search" value={navQuery} onChange={(event) => setNavQuery(event.target.value)} placeholder="Menüde ara…" autoComplete="off"/></label>
+          {filteredGroups.length ? filteredGroups.map((group, index) => {
+            const expanded = Boolean(normalizedNavQuery) || openGroups.has(group.label);
+            const panelId = `nav-group-${index}`;
+            return <div className={`nav-group ${expanded ? "is-open" : ""}`} key={group.label}>
+              <button className="nav-group-toggle" type="button" onClick={() => toggleGroup(group.label)} aria-expanded={expanded} aria-controls={panelId} disabled={Boolean(normalizedNavQuery)}>
+                <span>{group.label}</span><span className="nav-group-chevron"><Icon name="arrow" size={14}/></span>
+              </button>
+              <div className="nav-group-items" id={panelId} hidden={!expanded}>{group.items.map((item) => <Link className={`nav-link ${activeHref === item.href ? "is-active" : ""}`} href={item.href} key={item.href} aria-current={activeHref === item.href ? "page" : undefined}><span className="nav-icon"><Icon name={item.icon}/></span><span>{item.label}</span></Link>)}</div>
+            </div>;
+          }) : <p className="nav-empty" role="status">Bu adla eşleşen bir menü bulunamadı.</p>}
+        </> : <div className="nav-loading" aria-label="Menü yükleniyor"><span/><span/><span/><span/><span/></div>}
       </nav>
       <div className="app-sidebar-footer"><div className="sidebar-user"><span className="user-avatar">{initials}</span><span><strong>{me?.username ?? "Oturum yükleniyor"}</strong><small>{me?.email ?? "Personel Platformu"}</small></span></div><button className="icon-button inverse" type="button" onClick={() => void logout()} aria-label="Çıkış yap"><Icon name="logout"/></button></div>
     </aside>
