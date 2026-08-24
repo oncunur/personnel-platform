@@ -1,9 +1,9 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { Icon } from "../components/Icon";
 
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
-
 type Permission = { code: string };
 type Me = { userId: string; username: string; permissions: Permission[] };
 type Company = { id: string; code: string; name: string };
@@ -19,10 +19,11 @@ type AuthResponse = { accessToken: string; accessTokenExpiresAt: string };
 export default function PersonnelPage() {
   const [me, setMe] = useState<Me | null>(null);
   const [companies, setCompanies] = useState<Company[]>([]);
-  const [branches, setBranches] = useState<Branch[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
-  const [positions, setPositions] = useState<Position[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [filterDepartments, setFilterDepartments] = useState<Department[]>([]);
+  const [filterProjects, setFilterProjects] = useState<Project[]>([]);
+  const [createBranches, setCreateBranches] = useState<Branch[]>([]);
+  const [createDepartments, setCreateDepartments] = useState<Department[]>([]);
+  const [createPositions, setCreatePositions] = useState<Position[]>([]);
   const [types, setTypes] = useState<EmployeeType[]>([]);
   const [employees, setEmployees] = useState<PagedEmployees>({ items: [], page: 1, pageSize: 25, totalCount: 0 });
   const [companyId, setCompanyId] = useState("");
@@ -31,14 +32,18 @@ export default function PersonnelPage() {
   const [status, setStatus] = useState("");
   const [typeId, setTypeId] = useState("");
   const [projectId, setProjectId] = useState("");
+  const [createCompanyId, setCreateCompanyId] = useState("");
+  const [createDepartmentId, setCreateDepartmentId] = useState("");
+  const [showCreate, setShowCreate] = useState(false);
   const [message, setMessage] = useState("Personel verileri yükleniyor…");
   const [busy, setBusy] = useState(false);
 
-  const permissions = useMemo(() => new Set(me?.permissions.map((x) => x.code) ?? []), [me]);
-
+  const permissions = useMemo(() => new Set(me?.permissions.map((item) => item.code) ?? []), [me]);
   useEffect(() => { void initialize(); }, []);
-  useEffect(() => { if (companyId) void loadOrganization(companyId); else { setBranches([]); setDepartments([]); setProjects([]); } }, [companyId]);
-  useEffect(() => { if (departmentId) void loadPositions(departmentId); else setPositions([]); }, [departmentId]);
+  useEffect(() => {
+    if (companyId) void loadFilterOrganization(companyId);
+    else { setFilterDepartments([]); setFilterProjects([]); }
+  }, [companyId]);
 
   async function initialize() {
     const current = await json<Me>("/api/v1/auth/me");
@@ -54,27 +59,47 @@ export default function PersonnelPage() {
     await loadEmployees();
   }
 
-  async function loadOrganization(id: string) {
-    const [branchRows, departmentRows, projectRows] = await Promise.all([
-      json<Branch[]>(`/api/v1/organization/branches?companyId=${id}`),
+  async function loadFilterOrganization(id: string) {
+    const [departmentRows, projectRows] = await Promise.all([
       json<Department[]>(`/api/v1/organization/departments?companyId=${id}`),
       json<Project[]>(`/api/v1/organization/projects?companyId=${id}`),
     ]);
-    setBranches(branchRows ?? []); setDepartments(departmentRows ?? []); setProjects(projectRows ?? []);
+    setFilterDepartments(departmentRows ?? []);
+    setFilterProjects(projectRows ?? []);
   }
 
-  async function loadPositions(id: string) { setPositions((await json<Position[]>(`/api/v1/organization/positions?departmentId=${id}`)) ?? []); }
+  async function loadCreateOrganization(id: string) {
+    setCreateCompanyId(id); setCreateDepartmentId(""); setCreatePositions([]);
+    if (!id) { setCreateBranches([]); setCreateDepartments([]); return; }
+    const [branchRows, departmentRows] = await Promise.all([
+      json<Branch[]>(`/api/v1/organization/branches?companyId=${id}`),
+      json<Department[]>(`/api/v1/organization/departments?companyId=${id}`),
+    ]);
+    setCreateBranches(branchRows ?? []); setCreateDepartments(departmentRows ?? []);
+  }
 
-  async function loadEmployees(page = 1) {
+  async function loadCreatePositions(id: string) {
+    setCreateDepartmentId(id);
+    setCreatePositions(id ? (await json<Position[]>(`/api/v1/organization/positions?departmentId=${id}`)) ?? [] : []);
+  }
+
+  async function loadEmployees(page = 1, reset = false) {
     const params = new URLSearchParams({ page: String(page), pageSize: "25" });
-    if (search.trim()) params.set("search", search.trim());
-    if (companyId) params.set("companyId", companyId);
-    if (departmentId) params.set("departmentId", departmentId);
-    if (status) params.set("status", status);
-    if (typeId) params.set("employeeTypeId", typeId);
-    if (projectId) params.set("projectId", projectId);
+    if (!reset) {
+      if (search.trim()) params.set("search", search.trim());
+      if (companyId) params.set("companyId", companyId);
+      if (departmentId) params.set("departmentId", departmentId);
+      if (status) params.set("status", status);
+      if (typeId) params.set("employeeTypeId", typeId);
+      if (projectId) params.set("projectId", projectId);
+    }
     const rows = await json<PagedEmployees>(`/api/v1/personnel/employees?${params}`);
-    if (rows) setEmployees(rows);
+    if (rows) { setEmployees(rows); setMessage(`${rows.totalCount} personel kaydı listelendi.`); }
+  }
+
+  function clearFilters() {
+    setSearch(""); setCompanyId(""); setDepartmentId(""); setStatus(""); setTypeId(""); setProjectId("");
+    setFilterDepartments([]); setFilterProjects([]); void loadEmployees(1, true);
   }
 
   async function onCreate(event: FormEvent<HTMLFormElement>) {
@@ -92,62 +117,87 @@ export default function PersonnelPage() {
         setMessage(error?.error?.message ?? "Personel oluşturulamadı."); return;
       }
       const created = await response.json() as { id: string };
-      event.currentTarget.reset(); setMessage("Personel oluşturuldu."); await loadEmployees();
+      event.currentTarget.reset(); setCreateCompanyId(""); setCreateDepartmentId(""); setShowCreate(false);
+      setMessage("Personel başarıyla oluşturuldu."); await loadEmployees();
       window.location.href = `/personnel/${created.id}`;
     } finally { setBusy(false); }
   }
 
   async function json<T>(path: string): Promise<T | null> {
-    const response = await authFetch(path);
-    if (!response?.ok) return null;
-    return await response.json() as T;
+    const response = await authFetch(path); if (!response?.ok) return null; return await response.json() as T;
   }
-
   async function authFetch(path: string, init?: RequestInit): Promise<Response | null> {
-    let token = sessionStorage.getItem("pp_access_token") ?? await refresh();
-    if (!token) return null;
+    let token = sessionStorage.getItem("pp_access_token") ?? await refresh(); if (!token) return null;
     let response = await fetch(`${apiBase}${path}`, { ...init, headers: { ...(init?.headers ?? {}), Authorization: `Bearer ${token}` }, credentials: "include" });
     if (response.status !== 401) return response;
     token = await refresh(); if (!token) return response;
     return fetch(`${apiBase}${path}`, { ...init, headers: { ...(init?.headers ?? {}), Authorization: `Bearer ${token}` }, credentials: "include" });
   }
-
   async function refresh(): Promise<string | null> {
     try {
-      const response = await fetch(`${apiBase}/api/v1/auth/refresh`, { method: "POST", credentials: "include" });
-      if (!response.ok) return null;
+      const response = await fetch(`${apiBase}/api/v1/auth/refresh`, { method: "POST", credentials: "include" }); if (!response.ok) return null;
       const body = await response.json() as AuthResponse; sessionStorage.setItem("pp_access_token", body.accessToken); sessionStorage.setItem("pp_access_token_expires_at", body.accessTokenExpiresAt); return body.accessToken;
     } catch { return null; }
   }
 
   const totalPages = Math.max(1, Math.ceil(employees.totalCount / employees.pageSize));
+  const activeOnPage = employees.items.filter((employee) => employee.status === "ACTIVE").length;
+  const filterCount = [search.trim(), companyId, departmentId, status, typeId, projectId].filter(Boolean).length;
 
-  return <main className="shell">
-    <a className="back" href="/dashboard">← Dashboard</a>
-    <section className="hero compact"><span className="eyebrow">SPRINT 2 · PERSONNEL CORE</span><h1>Personel</h1><p>{message}</p><div className="session-summary"><strong>{employees.totalCount} kayıt</strong><span>Sayfa {employees.page}/{totalPages}</span></div></section>
+  return <main className="page-shell">
+    <header className="page-header">
+      <div className="page-heading"><span className="page-eyebrow">İnsan Kaynakları</span><h1 className="page-title">Personel Yönetimi</h1><p className="page-subtitle">Personel kayıtlarını bulun, filtreleyin ve tüm özlük süreçlerine Personel 360 üzerinden ulaşın.</p></div>
+      {permissions.has("personnel.create") ? <div className="page-actions"><button className="primary-button" type="button" onClick={() => setShowCreate((value) => !value)}><Icon name={showCreate ? "close" : "plus"} size={17}/>{showCreate ? "Formu kapat" : "Yeni personel"}</button></div> : null}
+    </header>
+    <div className="message-strip">{message}</div>
 
-    <section className="panel organization-toolbar">
-      <label>Ara<input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Sicil / ad / soyad"/></label>
-      <label>Şirket<select value={companyId} onChange={(e) => { setCompanyId(e.target.value); setDepartmentId(""); }}><option value="">Tümü</option>{companies.map(x => <option key={x.id} value={x.id}>{x.code} · {x.name}</option>)}</select></label>
-      <label>Departman<select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}><option value="">Tümü</option>{departments.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select></label>
-      <label>Tip<select value={typeId} onChange={(e) => setTypeId(e.target.value)}><option value="">Tümü</option>{types.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select></label>
-      <label>Proje<select value={projectId} onChange={(e) => setProjectId(e.target.value)}><option value="">Tümü</option>{projects.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select></label>
-      <label>Durum<select value={status} onChange={(e) => setStatus(e.target.value)}><option value="">Tümü</option><option value="ACTIVE">Aktif</option><option value="SUSPENDED">Askıda</option><option value="TERMINATED">Ayrıldı</option></select></label>
-      <button className="primary-button" type="button" onClick={() => void loadEmployees(1)}>Filtrele</button>
+    <section className="stat-grid" aria-label="Personel göstergeleri">
+      <article className="stat-card"><span className="stat-icon"><Icon name="people"/></span><span className="stat-copy"><strong>{employees.totalCount}</strong><span>Toplam personel</span></span></article>
+      <article className="stat-card"><span className="stat-icon"><Icon name="people"/></span><span className="stat-copy"><strong>{activeOnPage}</strong><span>Bu sayfadaki aktif</span></span></article>
+      <article className="stat-card"><span className="stat-icon"><Icon name="search"/></span><span className="stat-copy"><strong>{filterCount}</strong><span>Etkin filtre</span></span></article>
+      <article className="stat-card"><span className="stat-icon"><Icon name="calendar"/></span><span className="stat-copy"><strong>{employees.page}/{totalPages}</strong><span>Görüntülenen sayfa</span></span></article>
     </section>
 
-    <section className="panel audit-panel"><div className="table-wrap"><table className="data-table"><thead><tr><th>Sicil</th><th>Ad Soyad</th><th>Durum</th><th>İşe Giriş</th><th></th></tr></thead><tbody>{employees.items.map(x => <tr key={x.id}><td>{x.employeeNo}</td><td><strong>{x.firstName} {x.lastName}</strong></td><td><span className={`status-badge ${x.status === "ACTIVE" ? "success" : "danger"}`}>{x.status}</span></td><td>{x.hireDate}</td><td><a href={`/personnel/${x.id}`}>Personel 360 →</a></td></tr>)}</tbody></table></div><div className="action-row"><button className="table-button" disabled={employees.page <= 1} onClick={() => void loadEmployees(employees.page - 1)}>Önceki</button><button className="table-button" disabled={employees.page >= totalPages} onClick={() => void loadEmployees(employees.page + 1)}>Sonraki</button></div></section>
+    {showCreate && permissions.has("personnel.create") ? <section className="panel org-create">
+      <div className="panel-heading"><div><span className="page-eyebrow">Yeni kayıt</span><h2>Personel bilgileri</h2><p>Zorunlu organizasyon ve kimlik alanlarını doldurun.</p></div></div>
+      <form className="inline-form" onSubmit={onCreate}>
+        <label className="field-label">Şirket<select name="companyId" required value={createCompanyId} onChange={(event) => void loadCreateOrganization(event.target.value)}><option value="">Seçin</option>{companies.map((item) => <option key={item.id} value={item.id}>{item.code} · {item.name}</option>)}</select></label>
+        <label className="field-label">Şube<select name="branchId"><option value="">—</option>{createBranches.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+        <label className="field-label">Departman<select name="departmentId" required value={createDepartmentId} onChange={(event) => void loadCreatePositions(event.target.value)}><option value="">Seçin</option>{createDepartments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+        <label className="field-label">Pozisyon<select name="positionId" required><option value="">Seçin</option>{createPositions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+        <label className="field-label">Personel tipi<select name="employeeTypeId" required><option value="">Seçin</option>{types.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+        <Field name="employeeNo" label="Sicil numarası"/><Field name="firstName" label="Ad"/><Field name="lastName" label="Soyad"/><Field name="preferredName" label="Tercih edilen ad"/><Field name="birthDate" label="Doğum tarihi" type="date"/><Field name="hireDate" label="İşe giriş" type="date"/><Field name="phone" label="Telefon"/><Field name="email" label="E-posta" type="email"/>
+        <button className="primary-button" disabled={busy} type="submit">{busy ? "Kaydediliyor…" : "Personeli kaydet"}</button>
+      </form>
+    </section> : null}
 
-    {permissions.has("personnel.create") ? <section className="panel org-create"><div className="panel-heading"><h2>Yeni Personel</h2></div><form className="inline-form" onSubmit={onCreate}>
-      <label className="field-label">Şirket<select name="companyId" required onChange={(e) => { setCompanyId(e.target.value); setDepartmentId(""); }}><option value="">Seçin</option>{companies.map(x => <option key={x.id} value={x.id}>{x.code} · {x.name}</option>)}</select></label>
-      <label className="field-label">Şube<select name="branchId"><option value="">—</option>{branches.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select></label>
-      <label className="field-label">Departman<select name="departmentId" required onChange={(e) => setDepartmentId(e.target.value)}><option value="">Seçin</option>{departments.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select></label>
-      <label className="field-label">Pozisyon<select name="positionId" required><option value="">Seçin</option>{positions.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select></label>
-      <label className="field-label">Personel Tipi<select name="employeeTypeId" required><option value="">Seçin</option>{types.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select></label>
-      <Field name="employeeNo" label="Sicil"/><Field name="firstName" label="Ad"/><Field name="lastName" label="Soyad"/><Field name="preferredName" label="Tercih edilen ad"/><Field name="birthDate" label="Doğum" type="date"/><Field name="hireDate" label="İşe giriş" type="date"/><Field name="phone" label="Telefon"/><Field name="email" label="E-posta" type="email"/>
-      <button className="primary-button" disabled={busy} type="submit">{busy ? "Kaydediliyor…" : "Personel Oluştur"}</button>
-    </form></section> : null}
+    <section className="panel filter-panel">
+      <div className="panel-heading"><div><span className="page-eyebrow">Arama ve filtreler</span><h2>Personel listesini daraltın</h2></div>{filterCount ? <strong>{filterCount}</strong> : null}</div>
+      <div className="filter-grid">
+        <label className="field-label filter-search">Personel ara<Icon name="search" size={17}/><input value={search} onChange={(event) => setSearch(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void loadEmployees(1); }} placeholder="Sicil, ad veya soyad"/></label>
+        <label className="field-label">Şirket<select value={companyId} onChange={(event) => { setCompanyId(event.target.value); setDepartmentId(""); }}><option value="">Tüm şirketler</option>{companies.map((item) => <option key={item.id} value={item.id}>{item.code} · {item.name}</option>)}</select></label>
+        <label className="field-label">Departman<select value={departmentId} onChange={(event) => setDepartmentId(event.target.value)}><option value="">Tüm departmanlar</option>{filterDepartments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+        <label className="field-label">Personel tipi<select value={typeId} onChange={(event) => setTypeId(event.target.value)}><option value="">Tüm tipler</option>{types.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+        <label className="field-label">Proje<select value={projectId} onChange={(event) => setProjectId(event.target.value)}><option value="">Tüm projeler</option>{filterProjects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+        <label className="field-label">Durum<select value={status} onChange={(event) => setStatus(event.target.value)}><option value="">Tüm durumlar</option><option value="ACTIVE">Aktif</option><option value="SUSPENDED">Askıda</option><option value="TERMINATED">Ayrıldı</option></select></label>
+      </div>
+      <div className="filter-actions"><button className="secondary-button" type="button" disabled={!filterCount} onClick={clearFilters}>Temizle</button><button className="primary-button" type="button" onClick={() => void loadEmployees(1)}><Icon name="search" size={16}/>Sonuçları getir</button></div>
+    </section>
+
+    <section className="panel">
+      <div className="panel-heading"><div><span className="page-eyebrow">Personel listesi</span><h2>Kayıtlar</h2><p>{employees.totalCount} sonuçtan sayfa başına {employees.pageSize} kayıt gösteriliyor.</p></div><strong>{employees.totalCount}</strong></div>
+      <div className="table-wrap"><table className="data-table"><thead><tr><th>Personel</th><th>Sicil</th><th>Durum</th><th>İşe giriş</th><th>İşlem</th></tr></thead><tbody>
+        {employees.items.map((employee) => <tr key={employee.id}><td><div className="person-cell"><span className="person-avatar">{initials(employee)}</span><span className="person-cell-copy"><strong>{employee.firstName} {employee.lastName}</strong><small>Personel kaydı</small></span></div></td><td>{employee.employeeNo}</td><td><span className={`status-badge ${employee.status === "ACTIVE" ? "success" : employee.status === "SUSPENDED" ? "warning" : "danger"}`}>{statusLabel(employee.status)}</span></td><td>{formatDate(employee.hireDate)}</td><td><a href={`/personnel/${employee.id}`}>Personel 360 <Icon name="arrow" size={14}/></a></td></tr>)}
+        {employees.items.length === 0 ? <tr><td className="empty-row" colSpan={5}>Filtrelere uygun personel kaydı bulunamadı.</td></tr> : null}
+      </tbody></table></div>
+      <div className="table-footer"><span>Sayfa {employees.page} / {totalPages}</span><div className="action-row"><button className="table-button" disabled={employees.page <= 1} onClick={() => void loadEmployees(employees.page - 1)}>Önceki</button><button className="table-button" disabled={employees.page >= totalPages} onClick={() => void loadEmployees(employees.page + 1)}>Sonraki</button></div></div>
+    </section>
   </main>;
 }
 
-function Field({ name, label, type = "text" }: { name: string; label: string; type?: string }) { return <label className="field-label">{label}<input name={name} type={type} required={["employeeNo","firstName","lastName","hireDate"].includes(name)}/></label>; }
+function Field({ name, label, type = "text" }: { name: string; label: string; type?: string }) {
+  return <label className="field-label">{label}<input name={name} type={type} required={["employeeNo", "firstName", "lastName", "hireDate"].includes(name)}/></label>;
+}
+function initials(employee: Employee) { return `${employee.firstName[0] ?? ""}${employee.lastName[0] ?? ""}`.toLocaleUpperCase("tr-TR"); }
+function statusLabel(status: string) { return status === "ACTIVE" ? "Aktif" : status === "SUSPENDED" ? "Askıda" : status === "TERMINATED" ? "Ayrıldı" : status; }
+function formatDate(value: string) { return new Intl.DateTimeFormat("tr-TR", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(`${value}T00:00:00`)); }
