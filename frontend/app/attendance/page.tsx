@@ -68,12 +68,13 @@ export default function AttendancePage() {
   async function createCalendar(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (!companyId) return; setBusy(true);
     try {
-      const form = new FormData(event.currentTarget);
+      const formElement = event.currentTarget;
+      const form = new FormData(formElement);
       const response = await authFetch("/api/v1/attendance/calendars", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ companyId, code: form.get("code"), name: form.get("name"), isDefault: form.get("isDefault") === "on" }) });
       if (!response?.ok) { setMessage(await errorMessage(response, "Çalışma takvimi oluşturulamadı.")); return; }
       const saved = await response.json() as WorkCalendar;
       setCalendars(current => [...current, saved].sort((a, b) => a.code.localeCompare(b.code)));
-      event.currentTarget.reset(); setMessage("Çalışma takvimi oluşturuldu.");
+      formElement.reset(); setMessage("Çalışma takvimi oluşturuldu.");
     } finally { setBusy(false); }
   }
 
@@ -101,13 +102,14 @@ export default function AttendancePage() {
   async function createShift(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (!companyId) return; setBusy(true);
     try {
-      const form = new FormData(event.currentTarget);
+      const formElement = event.currentTarget;
+      const form = new FormData(formElement);
       const body = { companyId, code: form.get("code"), name: form.get("name"), startTime: form.get("startTime"), endTime: form.get("endTime"), breakMinutes: Number(form.get("breakMinutes") || 0), graceInMinutes: Number(form.get("graceInMinutes") || 0), graceOutMinutes: Number(form.get("graceOutMinutes") || 0) };
       const response = await authFetch("/api/v1/attendance/shifts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!response?.ok) { setMessage(await errorMessage(response, "Vardiya oluşturulamadı.")); return; }
       const saved = await response.json() as Shift;
       setShifts(current => [...current, saved].sort((a, b) => a.code.localeCompare(b.code)));
-      event.currentTarget.reset(); setMessage(saved.crossesMidnight ? "Geceye taşan vardiya oluşturuldu." : "Vardiya oluşturuldu.");
+      formElement.reset(); setMessage(saved.crossesMidnight ? "Geceye taşan vardiya oluşturuldu." : "Vardiya oluşturuldu.");
     } finally { setBusy(false); }
   }
 
@@ -120,13 +122,14 @@ export default function AttendancePage() {
   async function assignShift(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (!employeeId) return; setBusy(true);
     try {
-      const form = new FormData(event.currentTarget);
+      const formElement = event.currentTarget;
+      const form = new FormData(formElement);
       const body = { shiftId: form.get("shiftId"), workCalendarId: form.get("workCalendarId"), validFrom: form.get("validFrom"), validUntil: form.get("validUntil") || null, note: form.get("note") || null };
       const response = await authFetch(`/api/v1/attendance/employees/${employeeId}/shift-assignments`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!response?.ok) { setMessage(await errorMessage(response, "Vardiya ataması oluşturulamadı.")); return; }
       const saved = await response.json() as Assignment;
       setAssignments(current => [saved, ...current]);
-      event.currentTarget.reset(); setMessage("Personel vardiya ataması oluşturuldu.");
+      formElement.reset(); setMessage("Personel vardiya ataması oluşturuldu.");
     } finally { setBusy(false); }
   }
 
