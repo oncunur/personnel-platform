@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Icon } from "../components/Icon";
+import { PageHeader } from "../components/PageHeader";
 
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
 
@@ -51,6 +53,9 @@ export default function SecurityPage() {
     () => new Set(me?.permissions.map((permission) => permission.code) ?? []),
     [me],
   );
+  const activeUsers = useMemo(() => users.filter(user => user.isActive), [users]);
+  const failedEvents = useMemo(() => audit.filter(item => !item.succeeded), [audit]);
+  const criticalEvents = useMemo(() => audit.filter(item => ["HIGH", "CRITICAL"].includes(item.severity)), [audit]);
 
   useEffect(() => {
     void initialize();
@@ -163,71 +168,27 @@ export default function SecurityPage() {
   }
 
   return (
-    <main className="shell">
-      <a className="back" href="/dashboard">← Dashboard</a>
-      <section className="hero compact">
-        <span className="eyebrow">SPRINT 1 · SECURITY CONSOLE</span>
-        <h1>Security Console</h1>
-        <p>{message}</p>
-        <div className="session-summary">
-          <strong>{me?.username ?? "—"}</strong>
-          <span>{me?.roles.map((role) => role.code).join(", ") || "Rol yok"}</span>
-          <span>{me?.scopes.map((scope) => scope.scopeType).join(", ") || "Scope yok"}</span>
-        </div>
-        <div className="actions action-row">
-          <button className="secondary-button" type="button" onClick={logoutAll}>Tüm oturumlarımı kapat</button>
-        </div>
+    <main className="page-shell">
+      <PageHeader eyebrow="Güvenlik ve erişim" title="Güvenlik konsolu" description="Kullanıcı durumlarını, rol tanımlarını, oturum kapsamını ve güvenlik olaylarını izleyin." status={message} actions={<button className="secondary-button button-danger" type="button" onClick={logoutAll}>Tüm oturumlarımı kapat</button>}/>
+
+      <section className="stat-grid" aria-label="Güvenlik özeti">
+        <article className="stat-card"><span className="stat-icon"><Icon name="people"/></span><span className="stat-copy"><strong>{activeUsers.length}</strong><span>Aktif kullanıcı</span></span></article>
+        <article className="stat-card"><span className="stat-icon"><Icon name="settings"/></span><span className="stat-copy"><strong>{roles.length}</strong><span>Tanımlı rol</span></span></article>
+        <article className="stat-card"><span className="stat-icon"><Icon name="bell"/></span><span className="stat-copy"><strong>{failedEvents.length}</strong><span>Başarısız güvenlik olayı</span></span></article>
+        <article className="stat-card"><span className="stat-icon"><Icon name="chart"/></span><span className="stat-copy"><strong>{criticalEvents.length}</strong><span>Yüksek öncelikli olay</span></span></article>
       </section>
 
-      <section className="security-grid">
-        <article className="panel">
-          <div className="panel-heading"><div><span className="eyebrow dark">USERS</span><h2>Kullanıcılar</h2></div><strong>{users.length}</strong></div>
-          {permissionCodes.has("system.user.view") ? (
-            <div className="table-wrap">
-              <table className="data-table">
-                <thead><tr><th>Kullanıcı</th><th>Durum</th><th>Security v.</th><th>Son giriş</th><th></th></tr></thead>
-                <tbody>{users.map((user) => (
-                  <tr key={user.id}>
-                    <td><strong>{user.username}</strong><small>{user.email ?? "E-posta yok"}</small></td>
-                    <td><span className={`status-badge ${user.isActive ? "success" : "danger"}`}>{user.isActive ? "Aktif" : "Pasif"}</span></td>
-                    <td>{user.securityVersion}</td>
-                    <td>{user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString("tr-TR") : "—"}</td>
-                    <td>{permissionCodes.has("system.user.manage") && user.id !== me?.userId ? (
-                      <button className="table-button" disabled={busyUserId === user.id} type="button" onClick={() => void setUserActive(user, !user.isActive)}>{user.isActive ? "Pasife al" : "Aktifleştir"}</button>
-                    ) : null}</td>
-                  </tr>
-                ))}</tbody>
-              </table>
-            </div>
-          ) : <p className="muted">Kullanıcı görüntüleme yetkiniz yok.</p>}
-        </article>
+      <section className="panel session-panel"><div className="workspace-copy"><span className="eyebrow dark">Mevcut oturum</span><h2>{me?.username ?? "Kullanıcı yükleniyor"}</h2><p>{me?.email ?? "E-posta bilgisi yok"} · Güvenlik sürümü {me?.securityVersion ?? "—"}</p></div><div><span className="session-label">Roller</span><div className="role-chips">{me?.roles.length ? me.roles.map(role => <span className="role-chip" key={role.id}>{role.name}</span>) : <span className="role-chip">Rol yok</span>}</div></div><div><span className="session-label">Erişim kapsamı</span><div className="role-chips">{me?.scopes.length ? me.scopes.map((scope,index) => <span className="role-chip" key={`${scope.scopeType}-${scope.scopeId}-${index}`}>{scope.scopeType}{scope.scopeId ? ` · ${scope.scopeId.slice(0,8)}…` : " · Tümü"}</span>) : <span className="role-chip">Kapsam yok</span>}</div></div></section>
 
-        <article className="panel">
-          <div className="panel-heading"><div><span className="eyebrow dark">RBAC</span><h2>Roller</h2></div><strong>{roles.length}</strong></div>
-          {permissionCodes.has("system.role.view") ? (
-            <div className="role-list">{roles.map((role) => <div className="role-row" key={role.id}><strong>{role.code}</strong><span>{role.name}</span></div>)}</div>
-          ) : <p className="muted">Rol görüntüleme yetkiniz yok.</p>}
-        </article>
-      </section>
+      <div className="content-stack">
+        <section className="security-grid">
+          <article className="panel"><div className="panel-heading"><div><span className="eyebrow dark">Kullanıcı erişimi</span><h2>Kullanıcılar</h2><p>Hesap durumunu ve son giriş bilgisini yönetin.</p></div><strong>{users.length}</strong></div>{permissionCodes.has("system.user.view") ? <div className="table-wrap"><table className="data-table"><thead><tr><th>Kullanıcı</th><th>Durum</th><th>Güvenlik sürümü</th><th>Son giriş</th><th>İşlem</th></tr></thead><tbody>{users.length?users.map((user) => <tr key={user.id}><td><strong>{user.username}</strong><small>{user.email ?? "E-posta yok"}</small></td><td><span className={`status-badge ${user.isActive ? "success" : "danger"}`}>{user.isActive ? "Aktif" : "Pasif"}</span></td><td>{user.securityVersion}</td><td>{user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString("tr-TR") : "—"}</td><td>{permissionCodes.has("system.user.manage") && user.id !== me?.userId ? <button className={`table-button ${user.isActive?"button-danger":"button-success"}`} disabled={busyUserId === user.id} type="button" onClick={() => void setUserActive(user, !user.isActive)}>{user.isActive ? "Pasife al" : "Aktifleştir"}</button> : user.id===me?.userId?"Mevcut kullanıcı":"—"}</td></tr>):<tr><td className="empty-row" colSpan={5}>Kullanıcı kaydı yok.</td></tr>}</tbody></table></div> : <p className="notice">Kullanıcı listesini görüntüleme yetkiniz yok.</p>}</article>
 
-      <section className="panel audit-panel">
-        <div className="panel-heading"><div><span className="eyebrow dark">APPEND-ONLY</span><h2>Son güvenlik olayları</h2></div><strong>{audit.length}</strong></div>
-        {permissionCodes.has("audit.view") ? (
-          <div className="table-wrap">
-            <table className="data-table">
-              <thead><tr><th>Zaman</th><th>Olay</th><th>Sonuç</th><th>Kullanıcı</th><th>IP</th><th>Hata</th></tr></thead>
-              <tbody>{audit.map((item) => (
-                <tr key={item.id}>
-                  <td>{new Date(item.occurredAt).toLocaleString("tr-TR")}</td>
-                  <td><strong>{item.eventType}</strong><small>{item.targetType && item.targetId ? `${item.targetType} · ${item.targetId}` : item.category}</small></td>
-                  <td><span className={`status-badge ${item.succeeded ? "success" : "danger"}`}>{item.succeeded ? "Başarılı" : "Başarısız"}</span></td>
-                  <td>{item.actorUsername ?? "—"}</td><td>{item.ipAddress ?? "—"}</td><td>{item.errorCode ?? "—"}</td>
-                </tr>
-              ))}</tbody>
-            </table>
-          </div>
-        ) : <p className="muted">Audit görüntüleme yetkiniz yok.</p>}
-      </section>
+          <article className="panel"><div className="panel-heading"><div><span className="eyebrow dark">Rol tabanlı erişim</span><h2>Roller</h2><p>Sistemde kullanılabilen yetki grupları.</p></div><strong>{roles.length}</strong></div>{permissionCodes.has("system.role.view") ? <div className="role-list">{roles.length?roles.map((role) => <div className="role-row" key={role.id}><strong>{role.name}</strong><span>{role.code}</span></div>):<p className="muted">Rol tanımı yok.</p>}</div> : <p className="notice">Rol listesini görüntüleme yetkiniz yok.</p>}</article>
+        </section>
+
+        <section className={`panel attention-panel ${failedEvents.length?"danger":"success"}`}><div className="panel-heading"><div><span className="eyebrow dark">Güvenlik olayları</span><h2>Son denetim kayıtları</h2><p>{failedEvents.length?`${failedEvents.length} başarısız olay inceleme gerektiriyor.`:"Listelenen olaylarda başarısız işlem yok."}</p></div><strong>{audit.length}</strong></div>{permissionCodes.has("audit.view") ? <div className="table-wrap"><table className="data-table"><thead><tr><th>Zaman</th><th>Olay</th><th>Önem</th><th>Sonuç</th><th>Kullanıcı</th><th>IP adresi</th><th>Hata</th></tr></thead><tbody>{audit.length?audit.map((item) => <tr key={item.id}><td>{new Date(item.occurredAt).toLocaleString("tr-TR")}</td><td><strong>{item.eventType}</strong><small>{item.targetType && item.targetId ? `${item.targetType} · ${item.targetId}` : item.category}</small></td><td><span className={`status-badge ${["HIGH","CRITICAL"].includes(item.severity)?"danger":item.severity==="MEDIUM"?"warning":""}`}>{item.severity==="CRITICAL"?"Kritik":item.severity==="HIGH"?"Yüksek":item.severity==="MEDIUM"?"Orta":"Bilgi"}</span></td><td><span className={`status-badge ${item.succeeded ? "success" : "danger"}`}>{item.succeeded ? "Başarılı" : "Başarısız"}</span></td><td>{item.actorUsername ?? "—"}</td><td>{item.ipAddress ?? "—"}</td><td>{item.errorCode ?? "—"}</td></tr>):<tr><td className="empty-row" colSpan={7}>Güvenlik olayı yok.</td></tr>}</tbody></table></div> : <p className="notice">Güvenlik olaylarını görüntüleme yetkiniz yok.</p>}</section>
+      </div>
     </main>
   );
 }

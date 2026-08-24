@@ -63,6 +63,12 @@ Kamp, yemek, stok, araç ve idari işler gibi yoğun ekranlarda başlığın hem
 
 Birbiriyle ilişkili oluşturma işlemleri iki sütunlu `organization-grid` içinde gruplanabilir. Kayıt formu ve geçmiş liste aynı paneldeyse aralarında `form-surface`; aynı panelde iki ayrı tablo varsa ikinci bölümden önce `table-section-heading` kullanılır.
 
+### Teknik ayrıntı ve denetim izi
+
+JSON, UUID, harici kayıt kimliği ve benzeri teknik değerler ana görev metninin yerine geçmez. Kullanıcının karar vermesi için gerekli değilse `technical-details` içinde kapalı başlar; gerekli olduğu tabloda ise açıklayıcı Türkçe sütun adıyla ve ikincil görsel ağırlıkla gösterilir.
+
+Seçilebilir tablo satırları `selectable-table` kullanır ve seçili kayıt `selected-row` ile hem zemin hem sol kenar vurgusu alır. İş akışı adımları `workflow-step` içinde sıra, ad, hedef türü ve hedefi sabit bir yapıda gösterir. Değiştirilemeyen güvenlik/işlem geçmişleri normal form alanlarından ayrılır; hata veya süre aşımı varsa `attention-panel` varyantıyla görünür hale gelir.
+
 ### Form yüzeyi
 
 Listeyle aynı panelde bulunan oluşturma veya güncelleme formu `form-surface` ile ayrılır. Böylece form alanları ile mevcut kayıtlar birbirine karışmaz. Formun kısa başlığı yapılan işlemi, yardımcı metni ise işlemin etkisini açıklar.
