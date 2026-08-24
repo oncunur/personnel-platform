@@ -63,7 +63,8 @@ export default function DocumentsPage() {
   async function createType(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true);
     try {
-      const form = new FormData(event.currentTarget);
+      const formElement = event.currentTarget;
+      const form = new FormData(formElement);
       const reminderDays = String(form.get("reminderDays") ?? "90,60,30,15,7,1,0")
         .split(",").map(x => Number(x.trim())).filter(x => Number.isInteger(x) && x >= 0);
       const body = {
@@ -84,7 +85,7 @@ export default function DocumentsPage() {
       }
       const created = await response.json() as DocumentType;
       setTypes(current => [...current, created].sort((a, b) => a.displayOrder - b.displayOrder));
-      event.currentTarget.reset(); setMessage("Belge türü oluşturuldu.");
+      formElement.reset(); setMessage("Belge türü oluşturuldu.");
     } finally { setBusy(false); }
   }
 
