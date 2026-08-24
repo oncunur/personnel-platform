@@ -88,6 +88,8 @@ Personel, belge ve proje gibi tek kayda odaklanan ekranlar da `PageHeader` ile b
 
 Listeyle aynı panelde bulunan oluşturma veya güncelleme formu `form-surface` ile ayrılır. Böylece form alanları ile mevcut kayıtlar birbirine karışmaz. Formun kısa başlığı yapılan işlemi, yardımcı metni ise işlemin etkisini açıklar.
 
+İşlem ve geçmişin aynı ekranda tekrarlandığı stok, araç ve bordro gibi yoğun alanlarda form sürekli açık bırakılmaz. `OperationDisclosure`, işlemin adını ve etkisini özetleyen en az 44 piksel yüksekliğinde bir açma satırı gösterir; alanlar yalnız kullanıcı işlemi başlattığında görünür. Mevcut kayıtlar, uyarılar ve geçmiş tabloları ilk bakışta görünür kalır. Bir form açıkken ana gönderim düğmesi yine formun sonunda yer alır.
+
 ### Butonlar
 
 - `primary-button`: Kullanıcının ekrandaki ana görevi
