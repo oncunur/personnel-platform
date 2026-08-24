@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useActionDialog } from "../components/ActionDialog";
 import { Icon } from "../components/Icon";
 import { PageHeader } from "../components/PageHeader";
 
@@ -61,6 +62,7 @@ export default function ErpPage() {
   const [mappingForm, setMappingForm] = useState({ costCategory: "PAYROLL", accountCode: "", counterAccountCode: "" });
   const [message, setMessage] = useState("ERP aktarım merkezi yükleniyor…");
   const [busy, setBusy] = useState(false);
+  const { ask, dialog } = useActionDialog();
   const erpSystems = useMemo(() => systems.filter(x => x.companyId === companyId && x.systemType === "ERP" && x.isActive), [systems, companyId]);
   const activeMappings = useMemo(() => mappings.filter(x => x.isActive), [mappings]);
   const openBatches = useMemo(() => batches.filter(x => x.status !== "CLOSED"), [batches]);
@@ -146,7 +148,12 @@ export default function ErpPage() {
   }
 
   async function sendBatch(batch: Batch) {
-    if (!confirm("Paket ERP'ye gönderilmiş olarak işaretlensin mi? Bu işlemden sonra maliyet satırları yeni bir pakete alınmaz.")) return;
+    const confirmed = await ask({
+      title: "Paket ERP'ye gönderilsin mi?",
+      description: `${batch.lineCount} maliyet satırı gönderilmiş olarak işaretlenecek. Bu satırlar daha sonra yeni bir pakete alınamaz.`,
+      confirmLabel: "ERP'ye gönder",
+    });
+    if (!confirmed) return;
     setBusy(true);
     try {
       const response = await authFetch(`/api/v1/erp/batches/${batch.id}/send`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ version: batch.version }) });
@@ -233,5 +240,6 @@ export default function ErpPage() {
         {canReconcile ? <div className="detail-actions"><button className="primary-button" disabled={busy || lines.length === 0} onClick={() => void reconcileBatch()}><Icon name="workflow" size={17}/>Mutabakatı kaydet</button></div> : null}
       </section> : null}
     </div>
+    {dialog}
   </main>;
 }

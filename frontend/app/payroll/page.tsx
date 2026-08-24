@@ -108,7 +108,7 @@ export default function PayrollPage() {
       if (!response?.ok) { setMessage(await errorMessage(response, "Bordro işlemi tamamlanamadı.")); return; }
       const row = await response.json() as Period;
       await reloadPeriods(row.id); await selectPeriod(row.id);
-      setMessage(`Bordro durumu: ${row.status}`);
+      setMessage(`Bordro durumu: ${payrollStatusLabel(row.status)}.`);
     } finally { setBusy(false); }
   }
 

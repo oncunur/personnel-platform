@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useActionDialog } from "../../components/ActionDialog";
 import { Icon } from "../../components/Icon";
 import { PageHeader } from "../../components/PageHeader";
 
@@ -28,6 +29,7 @@ export default function LeaveApprovalsPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [message, setMessage] = useState("Onay kutusu yükleniyor…");
   const [busy, setBusy] = useState(false);
+  const { ask, dialog } = useActionDialog();
 
   const permissions = useMemo(() => new Set(me?.permissions.map(x => x.code) ?? []), [me]);
 
@@ -64,8 +66,15 @@ export default function LeaveApprovalsPage() {
   }
 
   async function decide(item: InboxItem, approve: boolean) {
-    const note = window.prompt(approve ? "Onay notu (opsiyonel)" : "Red gerekçesi", "") ?? "";
-    if (!approve && !note.trim()) { setMessage("Red işlemi için gerekçe girin."); return; }
+    const result = await ask({
+      title: approve ? "İzin talebini onaylayın" : "İzin talebini reddedin",
+      description: `${item.employeeName} için ${item.requestedDays} günlük ${item.leaveTypeName.toLocaleLowerCase("tr-TR")} talebi.`,
+      confirmLabel: approve ? "Talebi onayla" : "Talebi reddet",
+      tone: approve ? "success" : "danger",
+      fields: [{ name: "note", label: approve ? "Onay notu (isteğe bağlı)" : "Red gerekçesi", required: !approve, multiline: true, placeholder: approve ? "Kararınıza kısa bir not ekleyebilirsiniz." : "Talebin neden reddedildiğini açıklayın." }],
+    });
+    if (!result) return;
+    const note = result.note.trim();
     setBusy(true);
     try {
       const response = await authFetch(`/api/v1/leave/requests/${item.leaveId}/approvals/${item.approvalId}/decision`, {
@@ -140,6 +149,7 @@ export default function LeaveApprovalsPage() {
       <div className="table-wrap"><table className="data-table"><thead><tr><th>Kullanıcı</th><th>Personel</th><th>Sicil</th><th>Durum</th></tr></thead><tbody>{links.map(link => <tr key={link.id}><td><strong>{link.username}</strong></td><td>{link.employeeName}</td><td>{link.employeeNo}</td><td><span className={`status-badge ${link.isActive ? "success" : ""}`}>{link.isActive ? "Aktif" : "Pasif"}</span></td></tr>)}{links.length === 0 ? <tr><td className="empty-row" colSpan={4}>Henüz kullanıcı-personel eşlemesi bulunmuyor.</td></tr> : null}</tbody></table></div>
     </section> : null}
     </div>
+    {dialog}
   </main>;
 }
 

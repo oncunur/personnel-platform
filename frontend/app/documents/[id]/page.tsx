@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
+import { useActionDialog } from "../../components/ActionDialog";
 import { Icon } from "../../components/Icon";
 import { PageHeader } from "../../components/PageHeader";
 
@@ -38,6 +39,7 @@ export default function DocumentDetailPage() {
   const [history, setHistory] = useState<HistoryRow[]>([]);
   const [message, setMessage] = useState("Belge yükleniyor…");
   const [busy, setBusy] = useState(false);
+  const { ask, dialog } = useActionDialog();
   const permissions = useMemo(() => new Set(me?.permissions.map(x => x.code) ?? []), [me]);
 
   useEffect(() => { void initialize(); }, [documentId]);
@@ -69,7 +71,14 @@ export default function DocumentDetailPage() {
   }
 
   async function cancelDocument() {
-    if (!document || !window.confirm("Bu belge kaydını iptal etmek istiyor musunuz?")) return;
+    if (!document) return;
+    const confirmed = await ask({
+      title: "Belge iptal edilsin mi?",
+      description: `${document.documentTypeName} kaydı iptal durumuna alınacak ve geçmişte izlenmeye devam edecek.`,
+      confirmLabel: "Belgeyi iptal et",
+      tone: "danger",
+    });
+    if (!confirmed) return;
     setBusy(true);
     try {
       const response = await authFetch(`/api/v1/documents/employee-documents/${document.id}/cancel`, { method: "POST" });
@@ -133,6 +142,7 @@ export default function DocumentDetailPage() {
 
       <section className="panel"><div className="panel-heading"><div><span className="eyebrow dark">Sürüm ve işlem izi</span><h2>Belge geçmişi</h2><p>Belge üzerinde yapılan tüm durum ve sürüm değişiklikleri.</p></div><strong>{history.length}</strong></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Tarih</th><th>İşlem</th><th>Durum değişimi</th><th>Neden</th></tr></thead><tbody>{history.length === 0 ? <tr><td className="empty-row" colSpan={4}>Bu belge için geçmiş hareketi bulunmuyor.</td></tr> : history.map(x => <tr key={x.id}><td>{new Date(x.changedAt).toLocaleString("tr-TR")}<small>{x.changedBy}</small></td><td>{actionLabels[x.action] ?? x.action}</td><td>{x.fromStatus ? `${statusOf(x.fromStatus).label} → ${statusOf(x.toStatus).label}` : statusOf(x.toStatus).label}</td><td>{x.reason ?? "—"}</td></tr>)}</tbody></table></div></section>
     </div>
+    {dialog}
   </main>;
 }
 
