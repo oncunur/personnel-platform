@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Icon } from "../components/Icon";
+import { PageHeader } from "../components/PageHeader";
 
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
 type Permission = { code: string };
@@ -35,6 +36,7 @@ export default function PersonnelPage() {
   const [createCompanyId, setCreateCompanyId] = useState("");
   const [createDepartmentId, setCreateDepartmentId] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [message, setMessage] = useState("Personel verileri yükleniyor…");
   const [busy, setBusy] = useState(false);
 
@@ -99,7 +101,7 @@ export default function PersonnelPage() {
 
   function clearFilters() {
     setSearch(""); setCompanyId(""); setDepartmentId(""); setStatus(""); setTypeId(""); setProjectId("");
-    setFilterDepartments([]); setFilterProjects([]); void loadEmployees(1, true);
+    setFilterDepartments([]); setFilterProjects([]); setShowAdvancedFilters(false); void loadEmployees(1, true);
   }
 
   async function onCreate(event: FormEvent<HTMLFormElement>) {
@@ -141,53 +143,71 @@ export default function PersonnelPage() {
   }
 
   const totalPages = Math.max(1, Math.ceil(employees.totalCount / employees.pageSize));
-  const activeOnPage = employees.items.filter((employee) => employee.status === "ACTIVE").length;
   const filterCount = [search.trim(), companyId, departmentId, status, typeId, projectId].filter(Boolean).length;
+  const advancedFilterCount = [companyId, departmentId, status, typeId, projectId].filter(Boolean).length;
 
   return <main className="page-shell">
-    <header className="page-header">
-      <div className="page-heading"><span className="page-eyebrow">İnsan Kaynakları</span><h1 className="page-title">Personel Yönetimi</h1><p className="page-subtitle">Personel kayıtlarını bulun, filtreleyin ve tüm özlük süreçlerine Personel 360 üzerinden ulaşın.</p></div>
-      {permissions.has("personnel.create") ? <div className="page-actions"><button className="primary-button" type="button" onClick={() => setShowCreate((value) => !value)}><Icon name={showCreate ? "close" : "plus"} size={17}/>{showCreate ? "Formu kapat" : "Yeni personel"}</button></div> : null}
-    </header>
-    <div className="message-strip">{message}</div>
+    <PageHeader
+      eyebrow="İnsan Kaynakları"
+      title="Personel Yönetimi"
+      description="Personel kayıtlarını bulun, filtreleyin ve tüm özlük süreçlerine Personel 360 üzerinden ulaşın."
+      status={message}
+      actions={permissions.has("personnel.create") ? <button className="primary-button" type="button" aria-expanded={showCreate} aria-controls="personnel-create-form" onClick={() => setShowCreate((value) => !value)}><Icon name={showCreate ? "close" : "plus"} size={17}/>{showCreate ? "Formu kapat" : "Yeni personel"}</button> : null}
+    />
 
-    <section className="stat-grid" aria-label="Personel göstergeleri">
-      <article className="stat-card"><span className="stat-icon"><Icon name="people"/></span><span className="stat-copy"><strong>{employees.totalCount}</strong><span>Toplam personel</span></span></article>
-      <article className="stat-card"><span className="stat-icon"><Icon name="people"/></span><span className="stat-copy"><strong>{activeOnPage}</strong><span>Bu sayfadaki aktif</span></span></article>
-      <article className="stat-card"><span className="stat-icon"><Icon name="search"/></span><span className="stat-copy"><strong>{filterCount}</strong><span>Etkin filtre</span></span></article>
-      <article className="stat-card"><span className="stat-icon"><Icon name="calendar"/></span><span className="stat-copy"><strong>{employees.page}/{totalPages}</strong><span>Görüntülenen sayfa</span></span></article>
-    </section>
-
-    {showCreate && permissions.has("personnel.create") ? <section className="panel org-create">
+    {showCreate && permissions.has("personnel.create") ? <section className="panel org-create" id="personnel-create-form">
       <div className="panel-heading"><div><span className="page-eyebrow">Yeni kayıt</span><h2>Personel bilgileri</h2><p>Zorunlu organizasyon ve kimlik alanlarını doldurun.</p></div></div>
-      <form className="inline-form" onSubmit={onCreate}>
-        <label className="field-label">Şirket<select name="companyId" required value={createCompanyId} onChange={(event) => void loadCreateOrganization(event.target.value)}><option value="">Seçin</option>{companies.map((item) => <option key={item.id} value={item.id}>{item.code} · {item.name}</option>)}</select></label>
-        <label className="field-label">Şube<select name="branchId"><option value="">—</option>{createBranches.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-        <label className="field-label">Departman<select name="departmentId" required value={createDepartmentId} onChange={(event) => void loadCreatePositions(event.target.value)}><option value="">Seçin</option>{createDepartments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-        <label className="field-label">Pozisyon<select name="positionId" required><option value="">Seçin</option>{createPositions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-        <label className="field-label">Personel tipi<select name="employeeTypeId" required><option value="">Seçin</option>{types.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-        <Field name="employeeNo" label="Sicil numarası"/><Field name="firstName" label="Ad"/><Field name="lastName" label="Soyad"/><Field name="preferredName" label="Tercih edilen ad"/><Field name="birthDate" label="Doğum tarihi" type="date"/><Field name="hireDate" label="İşe giriş" type="date"/><Field name="phone" label="Telefon"/><Field name="email" label="E-posta" type="email"/>
-        <button className="primary-button" disabled={busy} type="submit">{busy ? "Kaydediliyor…" : "Personeli kaydet"}</button>
+      <form className="record-form" onSubmit={onCreate}>
+        <fieldset className="form-section">
+          <legend>Organizasyon ve işe giriş</legend>
+          <p className="form-section-description">Personelin çalışma kapsamını ve göreve başlangıcını belirleyin.</p>
+          <div className="form-grid">
+            <label className="field-label">Şirket<select name="companyId" required value={createCompanyId} onChange={(event) => void loadCreateOrganization(event.target.value)}><option value="">Şirket seçin</option>{companies.map((item) => <option key={item.id} value={item.id}>{item.code} · {item.name}</option>)}</select></label>
+            <label className="field-label">Şube<select name="branchId"><option value="">Şube yok</option>{createBranches.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+            <label className="field-label">Departman<select name="departmentId" required value={createDepartmentId} onChange={(event) => void loadCreatePositions(event.target.value)}><option value="">Departman seçin</option>{createDepartments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+            <label className="field-label">Pozisyon<select name="positionId" required><option value="">Pozisyon seçin</option>{createPositions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+            <label className="field-label">Personel tipi<select name="employeeTypeId" required><option value="">Personel tipi seçin</option>{types.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+            <Field name="hireDate" label="İşe giriş" type="date"/>
+          </div>
+        </fieldset>
+        <fieldset className="form-section">
+          <legend>Kimlik bilgileri</legend>
+          <p className="form-section-description">Personel kartında ve resmi kayıtlarda kullanılacak temel bilgiler.</p>
+          <div className="form-grid">
+            <Field name="employeeNo" label="Sicil numarası"/><Field name="firstName" label="Ad"/><Field name="lastName" label="Soyad"/><Field name="preferredName" label="Tercih edilen ad"/><Field name="birthDate" label="Doğum tarihi" type="date"/>
+          </div>
+        </fieldset>
+        <fieldset className="form-section">
+          <legend>İletişim bilgileri</legend>
+          <p className="form-section-description">İsteğe bağlı iletişim alanlarını daha sonra Personel 360 üzerinden güncelleyebilirsiniz.</p>
+          <div className="form-grid form-grid-compact"><Field name="phone" label="Telefon"/><Field name="email" label="E-posta" type="email"/></div>
+        </fieldset>
+        <div className="form-actions"><span>Zorunlu alanlar boş bırakılamaz.</span><button className="primary-button" disabled={busy} type="submit">{busy ? "Kaydediliyor…" : "Personeli kaydet"}</button></div>
       </form>
     </section> : null}
 
     <section className="panel filter-panel">
-      <div className="panel-heading"><div><span className="page-eyebrow">Arama ve filtreler</span><h2>Personel listesini daraltın</h2></div>{filterCount ? <strong>{filterCount}</strong> : null}</div>
-      <div className="filter-grid">
+      <div className="panel-heading"><div><span className="page-eyebrow">Arama ve filtreler</span><h2>Aradığınız kişiyi bulun</h2><p>Önce ad veya sicil ile arayın; gerekirse ayrıntılı filtreleri açın.</p></div>{filterCount ? <strong>{filterCount}</strong> : null}</div>
+      <div className="filter-toolbar">
         <label className="field-label filter-search">Personel ara<Icon name="search" size={17}/><input value={search} onChange={(event) => setSearch(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void loadEmployees(1); }} placeholder="Sicil, ad veya soyad"/></label>
-        <label className="field-label">Şirket<select value={companyId} onChange={(event) => { setCompanyId(event.target.value); setDepartmentId(""); }}><option value="">Tüm şirketler</option>{companies.map((item) => <option key={item.id} value={item.id}>{item.code} · {item.name}</option>)}</select></label>
-        <label className="field-label">Departman<select value={departmentId} onChange={(event) => setDepartmentId(event.target.value)}><option value="">Tüm departmanlar</option>{filterDepartments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-        <label className="field-label">Personel tipi<select value={typeId} onChange={(event) => setTypeId(event.target.value)}><option value="">Tüm tipler</option>{types.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-        <label className="field-label">Proje<select value={projectId} onChange={(event) => setProjectId(event.target.value)}><option value="">Tüm projeler</option>{filterProjects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-        <label className="field-label">Durum<select value={status} onChange={(event) => setStatus(event.target.value)}><option value="">Tüm durumlar</option><option value="ACTIVE">Aktif</option><option value="SUSPENDED">Askıda</option><option value="TERMINATED">Ayrıldı</option></select></label>
+        <div className="filter-toolbar-actions"><button className="secondary-button" type="button" aria-expanded={showAdvancedFilters} aria-controls="personnel-advanced-filters" onClick={() => setShowAdvancedFilters((value) => !value)}>Ayrıntılı filtreler{advancedFilterCount ? ` (${advancedFilterCount})` : ""}</button><button className="primary-button" type="button" onClick={() => void loadEmployees(1)}><Icon name="search" size={16}/>Sonuçları getir</button></div>
       </div>
-      <div className="filter-actions"><button className="secondary-button" type="button" disabled={!filterCount} onClick={clearFilters}>Temizle</button><button className="primary-button" type="button" onClick={() => void loadEmployees(1)}><Icon name="search" size={16}/>Sonuçları getir</button></div>
+      {showAdvancedFilters ? <div className="filter-details" id="personnel-advanced-filters">
+        <div className="filter-grid">
+          <label className="field-label">Şirket<select value={companyId} onChange={(event) => { setCompanyId(event.target.value); setDepartmentId(""); }}><option value="">Tüm şirketler</option>{companies.map((item) => <option key={item.id} value={item.id}>{item.code} · {item.name}</option>)}</select></label>
+          <label className="field-label">Departman<select value={departmentId} onChange={(event) => setDepartmentId(event.target.value)}><option value="">Tüm departmanlar</option>{filterDepartments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+          <label className="field-label">Personel tipi<select value={typeId} onChange={(event) => setTypeId(event.target.value)}><option value="">Tüm tipler</option>{types.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+          <label className="field-label">Proje<select value={projectId} onChange={(event) => setProjectId(event.target.value)}><option value="">Tüm projeler</option>{filterProjects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+          <label className="field-label">Durum<select value={status} onChange={(event) => setStatus(event.target.value)}><option value="">Tüm durumlar</option><option value="ACTIVE">Aktif</option><option value="SUSPENDED">Askıda</option><option value="TERMINATED">Ayrıldı</option></select></label>
+        </div>
+        <div className="filter-actions"><button className="secondary-button" type="button" disabled={!filterCount} onClick={clearFilters}>Tümünü temizle</button></div>
+      </div> : null}
     </section>
 
     <section className="panel">
       <div className="panel-heading"><div><span className="page-eyebrow">Personel listesi</span><h2>Kayıtlar</h2><p>{employees.totalCount} sonuçtan sayfa başına {employees.pageSize} kayıt gösteriliyor.</p></div><strong>{employees.totalCount}</strong></div>
-      <div className="table-wrap"><table className="data-table"><thead><tr><th>Personel</th><th>Sicil</th><th>Durum</th><th>İşe giriş</th><th>İşlem</th></tr></thead><tbody>
-        {employees.items.map((employee) => <tr key={employee.id}><td><div className="person-cell"><span className="person-avatar">{initials(employee)}</span><span className="person-cell-copy"><strong>{employee.firstName} {employee.lastName}</strong><small>Personel kaydı</small></span></div></td><td>{employee.employeeNo}</td><td><span className={`status-badge ${employee.status === "ACTIVE" ? "success" : employee.status === "SUSPENDED" ? "warning" : "danger"}`}>{statusLabel(employee.status)}</span></td><td>{formatDate(employee.hireDate)}</td><td><a href={`/personnel/${employee.id}`}>Personel 360 <Icon name="arrow" size={14}/></a></td></tr>)}
+      <div className="table-wrap responsive-table-wrap" role="region" aria-label="Personel kayıtları" tabIndex={0}><table className="data-table responsive-table"><thead><tr><th>Personel</th><th>Sicil</th><th>Durum</th><th>İşe giriş</th><th>İşlem</th></tr></thead><tbody>
+        {employees.items.map((employee) => <tr key={employee.id}><td data-label="Personel"><div className="person-cell"><span className="person-avatar">{initials(employee)}</span><span className="person-cell-copy"><strong>{employee.firstName} {employee.lastName}</strong><small>Personel kaydı</small></span></div></td><td data-label="Sicil">{employee.employeeNo}</td><td data-label="Durum"><span className={`status-badge ${employee.status === "ACTIVE" ? "success" : employee.status === "SUSPENDED" ? "warning" : "danger"}`}>{statusLabel(employee.status)}</span></td><td data-label="İşe giriş">{formatDate(employee.hireDate)}</td><td data-label="İşlem"><a href={`/personnel/${employee.id}`}>Personel 360 <Icon name="arrow" size={14}/></a></td></tr>)}
         {employees.items.length === 0 ? <tr><td className="empty-row" colSpan={5}>Filtrelere uygun personel kaydı bulunamadı.</td></tr> : null}
       </tbody></table></div>
       <div className="table-footer"><span>Sayfa {employees.page} / {totalPages}</span><div className="action-row"><button className="table-button" disabled={employees.page <= 1} onClick={() => void loadEmployees(employees.page - 1)}>Önceki</button><button className="table-button" disabled={employees.page >= totalPages} onClick={() => void loadEmployees(employees.page + 1)}>Sonraki</button></div></div>
