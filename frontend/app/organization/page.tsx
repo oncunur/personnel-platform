@@ -92,40 +92,40 @@ export default function OrganizationPage() {
   }
 
   async function onCompanySubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); const fd = new FormData(event.currentTarget);
+    event.preventDefault(); const form = event.currentTarget; const fd = new FormData(form);
     const row = await createEntity<Company>("/api/v1/organization/companies", { code: fd.get("code"), name: fd.get("name"), defaultCurrency: fd.get("currency") || "TRY" });
-    if (row) { setCompanies((current) => [...current, row].sort((a,b) => a.code.localeCompare(b.code))); setSelectedCompanyId(row.id); event.currentTarget.reset(); }
+    if (row) { setCompanies((current) => [...current, row].sort((a,b) => a.code.localeCompare(b.code))); setSelectedCompanyId(row.id); form.reset(); }
   }
 
   async function onBranchSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); if (!selectedCompanyId) return; const fd = new FormData(event.currentTarget);
+    event.preventDefault(); if (!selectedCompanyId) return; const form = event.currentTarget; const fd = new FormData(form);
     const row = await createEntity<Branch>("/api/v1/organization/branches", { companyId: selectedCompanyId, code: fd.get("code"), name: fd.get("name"), location: fd.get("location") || null });
-    if (row) { setBranches((current) => [...current, row]); event.currentTarget.reset(); }
+    if (row) { setBranches((current) => [...current, row]); form.reset(); }
   }
 
   async function onDepartmentSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); if (!selectedCompanyId) return; const fd = new FormData(event.currentTarget);
+    event.preventDefault(); if (!selectedCompanyId) return; const form = event.currentTarget; const fd = new FormData(form);
     const branchId = String(fd.get("branchId") ?? ""); const parentDepartmentId = String(fd.get("parentId") ?? "");
     const row = await createEntity<Department>("/api/v1/organization/departments", { companyId: selectedCompanyId, branchId: branchId || null, parentDepartmentId: parentDepartmentId || null, code: fd.get("code"), name: fd.get("name") });
-    if (row) { setDepartments((current) => [...current, row]); setSelectedDepartmentId(row.id); event.currentTarget.reset(); }
+    if (row) { setDepartments((current) => [...current, row]); setSelectedDepartmentId(row.id); form.reset(); }
   }
 
   async function onPositionSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); if (!selectedDepartmentId) return; const fd = new FormData(event.currentTarget);
+    event.preventDefault(); if (!selectedDepartmentId) return; const form = event.currentTarget; const fd = new FormData(form);
     const row = await createEntity<Position>("/api/v1/organization/positions", { departmentId: selectedDepartmentId, code: fd.get("code"), name: fd.get("name") });
-    if (row) { setPositions((current) => [...current, row]); event.currentTarget.reset(); }
+    if (row) { setPositions((current) => [...current, row]); form.reset(); }
   }
 
   async function onProjectSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); if (!selectedCompanyId) return; const fd = new FormData(event.currentTarget);
+    event.preventDefault(); if (!selectedCompanyId) return; const form = event.currentTarget; const fd = new FormData(form);
     const row = await createEntity<Project>("/api/v1/organization/projects", { companyId: selectedCompanyId, code: fd.get("code"), name: fd.get("name"), location: fd.get("location") || null, countryCode: fd.get("countryCode") || null, startDate: fd.get("startDate") || null, plannedEndDate: fd.get("plannedEndDate") || null });
-    if (row) { setProjects((current) => [...current, row]); event.currentTarget.reset(); }
+    if (row) { setProjects((current) => [...current, row]); form.reset(); }
   }
 
   async function onCostCenterSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); if (!selectedCompanyId) return; const fd = new FormData(event.currentTarget); const projectId = String(fd.get("projectId") ?? ""); const parentId = String(fd.get("parentId") ?? "");
+    event.preventDefault(); if (!selectedCompanyId) return; const form = event.currentTarget; const fd = new FormData(form); const projectId = String(fd.get("projectId") ?? ""); const parentId = String(fd.get("parentId") ?? "");
     const row = await createEntity<CostCenter>("/api/v1/organization/cost-centers", { companyId: selectedCompanyId, projectId: projectId || null, parentCostCenterId: parentId || null, code: fd.get("code"), name: fd.get("name") });
-    if (row) { setCostCenters((current) => [...current, row]); event.currentTarget.reset(); }
+    if (row) { setCostCenters((current) => [...current, row]); form.reset(); }
   }
 
   async function authorizedJson<T>(path: string): Promise<T | null> {

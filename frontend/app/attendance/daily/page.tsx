@@ -92,7 +92,8 @@ export default function DailyAttendancePage() {
     if (!selectedEmployee) return;
     setBusy(true);
     try {
-      const form = new FormData(event.currentTarget);
+      const formElement = event.currentTarget;
+      const form = new FormData(formElement);
       const localDate = String(form.get("eventDate"));
       const localTime = String(form.get("eventTime"));
       const body = {
@@ -107,7 +108,7 @@ export default function DailyAttendancePage() {
       };
       const response = await authFetch("/api/v1/attendance/raw-events", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!response?.ok) { setMessage(await errorMessage(response, "PDKS olayı kaydedilemedi.")); return; }
-      event.currentTarget.reset();
+      formElement.reset();
       setMessage("Ham PDKS olayı değiştirilemez kayıt olarak eklendi.");
       await reload(selectedEmployee.id, date);
     } finally { setBusy(false); }
