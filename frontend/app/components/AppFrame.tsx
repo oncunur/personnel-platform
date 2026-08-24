@@ -55,14 +55,19 @@ export function AppFrame({ children }: { children: ReactNode }) {
   const [navQuery, setNavQuery] = useState("");
   const [openGroups, setOpenGroups] = useState<Set<string>>(() => new Set(["Genel"]));
   const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const menuCloseButtonRef = useRef<HTMLButtonElement>(null);
   const isPublic = publicRoutes.has(pathname);
   useEffect(() => { if (!isPublic) void loadSession(); }, [isPublic]);
   useEffect(() => { setMenuOpen(false); setNavQuery(""); }, [pathname]);
   useEffect(() => {
     if (!menuOpen) return;
+    const focusFrame = window.requestAnimationFrame(() => menuCloseButtonRef.current?.focus());
     const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") closeMenu(true); };
     document.addEventListener("keydown", closeOnEscape);
-    return () => document.removeEventListener("keydown", closeOnEscape);
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
   }, [menuOpen]);
 
   function closeMenu(returnFocus = false) {
@@ -134,7 +139,7 @@ export function AppFrame({ children }: { children: ReactNode }) {
   return <div className="app-frame">
     <a className="skip-link" href="#main-content">Ana içeriğe geç</a>
     <aside id="app-navigation" className={`app-sidebar ${menuOpen ? "is-open" : ""}`} aria-label="Ana navigasyon">
-      <div className="app-brand"><span className="app-logo" aria-hidden="true">Pİ</span><span className="app-brand-copy"><strong>Personel & İdari</strong><small>İşler Platformu</small></span><button className="sidebar-close" type="button" onClick={() => closeMenu(true)} aria-label="Menüyü kapat"><Icon name="close"/></button></div>
+      <div className="app-brand"><span className="app-logo" aria-hidden="true">Pİ</span><span className="app-brand-copy"><strong>Personel & İdari</strong><small>İşler Platformu</small></span><button ref={menuCloseButtonRef} className="sidebar-close" type="button" onClick={() => closeMenu(true)} aria-label="Menüyü kapat"><Icon name="close"/></button></div>
       <nav className="app-nav">
         {me ? <><label className="nav-search"><span className="nav-search-icon"><Icon name="search" size={17}/></span><span className="nav-search-label">Menüde ara</span><input type="search" value={navQuery} onChange={(event) => setNavQuery(event.target.value)} placeholder="Menüde ara…" autoComplete="off"/></label>
           {filteredGroups.length ? filteredGroups.map((group, index) => {
