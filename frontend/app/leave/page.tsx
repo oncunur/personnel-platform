@@ -60,7 +60,8 @@ export default function LeavePage() {
   async function createLeave(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true);
     try {
-      const form = new FormData(event.currentTarget);
+      const formElement = event.currentTarget;
+      const form = new FormData(formElement);
       const body = {
         employeeId: form.get("employeeId"),
         leaveTypeId: form.get("leaveTypeId"),
@@ -78,7 +79,7 @@ export default function LeavePage() {
       setMessage(type?.attachmentRequired
         ? "İzin taslağı oluşturuldu. Bu izin türünde gönderimden önce destekleyici belge yüklemek zorunludur."
         : "İzin taslağı oluşturuldu. Gönder butonu ile bakiye ve çakışma kontrolleri çalıştırılır.");
-      event.currentTarget.reset();
+      formElement.reset();
     } finally { setBusy(false); }
   }
 
