@@ -1,6 +1,8 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { Icon } from "../components/Icon";
+import { PageHeader } from "../components/PageHeader";
 
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
 type Permission = { code: string };
@@ -15,6 +17,39 @@ type Center = { criticalCount: number; pendingCount: number; overdueCount: numbe
 type RunResult = { sourceEvents: number; ruleMatches: number; created: number; duplicates: number; escalated: number };
 type AuthResponse = { accessToken: string };
 
+const priorityLabels: Record<string, { label: string; tone: string }> = {
+  INFO: { label: "Bilgi", tone: "" },
+  NORMAL: { label: "Normal", tone: "" },
+  IMPORTANT: { label: "Önemli", tone: "warning" },
+  CRITICAL: { label: "Kritik", tone: "danger" },
+};
+
+const notificationStatuses: Record<string, { label: string; tone: string }> = {
+  NEW: { label: "Yeni", tone: "warning" },
+  SEEN: { label: "Görüldü", tone: "" },
+  IN_PROGRESS: { label: "İşlemde", tone: "warning" },
+  SNOOZED: { label: "Ertelendi", tone: "" },
+  COMPLETED: { label: "Tamamlandı", tone: "success" },
+  ESCALATED: { label: "Üst seviyeye aktarıldı", tone: "danger" },
+};
+
+const recipientLabels: Record<string, string> = {
+  CURRENT_APPROVER: "Mevcut onaylayan",
+  REQUESTER: "Talep sahibi",
+  RESPONSIBLE: "Sorumlu kişi",
+  USER: "Belirli kullanıcı",
+  ROLE: "Belirli rol",
+  MANAGER: "Yönetici",
+};
+
+function priorityOf(value: string) {
+  return priorityLabels[value] ?? { label: value, tone: "" };
+}
+
+function notificationStatusOf(value: string) {
+  return notificationStatuses[value] ?? { label: value, tone: "" };
+}
+
 export default function NotificationsPage() {
   const [me, setMe] = useState<Me | null>(null);
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -25,9 +60,18 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<NotificationRow[]>([]);
   const [center, setCenter] = useState<Center | null>(null);
   const [companyId, setCompanyId] = useState("");
-  const [message, setMessage] = useState("Notification Center yükleniyor…");
+  const [message, setMessage] = useState("Bildirim ve eylem merkezi yükleniyor…");
   const [busy, setBusy] = useState(false);
   const permissions = useMemo(() => new Set(me?.permissions.map(x => x.code) ?? []), [me]);
+  const activeUsers = useMemo(() => users.filter(x => x.isActive), [users]);
+  const attentionRows = useMemo(() => {
+    const seen = new Set<string>();
+    return [...(center?.critical ?? []), ...(center?.overdue ?? [])].filter(row => {
+      if (seen.has(row.id)) return false;
+      seen.add(row.id);
+      return true;
+    });
+  }, [center]);
 
   useEffect(() => { void initialize(); }, []);
   useEffect(() => { if (me) void reload(companyId); }, [companyId]);
@@ -44,7 +88,7 @@ export default function NotificationsPage() {
     ]);
     const cs = companyRows ?? []; setCompanies(cs); setUsers(userRows ?? []); setRoles(roleRows ?? []);
     if (cs.length) setCompanyId(cs[0].id); else await reload("");
-    setMessage("Notification Center hazır.");
+    setMessage("Bildirim ve eylem merkezi güncel.");
   }
 
   async function reload(cid = companyId) {
@@ -63,8 +107,8 @@ export default function NotificationsPage() {
     try {
       const form = event.currentTarget; const fd = new FormData(form);
       const response = await authFetch("/api/v1/notifications/templates", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ companyId, code: fd.get("code"), name: fd.get("name"), titleTemplate: fd.get("title"), bodyTemplate: fd.get("body"), deepLinkTemplate: fd.get("deepLink") }) });
-      if (!response?.ok) { setMessage(await errorMessage(response, "Template oluşturulamadı.")); return; }
-      form.reset(); setMessage("Bildirim template oluşturuldu."); await reload();
+      if (!response?.ok) { setMessage(await errorMessage(response, "Bildirim şablonu oluşturulamadı.")); return; }
+      form.reset(); setMessage("Bildirim şablonu oluşturuldu."); await reload();
     } finally { setBusy(false); }
   }
 
@@ -84,7 +128,7 @@ export default function NotificationsPage() {
 
   async function toggleTemplate(row: Template) {
     const response = await authFetch(`/api/v1/notifications/templates/${row.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ version: row.version, name: row.name, titleTemplate: row.titleTemplate, bodyTemplate: row.bodyTemplate, deepLinkTemplate: row.deepLinkTemplate, isActive: !row.isActive }) });
-    setMessage(response?.ok ? `Template ${row.isActive ? "pasife" : "aktife"} alındı.` : await errorMessage(response, "Template güncellenemedi.")); await reload();
+    setMessage(response?.ok ? `Bildirim şablonu ${row.isActive ? "pasife" : "aktife"} alındı.` : await errorMessage(response, "Bildirim şablonu güncellenemedi.")); await reload();
   }
 
   async function toggleRule(row: Rule) {
@@ -97,7 +141,8 @@ export default function NotificationsPage() {
     try {
       const payload = action === "snooze" ? { version: row.version, until: new Date(Date.now() + 60 * 60 * 1000).toISOString() } : { version: row.version };
       const response = await authFetch(`/api/v1/notifications/${row.id}/${action}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-      setMessage(response?.ok ? `Bildirim ${action} işlemi tamamlandı.` : await errorMessage(response, "Bildirim güncellenemedi.")); await reload();
+      const actionLabel = { seen: "görüldü", start: "üzerime alındı", complete: "tamamlandı", snooze: "bir saat ertelendi" }[action];
+      setMessage(response?.ok ? `Bildirim ${actionLabel}.` : await errorMessage(response, "Bildirim güncellenemedi.")); await reload();
     } finally { setBusy(false); }
   }
 
@@ -106,7 +151,7 @@ export default function NotificationsPage() {
     try {
       const response = await authFetch("/api/v1/notifications/process", { method: "POST" });
       if (!response?.ok) { setMessage(await errorMessage(response, "Bildirim işleme başarısız.")); return; }
-      const result = await response.json() as RunResult; setMessage(`İşlendi: ${result.sourceEvents} event · ${result.created} yeni · ${result.duplicates} dedupe · ${result.escalated} escalation.`); await reload();
+      const result = await response.json() as RunResult; setMessage(`${result.sourceEvents} kaynak olayı işlendi; ${result.created} yeni bildirim oluşturuldu, ${result.duplicates} tekrar atlandı ve ${result.escalated} kayıt üst seviyeye aktarıldı.`); await reload();
     } finally { setBusy(false); }
   }
 
@@ -121,32 +166,38 @@ export default function NotificationsPage() {
   async function errorMessage(response: Response | null, fallback: string) { if (!response) return fallback; const body = await response.json().catch(() => null) as { error?: { code?: string; message?: string } } | null; return body?.error?.code ? `${body.error.code}: ${body.error.message ?? fallback}` : body?.error?.message ?? fallback; }
   const safeLink = (value: string) => value.startsWith("/") && !value.startsWith("//") ? value : "#";
 
-  return <main className="shell">
-    <a className="back" href="/dashboard">← Dashboard</a>
-    <section className="hero compact"><span className="eyebrow">SPRINT 12 · NOTIFICATION</span><h1>Notification & Action Center</h1><p>{message}</p><div className="actions action-row">{permissions.has("notification.process") ? <button className="primary-button" disabled={busy} onClick={() => void processNotifications()}>Eventleri işle</button> : null}</div></section>
+  return <main className="page-shell">
+    <PageHeader eyebrow="İş ve uyarı merkezi" title="Bildirimler" description="Kritik işleri önceliklendirin, bekleyen eylemleri sonuçlandırın ve bildirim kurallarını yönetin." status={message} actions={permissions.has("notification.process") ? <button className="primary-button" disabled={busy} onClick={() => void processNotifications()}><Icon name="workflow" size={17}/>Yeni olayları işle</button> : null}/>
 
-    {companies.length ? <section className="panel audit-panel"><label className="field-label">Şirket<select value={companyId} onChange={e => setCompanyId(e.target.value)}><option value="">Tümü / scope</option>{companies.map(x => <option key={x.id} value={x.id}>{x.code} · {x.name}</option>)}</select></label></section> : null}
-
-    {permissions.has("notification.view") ? <>
-      <section className="grid"><article className="card"><span>CRITICAL</span><h2>{center?.criticalCount ?? 0}</h2></article><article className="card"><span>PENDING</span><h2>{center?.pendingCount ?? 0}</h2></article><article className="card"><span>OVERDUE</span><h2>{center?.overdueCount ?? 0}</h2></article></section>
-      <NotificationTable title="Critical" rows={center?.critical ?? []} action={act} safeLink={safeLink} busy={busy}/>
-      <NotificationTable title="Overdue" rows={center?.overdue ?? []} action={act} safeLink={safeLink} busy={busy}/>
-      <NotificationTable title="Pending / Action Center" rows={center?.pending ?? []} action={act} safeLink={safeLink} busy={busy}/>
-      <NotificationTable title="Tüm Bildirimler" rows={notifications} action={act} safeLink={safeLink} busy={busy}/>
-    </> : null}
-
-    {permissions.has("notification.rule.manage") ? <section className="security-grid">
-      <article className="panel"><h2>Template oluştur</h2><form className="inline-form" onSubmit={createTemplate}><input name="code" placeholder="Kod" required/><input name="name" placeholder="Ad" required/><input name="title" placeholder="Başlık: {{message}}" required/><input name="body" placeholder="Gövde template" required/><input name="deepLink" placeholder="/workflow?requestId={{requestId}}" required/><button className="primary-button" disabled={busy || !companyId}>Oluştur</button></form></article>
-      <article className="panel"><h2>Kural oluştur</h2><form className="inline-form" onSubmit={createRule}><input name="code" placeholder="Kural kodu" required/><input name="name" placeholder="Kural adı" required/><select name="sourceModule" defaultValue="WORKFLOW"><option>WORKFLOW</option><option>ADMINISTRATION</option></select><input name="eventType" placeholder="WORKFLOW_APPROVAL_PENDING" required/><select name="priority" defaultValue="IMPORTANT"><option>INFO</option><option>NORMAL</option><option>IMPORTANT</option><option>CRITICAL</option></select><select name="recipientKind" defaultValue="CURRENT_APPROVER"><option>CURRENT_APPROVER</option><option>REQUESTER</option><option>RESPONSIBLE</option><option>USER</option><option>ROLE</option></select><select name="recipientTarget" defaultValue=""><option value="">Dinamik / hedef seçin</option>{users.filter(x => x.isActive).map(x => <option key={`u-${x.id}`} value={x.id}>USER · {x.username}</option>)}{roles.map(x => <option key={`r-${x.id}`} value={x.id}>ROLE · {x.code}</option>)}</select><select name="templateId" required defaultValue=""><option value="">Template seçin</option>{templates.filter(x => x.isActive).map(x => <option key={x.id} value={x.id}>{x.code} · {x.name}</option>)}</select><input name="escalateAfter" type="number" min="1" placeholder="Escalation dk (opsiyonel)"/><select name="escalationKind" defaultValue="NONE"><option>NONE</option><option>MANAGER</option><option>USER</option><option>ROLE</option></select><select name="escalationTarget" defaultValue=""><option value="">Manager / hedef seçin</option>{users.filter(x => x.isActive).map(x => <option key={`eu-${x.id}`} value={x.id}>USER · {x.username}</option>)}{roles.map(x => <option key={`er-${x.id}`} value={x.id}>ROLE · {x.code}</option>)}</select><button className="primary-button" disabled={busy || !companyId}>Kural ekle</button></form></article>
+    {permissions.has("notification.view") ? <section className="stat-grid" aria-label="Bildirim özeti">
+      <article className="stat-card"><span className="stat-icon"><Icon name="bell"/></span><span className="stat-copy"><strong>{center?.criticalCount ?? 0}</strong><span>Kritik bildirim</span></span></article>
+      <article className="stat-card"><span className="stat-icon"><Icon name="workflow"/></span><span className="stat-copy"><strong>{center?.pendingCount ?? 0}</strong><span>Eylem bekleyen</span></span></article>
+      <article className="stat-card"><span className="stat-icon"><Icon name="calendar"/></span><span className="stat-copy"><strong>{center?.overdueCount ?? 0}</strong><span>Süresi geçen</span></span></article>
+      <article className="stat-card"><span className="stat-icon"><Icon name="chart"/></span><span className="stat-copy"><strong>{notifications.length}</strong><span>Toplam bildirim</span></span></article>
     </section> : null}
 
-    {permissions.has("notification.rule.view") ? <>
-      <section className="panel audit-panel"><div className="panel-heading"><div><span className="eyebrow dark">TEMPLATES</span><h2>Bildirim Template’leri</h2></div><strong>{templates.length}</strong></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Kod</th><th>Ad</th><th>Başlık</th><th>Deep Link</th><th>Durum</th><th></th></tr></thead><tbody>{templates.map(x => <tr key={x.id}><td>{x.code}</td><td>{x.name}</td><td>{x.titleTemplate}</td><td>{x.deepLinkTemplate}</td><td>{x.isActive ? "ACTIVE" : "INACTIVE"}</td><td>{permissions.has("notification.rule.manage") ? <button className="secondary-button" onClick={() => void toggleTemplate(x)}>{x.isActive ? "Pasifleştir" : "Aktifleştir"}</button> : null}</td></tr>)}</tbody></table></div></section>
-      <section className="panel audit-panel"><div className="panel-heading"><div><span className="eyebrow dark">RULES</span><h2>Routing / Escalation Kuralları</h2></div><strong>{rules.length}</strong></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Kod</th><th>Kaynak Event</th><th>Priority</th><th>Recipient</th><th>Template</th><th>Escalation</th><th>Durum</th><th></th></tr></thead><tbody>{rules.map(x => <tr key={x.id}><td><strong>{x.code}</strong><small>{x.name}</small></td><td>{x.sourceModule} · {x.eventType}</td><td>{x.priority}</td><td>{x.recipientKind} · {x.recipientUsername ?? x.recipientRoleCode ?? "dynamic"}</td><td>{x.templateCode}</td><td>{x.escalateAfterMinutes ? `${x.escalateAfterMinutes} dk → ${x.escalationRecipientKind} ${x.escalationUsername ?? x.escalationRoleCode ?? ""}` : "—"}</td><td>{x.isActive ? "ACTIVE" : "INACTIVE"}</td><td>{permissions.has("notification.rule.manage") ? <button className="secondary-button" onClick={() => void toggleRule(x)}>{x.isActive ? "Pasifleştir" : "Aktifleştir"}</button> : null}</td></tr>)}</tbody></table></div></section>
-    </> : null}
+    {companies.length ? <section className="panel workspace-panel"><div className="workspace-copy"><span className="eyebrow dark">Çalışma alanı</span><h2>Bildirim kapsamı</h2><p>Görüntülenecek şirketi ve kurallarını seçin.</p></div><label className="field-label workspace-select">Şirket<select value={companyId} onChange={e => setCompanyId(e.target.value)}><option value="">Yetki kapsamımdaki tüm şirketler</option>{companies.map(x => <option key={x.id} value={x.id}>{x.code} · {x.name}</option>)}</select></label></section> : null}
+
+    <div className="content-stack">
+      {permissions.has("notification.view") ? <>
+        {attentionRows.length ? <NotificationTable title="Öncelikli inceleme" description="Kritik veya süresi geçmiş bildirimler önce gösterilir." rows={attentionRows} action={act} safeLink={safeLink} busy={busy} tone="danger"/> : <section className="panel attention-panel success"><div className="panel-heading"><div><span className="eyebrow dark">Öncelikli inceleme</span><h2>Acil müdahale gereken bildirim yok</h2><p>Kritik ve süresi geçmiş işler temiz görünüyor.</p></div><span className="status-badge success">Güncel</span></div></section>}
+        <NotificationTable title="Eylem bekleyenler" description="Üzerinizde aksiyon bekleyen açık bildirimler." rows={center?.pending ?? []} action={act} safeLink={safeLink} busy={busy}/>
+        <NotificationTable title="Bildirim geçmişi" description="Seçili kapsamda oluşturulan tüm bildirimler." rows={notifications} action={act} safeLink={safeLink} busy={busy}/>
+      </> : null}
+
+      {permissions.has("notification.rule.manage") ? <section className="organization-grid">
+        <article className="panel"><div className="panel-heading"><div><span className="eyebrow dark">İçerik</span><h2>Bildirim şablonu oluştur</h2><p>Başlık, açıklama ve yönlendirme bağlantısını tanımlayın.</p></div></div><form className="stack" onSubmit={createTemplate}><label className="field-label">Şablon kodu<input name="code" required/></label><label className="field-label">Şablon adı<input name="name" required/></label><label className="field-label">Bildirim başlığı<input name="title" required/></label><label className="field-label">Bildirim metni<textarea name="body" required/></label><label className="field-label">Yönlendirme yolu<input name="deepLink" required/><small>Örnek: /workflow?requestId=&#123;&#123;requestId&#125;&#125;</small></label><button className="primary-button" disabled={busy || !companyId}><Icon name="plus" size={17}/>Şablon oluştur</button></form></article>
+        <article className="panel"><div className="panel-heading"><div><span className="eyebrow dark">Yönlendirme</span><h2>Bildirim kuralı oluştur</h2><p>Hangi olayın kime, hangi öncelikle iletileceğini belirleyin.</p></div></div><form className="stack" onSubmit={createRule}><div className="inline-form"><label className="field-label">Kural kodu<input name="code" required/></label><label className="field-label">Kural adı<input name="name" required/></label><label className="field-label">Kaynak modül<select name="sourceModule" defaultValue="WORKFLOW"><option value="WORKFLOW">İş akışları</option><option value="ADMINISTRATION">İdari işler</option></select></label><label className="field-label">Olay türü<input name="eventType" required/></label><label className="field-label">Öncelik<select name="priority" defaultValue="IMPORTANT"><option value="INFO">Bilgi</option><option value="NORMAL">Normal</option><option value="IMPORTANT">Önemli</option><option value="CRITICAL">Kritik</option></select></label><label className="field-label">Alıcı türü<select name="recipientKind" defaultValue="CURRENT_APPROVER"><option value="CURRENT_APPROVER">Mevcut onaylayan</option><option value="REQUESTER">Talep sahibi</option><option value="RESPONSIBLE">Sorumlu kişi</option><option value="USER">Belirli kullanıcı</option><option value="ROLE">Belirli rol</option></select></label><label className="field-label">Alıcı hedefi<select name="recipientTarget" defaultValue=""><option value="">Dinamik alıcı / hedef seçin</option>{activeUsers.map(x => <option key={`u-${x.id}`} value={x.id}>Kullanıcı · {x.username}</option>)}{roles.map(x => <option key={`r-${x.id}`} value={x.id}>Rol · {x.code}</option>)}</select></label><label className="field-label">Bildirim şablonu<select name="templateId" required defaultValue=""><option value="">Şablon seçin</option>{templates.filter(x => x.isActive).map(x => <option key={x.id} value={x.id}>{x.code} · {x.name}</option>)}</select></label><label className="field-label">Üst seviyeye aktarma süresi (dk)<input name="escalateAfter" type="number" min="1"/></label><label className="field-label">Üst seviye alıcı türü<select name="escalationKind" defaultValue="NONE"><option value="NONE">Aktarma yok</option><option value="MANAGER">Yönetici</option><option value="USER">Belirli kullanıcı</option><option value="ROLE">Belirli rol</option></select></label><label className="field-label">Üst seviye hedefi<select name="escalationTarget" defaultValue=""><option value="">Yönetici / hedef seçin</option>{activeUsers.map(x => <option key={`eu-${x.id}`} value={x.id}>Kullanıcı · {x.username}</option>)}{roles.map(x => <option key={`er-${x.id}`} value={x.id}>Rol · {x.code}</option>)}</select></label></div><button className="primary-button" disabled={busy || !companyId}><Icon name="plus" size={17}/>Kural ekle</button></form></article>
+      </section> : null}
+
+      {permissions.has("notification.rule.view") ? <>
+        <section className="panel"><div className="panel-heading"><div><span className="eyebrow dark">Şablonlar</span><h2>Bildirim içerikleri</h2><p>Kullanılabilir başlık, metin ve yönlendirme şablonları.</p></div><strong>{templates.length}</strong></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Kod / Ad</th><th>Başlık</th><th>Yönlendirme</th><th>Durum</th><th>İşlem</th></tr></thead><tbody>{templates.length === 0 ? <tr><td className="empty-row" colSpan={5}>Henüz bildirim şablonu tanımlanmadı.</td></tr> : templates.map(x => <tr key={x.id}><td><strong>{x.name}</strong><small>{x.code}</small></td><td>{x.titleTemplate}</td><td><code>{x.deepLinkTemplate}</code></td><td><span className={`status-badge ${x.isActive ? "success" : ""}`}>{x.isActive ? "Aktif" : "Pasif"}</span></td><td>{permissions.has("notification.rule.manage") ? <button className="secondary-button" onClick={() => void toggleTemplate(x)}>{x.isActive ? "Pasife al" : "Aktife al"}</button> : null}</td></tr>)}</tbody></table></div></section>
+        <section className="panel"><div className="panel-heading"><div><span className="eyebrow dark">Kurallar</span><h2>Yönlendirme ve üst seviye kuralları</h2><p>Kaynak olayların alıcı ve gecikme davranışlarını yönetin.</p></div><strong>{rules.length}</strong></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Kural</th><th>Kaynak olay</th><th>Öncelik</th><th>Alıcı</th><th>Şablon</th><th>Üst seviyeye aktarma</th><th>Durum</th><th>İşlem</th></tr></thead><tbody>{rules.length === 0 ? <tr><td className="empty-row" colSpan={8}>Henüz bildirim kuralı tanımlanmadı.</td></tr> : rules.map(x => { const priority = priorityOf(x.priority); return <tr key={x.id}><td><strong>{x.name}</strong><small>{x.code}</small></td><td>{x.sourceModule}<small>{x.eventType}</small></td><td><span className={`status-badge ${priority.tone}`}>{priority.label}</span></td><td>{recipientLabels[x.recipientKind] ?? x.recipientKind}<small>{x.recipientUsername ?? x.recipientRoleCode ?? "Dinamik"}</small></td><td>{x.templateCode}</td><td>{x.escalateAfterMinutes ? `${x.escalateAfterMinutes} dk sonra ${recipientLabels[x.escalationRecipientKind ?? ""] ?? x.escalationRecipientKind ?? ""} ${x.escalationUsername ?? x.escalationRoleCode ?? ""}` : "Yok"}</td><td><span className={`status-badge ${x.isActive ? "success" : ""}`}>{x.isActive ? "Aktif" : "Pasif"}</span></td><td>{permissions.has("notification.rule.manage") ? <button className="secondary-button" onClick={() => void toggleRule(x)}>{x.isActive ? "Pasife al" : "Aktife al"}</button> : null}</td></tr>; })}</tbody></table></div></section>
+      </> : null}
+    </div>
   </main>;
 }
 
-function NotificationTable({ title, rows, action, safeLink, busy }: { title: string; rows: NotificationRow[]; action: (row: NotificationRow, action: "seen" | "start" | "complete" | "snooze") => Promise<void>; safeLink: (value: string) => string; busy: boolean }) {
-  return <section className="panel audit-panel"><div className="panel-heading"><div><span className="eyebrow dark">ACTION CENTER</span><h2>{title}</h2></div><strong>{rows.length}</strong></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Priority</th><th>Bildirim</th><th>Kaynak</th><th>Durum</th><th>SLA / Zaman</th><th>Aksiyon</th></tr></thead><tbody>{rows.length === 0 ? <tr><td colSpan={6}>Kayıt yok.</td></tr> : rows.map(x => <tr key={x.id}><td><strong>{x.priority}</strong>{x.escalationLevel ? <small>Escalation L{x.escalationLevel}</small> : null}</td><td><strong>{x.title}</strong><small>{x.body}</small></td><td>{x.sourceModule}<small>{x.sourceEventType}</small></td><td>{x.status}</td><td>{x.dueAt ? new Date(x.dueAt).toLocaleString() : new Date(x.createdAt).toLocaleString()}</td><td><div className="actions action-row"><a className="table-button" href={safeLink(x.deepLink)}>Aç</a>{x.status === "NEW" ? <button className="secondary-button" disabled={busy} onClick={() => void action(x, "seen")}>Gördüm</button> : null}{!["COMPLETED","ESCALATED"].includes(x.status) ? <button className="secondary-button" disabled={busy} onClick={() => void action(x, "start")}>Başla</button> : null}{!["COMPLETED","ESCALATED"].includes(x.status) ? <button className="secondary-button" disabled={busy} onClick={() => void action(x, "snooze")}>1s Ertele</button> : null}{!["COMPLETED","ESCALATED"].includes(x.status) ? <button className="primary-button" disabled={busy} onClick={() => void action(x, "complete")}>Tamamla</button> : null}</div></td></tr>)}</tbody></table></div></section>;
+function NotificationTable({ title, description, rows, action, safeLink, busy, tone = "" }: { title: string; description: string; rows: NotificationRow[]; action: (row: NotificationRow, action: "seen" | "start" | "complete" | "snooze") => Promise<void>; safeLink: (value: string) => string; busy: boolean; tone?: string }) {
+  return <section className={`panel attention-panel ${tone}`}><div className="panel-heading"><div><span className="eyebrow dark">Eylem merkezi</span><h2>{title}</h2><p>{description}</p></div><strong>{rows.length}</strong></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Öncelik</th><th>Bildirim</th><th>Kaynak</th><th>Durum</th><th>Son tarih / Oluşturma</th><th>İşlemler</th></tr></thead><tbody>{rows.length === 0 ? <tr><td className="empty-row" colSpan={6}>Bu bölümde işlem bekleyen bildirim yok.</td></tr> : rows.map(x => { const priority = priorityOf(x.priority); const status = notificationStatusOf(x.status); const isOpen = !["COMPLETED", "ESCALATED"].includes(x.status); return <tr key={x.id}><td><span className={`status-badge ${priority.tone}`}>{priority.label}</span>{x.escalationLevel ? <small>Aktarma seviyesi {x.escalationLevel}</small> : null}</td><td><strong>{x.title}</strong><small>{x.body}</small></td><td>{x.sourceModule}<small>{x.sourceEventType}</small></td><td><span className={`status-badge ${status.tone}`}>{status.label}</span>{x.snoozedUntil ? <small>{new Date(x.snoozedUntil).toLocaleString("tr-TR")} tarihine ertelendi</small> : null}</td><td>{new Date(x.dueAt ?? x.createdAt).toLocaleString("tr-TR")}</td><td><div className="action-row"><a className="table-button" href={safeLink(x.deepLink)}>Kaydı aç</a>{x.status === "NEW" ? <button className="secondary-button" disabled={busy} onClick={() => void action(x, "seen")}>Gördüm</button> : null}{isOpen ? <button className="secondary-button" disabled={busy} onClick={() => void action(x, "start")}>Üzerime al</button> : null}{isOpen ? <button className="secondary-button" disabled={busy} onClick={() => void action(x, "snooze")}>1 saat ertele</button> : null}{isOpen ? <button className="primary-button" disabled={busy} onClick={() => void action(x, "complete")}>Tamamla</button> : null}</div></td></tr>; })}</tbody></table></div></section>;
 }
