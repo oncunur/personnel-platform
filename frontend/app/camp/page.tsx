@@ -105,10 +105,11 @@ export default function CampPage() {
   async function createCamp(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true);
     try {
-      const form = new FormData(event.currentTarget);
+      const formElement = event.currentTarget;
+      const form = new FormData(formElement);
       const response = await authFetch("/api/v1/camp/sites", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ companyId: form.get("companyId"), code: form.get("code"), name: form.get("name"), address: form.get("address") || null }) });
       if (!response?.ok) { setMessage(await errorMessage(response, "Kamp oluşturulamadı.")); return; }
-      event.currentTarget.reset();
+      formElement.reset();
       setCamps(await json<Camp[]>("/api/v1/camp/sites") ?? []); setMessage("Kamp oluşturuldu.");
     } finally { setBusy(false); }
   }
@@ -116,41 +117,45 @@ export default function CampPage() {
   async function createRoom(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (!campId) return; setBusy(true);
     try {
-      const form = new FormData(event.currentTarget);
+      const formElement = event.currentTarget;
+      const form = new FormData(formElement);
       const floorRaw = String(form.get("floor") ?? "");
       const response = await authFetch(`/api/v1/camp/sites/${campId}/rooms`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: form.get("code"), name: form.get("name"), floor: floorRaw ? Number(floorRaw) : null }) });
       if (!response?.ok) { setMessage(await errorMessage(response, "Oda oluşturulamadı.")); return; }
-      event.currentTarget.reset(); setRooms(await json<Room[]>(`/api/v1/camp/sites/${campId}/rooms`) ?? []); setMessage("Oda oluşturuldu.");
+      formElement.reset(); setRooms(await json<Room[]>(`/api/v1/camp/sites/${campId}/rooms`) ?? []); setMessage("Oda oluşturuldu.");
     } finally { setBusy(false); }
   }
 
   async function createBed(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (!roomId) return; setBusy(true);
     try {
-      const form = new FormData(event.currentTarget);
+      const formElement = event.currentTarget;
+      const form = new FormData(formElement);
       const response = await authFetch(`/api/v1/camp/rooms/${roomId}/beds`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: form.get("code") }) });
       if (!response?.ok) { setMessage(await errorMessage(response, "Yatak oluşturulamadı.")); return; }
-      event.currentTarget.reset(); setBeds(await json<Bed[]>(`/api/v1/camp/rooms/${roomId}/beds`) ?? []); setMessage("Yatak oluşturuldu.");
+      formElement.reset(); setBeds(await json<Bed[]>(`/api/v1/camp/rooms/${roomId}/beds`) ?? []); setMessage("Yatak oluşturuldu.");
     } finally { setBusy(false); }
   }
 
   async function createRate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (!campId) return; setBusy(true);
     try {
-      const form = new FormData(event.currentTarget);
+      const formElement = event.currentTarget;
+      const form = new FormData(formElement);
       const response = await authFetch(`/api/v1/camp/sites/${campId}/rates`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ validFrom: form.get("validFrom"), validUntilExclusive: form.get("validUntilExclusive") || null, nightlyRate: Number(form.get("nightlyRate")), currency: form.get("currency") }) });
       if (!response?.ok) { setMessage(await errorMessage(response, "Fiyat kaydedilemedi.")); return; }
-      event.currentTarget.reset(); setRates(await json<Rate[]>(`/api/v1/camp/sites/${campId}/rates`) ?? []); setMessage("Tarih-etkin konaklama fiyatı kaydedildi.");
+      formElement.reset(); setRates(await json<Rate[]>(`/api/v1/camp/sites/${campId}/rates`) ?? []); setMessage("Tarih-etkin konaklama fiyatı kaydedildi.");
     } finally { setBusy(false); }
   }
 
   async function createStay(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (!campId || !roomId || !bedId || !employeeId) return; setBusy(true);
     try {
-      const form = new FormData(event.currentTarget);
+      const formElement = event.currentTarget;
+      const form = new FormData(formElement);
       const response = await authFetch("/api/v1/camp/stays", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ employeeId, campId, roomId, bedId, checkInDate: form.get("checkInDate"), checkOutDateExclusive: form.get("checkOutDateExclusive") || null, note: form.get("note") || null }) });
       if (!response?.ok) { setMessage(await errorMessage(response, "Konaklama oluşturulamadı.")); return; }
-      event.currentTarget.reset(); setMessage("Personel yatağa atandı. Tarih çakışmaları DB seviyesinde korunuyor."); await reloadStays();
+      formElement.reset(); setMessage("Personel yatağa atandı. Tarih çakışmaları DB seviyesinde korunuyor."); await reloadStays();
     } finally { setBusy(false); }
   }
 
