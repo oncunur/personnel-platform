@@ -11,7 +11,7 @@ type ErrorResponse = { error?: { code?: string; message?: string } };
 function isAuthResponse(value: AuthResponse | MfaRequiredResponse): value is AuthResponse { return "accessToken" in value; }
 
 export default function LoginPage() {
-  const [username, setUsername] = useState("admin");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [mfa, setMfa] = useState<MfaRequiredResponse | null>(null);
   const [code, setCode] = useState("");
@@ -47,20 +47,20 @@ export default function LoginPage() {
   }
 
   return <main className="shell auth-shell"><section className="auth-card">
-    <a className="back" href="/">← Ana sayfa</a><span className="eyebrow dark">SPRINT 15 · SECURITY</span><h1>{mfa ? "Çok faktörlü doğrulama" : "Giriş yap"}</h1>
-    <p className="muted">Personel & İdari İşler Platformu güvenli kimlik doğrulama ekranı.</p>
+    <a className="back" href="/">← Ana sayfa</a><span className="eyebrow dark">Güvenli erişim</span><h1>{mfa ? "Çok faktörlü doğrulama" : "Giriş yap"}</h1>
+    <p className="muted">Personel ve İdari İşler Platformu çalışma alanınıza erişin.</p>
     {!mfa ? <form className="auth-form" onSubmit={handleSubmit}>
       <label>Kullanıcı adı<input autoComplete="username" value={username} onChange={e => setUsername(e.target.value)} maxLength={100} required /></label>
       <label>Parola<input type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} maxLength={512} required /></label>
       {error ? <div className="error-box" role="alert">{error}</div> : null}
       <button className="primary-button" type="submit" disabled={submitting}>{submitting ? "Giriş yapılıyor…" : "Giriş yap"}</button>
     </form> : <form className="auth-form" onSubmit={handleMfa}>
-      {mfa.enrollmentRequired ? <div className="panel"><strong>MFA kurulumu zorunlu</strong><p className="muted">Authenticator uygulamanıza aşağıdaki secret değerini ekleyin. Bu değer yalnız kurulum sırasında gösterilir.</p><code style={{wordBreak:"break-all"}}>{mfa.enrollmentSecret}</code>{mfa.otpAuthUri ? <details><summary>otpauth URI</summary><code style={{wordBreak:"break-all"}}>{mfa.otpAuthUri}</code></details> : null}</div> : <p className="muted">Authenticator uygulamanızdaki 6 haneli kodu girin.</p>}
+      {mfa.enrollmentRequired ? <div className="panel"><strong>Doğrulama uygulaması kurulumu gerekli</strong><p className="muted">Doğrulama uygulamanıza aşağıdaki kurulum anahtarını ekleyin. Bu değer yalnız kurulum sırasında gösterilir.</p><code className="breakable-code">{mfa.enrollmentSecret}</code>{mfa.otpAuthUri ? <details className="technical-details"><summary>Kurulum bağlantısını görüntüle</summary><code className="breakable-code">{mfa.otpAuthUri}</code></details> : null}</div> : <p className="muted">Doğrulama uygulamanızdaki 6 haneli kodu girin.</p>}
       <label>Doğrulama kodu<input inputMode="numeric" autoComplete="one-time-code" value={code} onChange={e => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} minLength={6} maxLength={6} required /></label>
       {error ? <div className="error-box" role="alert">{error}</div> : null}
       <button className="primary-button" type="submit" disabled={submitting || code.length !== 6}>{submitting ? "Doğrulanıyor…" : mfa.enrollmentRequired ? "MFA'yı etkinleştir ve giriş yap" : "Doğrula ve giriş yap"}</button>
       <button className="secondary-button" type="button" onClick={() => { setMfa(null); setCode(""); setError(null); }}>Başa dön</button>
     </form>}
-    <p className="auth-hint">Kritik roller MFA olmadan normal oturum alamaz. TOTP kodları tekrar kullanılamaz ve session revocation security version ile uygulanır.</p>
+    <p className="auth-hint">Kritik yetkilere sahip hesaplarda ek doğrulama zorunludur. Her doğrulama kodu yalnızca bir kez kullanılabilir.</p>
   </section></main>;
 }

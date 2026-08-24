@@ -77,6 +77,10 @@ Seçilebilir tablo satırları `selectable-table` kullanır ve seçili kayıt `s
 
 Şube, departman, pozisyon, proje ve maliyet merkezi listeleri düz metin dizileri yerine `organization-row` kullanır. Birincil ad ve kod solda, bağlı şube/üst departman/proje gibi ilişki sağda gösterilir. Satır seçim yaptırıyorsa buton davranışı ve `selected` durumu taşır; yalnız bilgi veriyorsa `static` varyantı kullanılır.
 
+### Detay sayfası
+
+Personel, belge ve proje gibi tek kayda odaklanan ekranlar da `PageHeader` ile başlar. Kaydın adı başlıktır; kodu, organizasyon konumu veya dönemi açıklamada gösterilir. En fazla dört karar göstergesi `stat-grid` içinde yer alır. Kimlik ve bağlantılar `detail-grid`, işlem geçmişi tablo, yeni sürüm veya atama işlemi `form-surface` kullanır. Eski sürüm numarası ve harici kimlik gibi teknik değerler ana başlığın önüne geçmez.
+
 ### Form yüzeyi
 
 Listeyle aynı panelde bulunan oluşturma veya güncelleme formu `form-surface` ile ayrılır. Böylece form alanları ile mevcut kayıtlar birbirine karışmaz. Formun kısa başlığı yapılan işlemi, yardımcı metni ise işlemin etkisini açıklar.
@@ -111,10 +115,13 @@ Karar bekleyen kayıtlar normal geçmiş listelerinden ayrı bir panelde göster
 
 ## Erişilebilirlik tabanı
 
+- Klavye kullanıcıları için uygulama çerçevesinin başında “Ana içeriğe geç” bağlantısı bulunur.
 - Klavye odağı `:focus-visible` ile belirgindir.
-- Etkileşimli kontroller en az 40 piksel hedef alanına sahiptir.
+- Etkileşimli kontroller en az 44 piksel hedef alanına sahiptir.
 - Metin ve arka plan kontrastı WCAG AA hedefiyle seçilir.
 - Yalnız ikon kullanan kontroller `aria-label` taşır.
+- Aktif navigasyon bağlantısı `aria-current="page"` ile duyurulur; mobil menü `aria-expanded` ve `aria-controls` taşır ve Escape ile kapanır.
+- Tablo satırının kendisi tıklanabilir yapılmaz. Seçim veya detay açma görevi, görünür ve klavyeyle erişilebilir bir işlem düğmesiyle sunulur.
 - `prefers-reduced-motion` etkin olduğunda animasyon ve geçişler kaldırılır.
 - Mobil menü açıkken arka plan ayrı bir kapatma yüzeyi sunar.
 
