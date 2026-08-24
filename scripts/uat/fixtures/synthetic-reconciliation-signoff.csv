@@ -1,0 +1,2 @@
+reconciliation_id,status,business_owner,technical_owner,business_approved_at,technical_approved_at,decision_note,evidence_ref
+REC-SYN-2026-08,READY_FOR_REVIEW,,,,,Synthetic contract proof only,synthetic://uat-003/signoff

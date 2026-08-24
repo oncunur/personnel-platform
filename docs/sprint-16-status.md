@@ -15,7 +15,7 @@ Prepare the Personnel Platform for controlled legacy-data migration, business UA
 | MIG-005 | Migration dry run #2 / cutover rehearsal | PLANNED | Repeatable clean run, measured RTO/RPO-adjacent cutover timing, sign-off |
 | UAT-001 | UAT scenario catalog | DONE | Validated role-based, negative, authorization, reconciliation and end-to-end web scenarios plus execution/evidence rules |
 | UAT-002 | UAT execution & defect triage | IN PROGRESS | Validated execution/defect registers, severity, retest evidence and readiness summary; real business executions still required |
-| UAT-003 | Payroll/attendance/meal/camp reconciliation | PLANNED | Approved cross-system totals and sample-level reconciliation |
+| UAT-003 | Payroll/attendance/meal/camp reconciliation | IN PROGRESS | Validated total/sample contract, formula checks and sanitized synthetic evidence; real business totals and dual sign-off still required |
 | CUT-001 | Cutover runbook | PLANNED | Freeze, extract, load, validate, switch, rollback steps and owners |
 | CUT-002 | Go/No-Go checklist | PLANNED | Named approvers, blockers, rollback criteria, operational readiness evidence |
 
@@ -132,6 +132,21 @@ Important controls:
 
 UAT-002 remains `IN PROGRESS`. CI proves only the execution/triage machinery. No catalog scenario is considered business-PASS until a real tester executes it in the intended environment and records safe evidence.
 
+## UAT-003 reconciliation baseline
+
+The repository now contains:
+
+- `docs/uat/templates/uat-reconciliation.csv` — one company/month total plus employee-level samples for attendance, leave, overtime, meal, camp and payroll values.
+- `docs/uat/templates/uat-reconciliation-signoff.csv` — explicit business/technical review and approval contract.
+- `docs/uat/uat-reconciliation.md` — preparation, evidence-safety, tolerance, defect and exit rules.
+- `scripts/uat/validate_reconciliation.py` — exact minute comparison, bounded money tolerance, payroll formula recomputation, total/sample coverage and approval validation.
+- `scripts/uat/summarize_reconciliation.py` — sanitized `NO_GO`, `AWAITING_SIGNOFF`, `PASS_SYNTHETIC_RECONCILIATION` or `UAT_003_APPROVED` result without employee references or payroll amounts.
+- synthetic total/sample fixtures, regression tests and the `uat-reconciliation` CI workflow.
+
+The automatic checks cover planned/worked/paid-leave/approved-overtime minutes, meal and accommodation employer costs, pay-before-statutory and employer-cost-before-statutory formulas. Every mismatched row requires a UAT-002 defect reference and cannot be approved. Synthetic evidence is explicitly prevented from producing a real UAT-003 approval verdict.
+
+UAT-003 remains `IN PROGRESS`. The contract and synthetic baseline are complete, but real company/month totals, risk-based employee samples, corrected variance reruns and named business/technical approvals must be produced in the restricted UAT workspace.
+
 ## Current boundary
 
-MIG-001 defines what exists and where it should land. MIG-002 defines how approved source fields are normalized and previewed. MIG-003 provides controlled staging, lineage, idempotence, row-level validation and reconciliation evidence. MIG-004 proves that those controls can run end-to-end and repeatably in a synthetic isolated environment, but it still does **not** authorize writes into live business tables or replace real-source/business reconciliation. UAT-001 defines the release-critical business acceptance surface. UAT-002 now provides validated execution, defect, retest and readiness contracts, but remains open until real business users execute the P0/P1 scenarios. Real inventory, approved mappings, representative volumes and business totals remain required before migration dry-run closure and cutover rehearsal.
+MIG-001 defines what exists and where it should land. MIG-002 defines how approved source fields are normalized and previewed. MIG-003 provides controlled staging, lineage, idempotence, row-level validation and reconciliation evidence. MIG-004 proves that those controls can run end-to-end and repeatably in a synthetic isolated environment, but it still does **not** authorize writes into live business tables or replace real-source/business reconciliation. UAT-001 defines the release-critical business acceptance surface. UAT-002 provides validated execution, defect, retest and readiness contracts. UAT-003 now provides guarded numeric reconciliation and dual-sign-off contracts. UAT-002 and UAT-003 both remain open until real business users execute the scenarios, reconcile real company/month totals and samples, resolve variances and approve the evidence. Real inventory, approved mappings, representative volumes and business totals remain required before migration dry-run closure and cutover rehearsal.

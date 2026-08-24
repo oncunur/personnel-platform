@@ -1,0 +1,68 @@
+name: uat-reconciliation
+
+on:
+  pull_request:
+    paths:
+      - "docs/uat/**"
+      - "scripts/uat/**"
+      - ".github/workflows/uat-reconciliation.yml"
+  push:
+    branches: [main]
+    paths:
+      - "docs/uat/**"
+      - "scripts/uat/**"
+      - ".github/workflows/uat-reconciliation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-uat-reconciliation:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Validate empty reconciliation templates
+        run: python scripts/uat/validate_reconciliation.py
+
+      - name: Run reconciliation contract tests
+        working-directory: scripts/uat
+        run: python -m unittest -v test_reconciliation_contracts.py
+
+      - name: Validate synthetic total and employee samples
+        run: >-
+          python scripts/uat/validate_reconciliation.py
+          --rows scripts/uat/fixtures/synthetic-reconciliation.csv
+          --signoffs scripts/uat/fixtures/synthetic-reconciliation-signoff.csv
+          --strict
+
+      - name: Generate sanitized synthetic reconciliation summary
+        run: >-
+          python scripts/uat/summarize_reconciliation.py
+          --rows scripts/uat/fixtures/synthetic-reconciliation.csv
+          --signoffs scripts/uat/fixtures/synthetic-reconciliation-signoff.csv
+          --output uat-output/synthetic-reconciliation-summary.json
+
+      - name: Assert synthetic evidence cannot claim real approval
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          summary = json.loads(Path("uat-output/synthetic-reconciliation-summary.json").read_text(encoding="utf-8"))
+          assert summary["verdict"] == "PASS_SYNTHETIC_RECONCILIATION"
+          assert summary["gates"]["totalsMatch"] is True
+          assert summary["gates"]["samplesMatch"] is True
+          assert summary["gates"]["realDataOnly"] is False
+          assert summary["gates"]["allRealSignoffsApproved"] is False
+          PY
+
+      - name: Upload sanitized synthetic summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: uat-003-synthetic-reconciliation-summary
+          path: uat-output/synthetic-reconciliation-summary.json
+          retention-days: 14
