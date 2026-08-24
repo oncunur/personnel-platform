@@ -107,7 +107,8 @@ export default function PersonnelPage() {
   async function onCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true);
     try {
-      const fd = new FormData(event.currentTarget);
+      const form = event.currentTarget;
+      const fd = new FormData(form);
       const body = {
         companyId: fd.get("companyId"), branchId: fd.get("branchId") || null, departmentId: fd.get("departmentId"), positionId: fd.get("positionId"), employeeTypeId: fd.get("employeeTypeId"), managerEmployeeId: null,
         employeeNo: fd.get("employeeNo"), firstName: fd.get("firstName"), lastName: fd.get("lastName"), preferredName: fd.get("preferredName") || null,
@@ -119,7 +120,7 @@ export default function PersonnelPage() {
         setMessage(error?.error?.message ?? "Personel oluşturulamadı."); return;
       }
       const created = await response.json() as { id: string };
-      event.currentTarget.reset(); setCreateCompanyId(""); setCreateDepartmentId(""); setShowCreate(false);
+      form.reset(); setCreateCompanyId(""); setCreateDepartmentId(""); setShowCreate(false);
       setMessage("Personel başarıyla oluşturuldu."); await loadEmployees();
       window.location.href = `/personnel/${created.id}`;
     } finally { setBusy(false); }
