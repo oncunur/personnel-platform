@@ -12,7 +12,7 @@ Bu belge, Personel ve İdari İşler Platformu'nun ortak görsel dilini ve yeni 
 - Sayfa bağlamını gösteren sabit üst alan ve güvenli oturum göstergesi
 - Kurumsal renk, yazı, boşluk, köşe ve gölge değişkenleri
 - Panel, form, buton, tablo, durum etiketi ve boş durum kalıpları
-- Ana ekranda özet metrikler ve öncelikli modüller
+- Ana ekranda teknik sayaçlar yerine görev odaklı çalışma alanları ve anlaşılır erişim özeti
 - Personel ekranında ayrı arama/filtreleme ve kayıt oluşturma akışları
 
 ## Tasarım ilkeleri
@@ -42,6 +42,7 @@ Değişkenler `frontend/app/globals.css` içinde tanımlıdır.
 `AppFrame`, giriş ve tanıtım ekranları dışındaki sayfaları ortak bir çerçeveye alır.
 
 - Sol navigasyon yetkisi olmayan modülleri göstermez.
+- Yoğun menüler aranabilir; bölüm grupları açılıp kapatılabilir ve etkin sayfanın bölümü otomatik açık kalır.
 - Etkin menü öğesi hem renk hem yüzeyle ayırt edilir.
 - Üst alan sayfa bağlamını ve oturum durumunu gösterir.
 - 900 piksel altında navigasyon açılır mobil menüye dönüşür.

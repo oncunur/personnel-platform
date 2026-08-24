@@ -24,6 +24,14 @@ const modules: ModuleItem[] = [
   { href: "/organization", title: "Organizasyon", description: "Şirket, şube, departman, pozisyon ve proje yapısı.", icon: "building", prefixes: ["organization."] },
   { href: "/security", title: "Sistem Yönetimi", description: "Kullanıcı, rol, yetki, kapsam ve denetim kayıtları.", icon: "settings", prefixes: ["system.", "audit."] },
 ];
+const scopeLabels: Record<string, string> = {
+  GLOBAL: "Tüm platform",
+  COMPANY: "Şirket",
+  BRANCH: "Şube",
+  DEPARTMENT: "Departman",
+  PROJECT: "Proje",
+  SELF: "Kendi kayıtları",
+};
 
 export default function DashboardPage() {
   const [me, setMe] = useState<MeResponse | null>(null);
@@ -59,6 +67,9 @@ export default function DashboardPage() {
   const permissionCodes = useMemo(() => me?.permissions.map((item) => item.code) ?? [], [me]);
   const visibleModules = modules.filter((item) => item.prefixes.some((prefix) => permissionCodes.some((permission) => permission.startsWith(prefix))));
   const uniqueScopeTypes = [...new Set(me?.scopes.map((scope) => scope.scopeType) ?? [])];
+  const roleSummary = me ? (me.roles.slice(0, 2).map((role) => role.name).join(", ") || "Standart kullanıcı") : "Yükleniyor…";
+  const scopeSummary = me ? (uniqueScopeTypes.map((scope) => scopeLabels[scope] ?? "Özel kapsam").join(", ") || "Kendi kayıtları") : "Yükleniyor…";
+  const hasNotifications = permissionCodes.some((permission) => permission.startsWith("notification."));
 
   return <main className="page-shell">
     <section className="overview-banner">
@@ -69,37 +80,34 @@ export default function DashboardPage() {
       </div>
       <div className="overview-profile">
         <span>Oturum özeti</span>
-        <strong>{me?.email ?? "Kullanıcı bilgileri yükleniyor"}</strong>
+        <strong>{me ? (me.email ?? me.username) : "Kullanıcı bilgileri yükleniyor"}</strong>
         <small>{message}</small>
         <div className="role-chips">{me?.roles.slice(0, 4).map((role) => <span className="role-chip" key={role.id}>{role.name}</span>)}</div>
       </div>
     </section>
 
-    <section className="stat-grid" aria-label="Oturum göstergeleri">
-      <article className="stat-card"><span className="stat-icon"><Icon name="people"/></span><span className="stat-copy"><strong>{me?.roles.length ?? "—"}</strong><span>Aktif rol</span></span></article>
-      <article className="stat-card"><span className="stat-icon"><Icon name="settings"/></span><span className="stat-copy"><strong>{me?.permissions.length ?? "—"}</strong><span>Tanımlı yetki</span></span></article>
-      <article className="stat-card"><span className="stat-icon"><Icon name="building"/></span><span className="stat-copy"><strong>{me?.scopes.length ?? "—"}</strong><span>Erişim kapsamı</span></span></article>
-      <article className="stat-card"><span className="stat-icon"><Icon name="workflow"/></span><span className="stat-copy"><strong>{visibleModules.length || "—"}</strong><span>Kullanılabilir modül</span></span></article>
-    </section>
-
-    <section className="content-grid">
+    <section className="content-grid dashboard-content-grid">
       <div className="panel">
-        <div className="panel-heading"><div><span className="page-eyebrow">Hızlı erişim</span><h2>Sık kullanılan çalışma alanları</h2><p>Yetkilerinize göre kullanabileceğiniz temel modüller.</p></div><strong>{visibleModules.length}</strong></div>
+        <div className="panel-heading"><div><span className="page-eyebrow">İşe başlayın</span><h2>Çalışma alanınızı seçin</h2><p>Yapmak istediğiniz işleme göre ilgili alanı açın.</p></div><strong>{me ? visibleModules.length : "…"}</strong></div>
         <div className="module-grid">
-          {visibleModules.slice(0, 8).map((item) => <Link className="module-card" href={item.href} key={item.href}>
+          {!me ? <p className="muted">Çalışma alanları yükleniyor…</p> : null}
+          {visibleModules.map((item) => <Link className="module-card" href={item.href} key={item.href}>
             <span className="module-icon"><Icon name={item.icon}/></span>
             <span className="module-card-copy"><strong>{item.title}</strong><span>{item.description}</span><small>Modülü aç <Icon name="arrow" size={14}/></small></span>
           </Link>)}
           {me && visibleModules.length === 0 ? <p className="muted">Hesabınız için erişilebilir bir operasyon modülü bulunmuyor.</p> : null}
         </div>
       </div>
-      <aside className="panel">
-        <div className="panel-heading"><div><span className="page-eyebrow">Erişim özeti</span><h2>Rol ve kapsamlar</h2><p>Bu oturumda etkin olan erişim çerçeveniz.</p></div></div>
-        <div className="stack">
-          <div><span className="page-eyebrow">Roller</span><div className="role-chips">{me?.roles.map((role) => <span className="role-chip" key={role.id}>{role.code}</span>) ?? <span className="muted">Yükleniyor…</span>}</div></div>
-          <div><span className="page-eyebrow">Kapsam türleri</span><div className="role-chips">{uniqueScopeTypes.map((scope) => <span className="role-chip" key={scope}>{scope}</span>)}{me && uniqueScopeTypes.length === 0 ? <span className="muted">Kapsam bulunmuyor</span> : null}</div></div>
-          <div className="notice"><span className="status-dot"/><span>{message}</span></div>
+      <aside className="panel dashboard-start-panel">
+        <div className="panel-heading"><div><span className="page-eyebrow">Hesabınız hazır</span><h2>Size açık alanlar</h2><p>Teknik yetki kodları yerine erişiminizin kısa özeti.</p></div></div>
+        <div className="dashboard-facts">
+          <div><span>Çalışma alanı</span><strong>{me ? `${visibleModules.length} alan kullanıma açık` : "Yükleniyor…"}</strong></div>
+          <div><span>Erişim profili</span><strong>{roleSummary}</strong></div>
+          <div><span>İşlem kapsamı</span><strong>{scopeSummary}</strong></div>
         </div>
+        {hasNotifications ? <Link className="secondary-button dashboard-notification-link" href="/notifications"><Icon name="bell" size={16}/> Bildirim merkezini aç</Link> : null}
+        <div className="notice dashboard-session-notice"><span className="status-dot"/><span>{message}</span></div>
+        <p className="dashboard-help">Aradığınız alanı bulamazsanız sol menüdeki arama kutusunu kullanabilirsiniz.</p>
       </aside>
     </section>
   </main>;
