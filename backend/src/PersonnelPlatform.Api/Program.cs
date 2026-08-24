@@ -76,7 +76,12 @@ builder.Services.AddScoped<IntegrationProcessor>();
 builder.Services.AddScoped<ImportErpService>();
 builder.Services.AddPlatformAuthentication(builder.Configuration);
 builder.Services.AddPlatformPermissionAuthorization();
-builder.Services.AddCors(options => options.AddPolicy("development", policy => policy.WithOrigins("http://localhost:3000").AllowAnyHeader().AllowAnyMethod().AllowCredentials()));
+var developmentOrigins = new[]
+{
+    builder.Configuration["Cors:WebOrigin"] ?? "http://localhost:3000",
+    builder.Configuration["Cors:LoopbackOrigin"] ?? "http://127.0.0.1:3000"
+};
+builder.Services.AddCors(options => options.AddPolicy("development", policy => policy.WithOrigins(developmentOrigins).AllowAnyHeader().AllowAnyMethod().AllowCredentials()));
 
 var app = builder.Build();
 app.UseMiddleware<CorrelationIdMiddleware>();

@@ -27,6 +27,7 @@ coverage/
 # Local runtime
 *.log
 **/storage/
+.local-dev/
 backups/
 migration-output/
 *.migration-output.csv
