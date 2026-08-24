@@ -2,6 +2,7 @@
 
 import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import { Icon } from "../components/Icon";
+import { OperationDisclosure } from "../components/OperationDisclosure";
 import { PageHeader } from "../components/PageHeader";
 
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
@@ -115,7 +116,7 @@ export default function DocumentsPage() {
 
     <div className="content-stack">
     {permissions.has("documents.missing.view") ? <AttentionPanel tone="warning" eyebrow="Eksik kayıtlar" title="Eksik zorunlu belgeler" description="Personel dosyasında tamamlanması gereken zorunlu belgeler." empty="Eksik zorunlu belge bulunmuyor." isEmpty={missing.length === 0} count={missing.length}>
-      <table className="data-table"><thead><tr><th>Personel</th><th>Sicil</th><th>Eksik belge</th><th>İşlem</th></tr></thead><tbody>{missing.map((x, index) => <tr key={`${x.employeeId}-${x.code}-${index}`}><td><strong>{x.employeeName}</strong></td><td>{x.employeeNo}</td><td><strong>{x.name}</strong><small>{x.code}</small></td><td><a className="table-button" href={`/personnel/${x.employeeId}`}>Personel 360</a></td></tr>)}</tbody></table>
+      <table className="data-table responsive-table"><thead><tr><th>Personel</th><th>Sicil</th><th>Eksik belge</th><th>İşlem</th></tr></thead><tbody>{missing.map((x, index) => <tr key={`${x.employeeId}-${x.code}-${index}`}><td data-label="Personel"><strong>{x.employeeName}</strong></td><td data-label="Sicil">{x.employeeNo}</td><td data-label="Eksik belge"><strong>{x.name}</strong><small>{x.code}</small></td><td data-label="İşlem"><a className="table-button" href={`/personnel/${x.employeeId}`}>Personel 360</a></td></tr>)}</tbody></table>
     </AttentionPanel> : null}
 
     {permissions.has("documents.expiring.view") ? <section className="security-grid document-attention-grid">
@@ -125,7 +126,7 @@ export default function DocumentsPage() {
 
     {permissions.has("documents.type.view") ? <section className="panel">
       <div className="panel-heading"><div><span className="page-eyebrow">Belge kataloğu</span><h2>Belge türleri</h2><p>Dosya, numara, geçerlilik ve personel tipi kurallarını tanımlayın.</p></div><strong>{types.length}</strong></div>
-      {permissions.has("documents.type.manage") ? <div className="form-surface"><div className="form-surface-heading"><div><strong>Yeni belge türü</strong><span>Zorunluluk ve hatırlatma kuralları yeni personel belgelerine uygulanır.</span></div></div><form className="inline-form document-type-form" onSubmit={createType}>
+      {permissions.has("documents.type.manage") ? <OperationDisclosure title="Yeni belge türü ekle" description="Zorunluluk ve hatırlatma kuralları yeni personel belgelerine uygulanır."><form className="inline-form document-type-form" onSubmit={createType}>
         <label className="field-label">Kod<input name="code" required maxLength={80}/></label>
         <label className="field-label">Ad<input name="name" required maxLength={150}/></label>
         <label className="field-label">Açıklama<input name="description" maxLength={1000}/></label>
@@ -139,19 +140,19 @@ export default function DocumentsPage() {
         <label className="check-label"><input name="multipleAllowed" type="checkbox"/> Çoklu kayıt</label>
         <label className="check-label"><input name="requiredByDefault" type="checkbox"/> Tüm personel için zorunlu</label>
         <button className="primary-button" disabled={busy}>{busy ? "Kaydediliyor…" : "Belge türü ekle"}</button>
-      </form></div> : null}
-      <div className="table-wrap"><table className="data-table"><thead><tr><th>Kod</th><th>Ad</th><th>Kurallar</th><th>Zorunlu tipler</th><th>Durum</th></tr></thead><tbody>{types.map(x => <tr key={x.id}><td><strong>{x.code}</strong></td><td>{x.name}<small>{x.description ?? "Açıklama bulunmuyor"}</small></td><td>{[x.fileRequired ? "Dosya" : null, x.documentNumberRequired ? "Belge no" : null, x.expirationRequired ? "Süre" : null, x.multipleAllowed ? "Çoklu" : null].filter(Boolean).join(" · ") || "—"}</td><td>{x.requiredEmployeeTypeIds.map(id => employeeTypes.find(t => t.id === id)?.name ?? id).join(" · ") || (x.requiredByDefault ? "Tüm personel" : "—")}</td><td><span className={`status-badge ${x.isActive ? "success" : ""}`}>{x.isActive ? "Aktif" : "Pasif"}</span></td></tr>)}{types.length === 0 ? <tr><td className="empty-row" colSpan={5}>Belge türü bulunmuyor.</td></tr> : null}</tbody></table></div>
+      </form></OperationDisclosure> : null}
+      <div className="table-wrap responsive-table-wrap" role="region" aria-label="Belge türleri" tabIndex={0}><table className="data-table responsive-table"><thead><tr><th>Kod</th><th>Ad</th><th>Kurallar</th><th>Zorunlu tipler</th><th>Durum</th></tr></thead><tbody>{types.map(x => <tr key={x.id}><td data-label="Kod"><strong>{x.code}</strong></td><td data-label="Ad">{x.name}<small>{x.description ?? "Açıklama bulunmuyor"}</small></td><td data-label="Kurallar">{[x.fileRequired ? "Dosya" : null, x.documentNumberRequired ? "Belge no" : null, x.expirationRequired ? "Süre" : null, x.multipleAllowed ? "Çoklu" : null].filter(Boolean).join(" · ") || "—"}</td><td data-label="Zorunlu tipler">{x.requiredEmployeeTypeIds.map(id => employeeTypes.find(t => t.id === id)?.name ?? id).join(" · ") || (x.requiredByDefault ? "Tüm personel" : "—")}</td><td data-label="Durum"><span className={`status-badge ${x.isActive ? "success" : ""}`}>{x.isActive ? "Aktif" : "Pasif"}</span></td></tr>)}{types.length === 0 ? <tr><td className="empty-row" colSpan={5}>Belge türü bulunmuyor.</td></tr> : null}</tbody></table></div>
     </section> : null}
     </div>
   </main>;
 }
 
 function AttentionPanel({ tone, eyebrow, title, description, empty, isEmpty, count, children }: { tone: "warning" | "danger" | "success"; eyebrow: string; title: string; description: string; empty: string; isEmpty: boolean; count: number; children: ReactNode }) {
-  return <section className={`panel attention-panel ${tone}`}><div className="panel-heading"><div><span className="page-eyebrow">{eyebrow}</span><h2>{title}</h2><p>{description}</p></div><strong>{count}</strong></div><div className="table-wrap">{isEmpty ? <p className="empty-row">{empty}</p> : children}</div></section>;
+  return <section className={`panel attention-panel ${tone}`}><div className="panel-heading"><div><span className="page-eyebrow">{eyebrow}</span><h2>{title}</h2><p>{description}</p></div><strong>{count}</strong></div><div className="table-wrap responsive-table-wrap" role="region" aria-label={title} tabIndex={0}>{isEmpty ? <p className="empty-row">{empty}</p> : children}</div></section>;
 }
 
 function DocumentAttentionTable({ rows }: { rows: Attention[] }) {
-  return <table className="data-table"><thead><tr><th>Personel</th><th>Belge</th><th>Bitiş</th><th>Durum</th><th>İşlem</th></tr></thead><tbody>{rows.map(x => <tr key={x.documentId}><td><strong>{x.employeeName}</strong><small>{x.employeeNo}</small></td><td>{x.documentTypeName}<small>{x.documentTypeCode}</small></td><td>{formatDate(x.validUntil)}<small>{x.daysRemaining < 0 ? `${Math.abs(x.daysRemaining)} gün geçti` : `${x.daysRemaining} gün kaldı`}</small></td><td><span className={`status-badge ${x.daysRemaining < 0 ? "danger" : "warning"}`}>{x.daysRemaining < 0 ? "Süresi geçti" : "Yaklaşıyor"}</span></td><td><a className="table-button" href={`/documents/${x.documentId}`}>Belgeyi yönet</a></td></tr>)}</tbody></table>;
+  return <table className="data-table responsive-table"><thead><tr><th>Personel</th><th>Belge</th><th>Bitiş</th><th>Durum</th><th>İşlem</th></tr></thead><tbody>{rows.map(x => <tr key={x.documentId}><td data-label="Personel"><strong>{x.employeeName}</strong><small>{x.employeeNo}</small></td><td data-label="Belge">{x.documentTypeName}<small>{x.documentTypeCode}</small></td><td data-label="Bitiş">{formatDate(x.validUntil)}<small>{x.daysRemaining < 0 ? `${Math.abs(x.daysRemaining)} gün geçti` : `${x.daysRemaining} gün kaldı`}</small></td><td data-label="Durum"><span className={`status-badge ${x.daysRemaining < 0 ? "danger" : "warning"}`}>{x.daysRemaining < 0 ? "Süresi geçti" : "Yaklaşıyor"}</span></td><td data-label="İşlem"><a className="table-button" href={`/documents/${x.documentId}`}>Belgeyi yönet</a></td></tr>)}</tbody></table>;
 }
 
 function formatDate(value: string) { return new Intl.DateTimeFormat("tr-TR", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(`${value}T00:00:00`)); }
