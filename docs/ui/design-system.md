@@ -99,11 +99,13 @@ Aynı bölümde birden fazla birincil buton kullanılmaz. Devre dışı durum ya
 
 ### Formlar
 
-Alanlar `field` ve `field-label` ile gruplanır. Etiket her zaman görünür kalır; yer tutucu metin etiket yerine geçmez. Uzun formlar anlamlı panellere bölünür ve ana gönderim eylemi formun sonunda sağa hizalanır.
+Alanlar `field` ve `field-label` ile gruplanır. Etiket her zaman görünür kalır; yer tutucu metin etiket yerine geçmez. Uzun formlar tek bir düz ızgarada gösterilmez; `record-form`, `form-section` ve `form-grid` ile organizasyon, kimlik ve iletişim gibi anlamlı adımlara ayrılır. Ana gönderim eylemi `form-actions` içinde formun sonunda yer alır.
+
+Liste filtrelerinde en sık kullanılan arama alanı doğrudan görünür kalır. Şirket, departman, tip, proje ve durum gibi ikincil ölçütler `filter-details` içinde kullanıcı istediğinde açılır; etkin filtre sayısı kapalı durumda da görünür. Böylece listeyi ilk açan kullanıcı, sonuç tablosuna ulaşmadan büyük bir form bloğunu geçmek zorunda kalmaz.
 
 ### Tablolar
 
-Tablolar liste taraması için kullanılır. Birincil kimlik ilk sütunda vurgulanır, durumlar `status-badge` ile gösterilir, tarih ve sayı biçimleri Türkçe yerel ayarına göre sunulur. Mobilde tablo kırılmaz; kontrollü yatay kaydırma sağlanır.
+Tablolar liste taraması için kullanılır. Birincil kimlik ilk sütunda vurgulanır ve geniş tablolarda yatay kaydırma sırasında görünür kalır. Durumlar `status-badge` ile gösterilir, tarih ve sayı biçimleri Türkçe yerel ayarına göre sunulur. Tablo kaydırma alanı klavyeyle odaklanabilir. Öncelikli ve kısa listeler `responsive-table` ile mobilde etiketli kayıt kartlarına dönüşür; veri yoğun tablolar kontrollü yatay kaydırmayı korur.
 
 ### Durumlar ve geri bildirim
 
