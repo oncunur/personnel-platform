@@ -84,11 +84,12 @@ export default function PayrollPage() {
   async function createCompensation(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (!employeeId) return; setBusy(true);
     try {
-      const form = new FormData(event.currentTarget);
+      const formElement = event.currentTarget;
+      const form = new FormData(formElement);
       const response = await authFetch("/api/v1/payroll/compensations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ employeeId, validFrom: form.get("validFrom"), validUntilExclusive: form.get("validUntilExclusive") || null, monthlyBaseSalary: Number(form.get("monthlyBaseSalary")), currency: String(form.get("currency") ?? "").toUpperCase(), overtimeMultiplier: Number(form.get("overtimeMultiplier")) }) });
       if (!response?.ok) { setMessage(await errorMessage(response, "Ücret tanımı kaydedilemedi.")); return; }
       setCompensations(await json<Compensation[]>(`/api/v1/payroll/compensations?employeeId=${employeeId}`) ?? []);
-      setMessage("Tarih-etkin ücret tanımı kaydedildi."); event.currentTarget.reset();
+      setMessage("Tarih-etkin ücret tanımı kaydedildi."); formElement.reset();
     } finally { setBusy(false); }
   }
 
