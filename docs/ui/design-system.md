@@ -51,7 +51,15 @@ Değişkenler `frontend/app/globals.css` içinde tanımlıdır.
 
 ### Sayfa başlığı
 
-Her operasyon ekranı `page-header` kalıbını kullanır. Sol tarafta kısa açıklama, sağ tarafta en fazla bir birincil eylem bulunur. İkincil eylemler panel içine veya taşma menüsüne alınır.
+Her operasyon ekranı ortak `PageHeader` bileşenini ve `page-header` kalıbını kullanır. Sol tarafta kısa açıklama, sağ tarafta en fazla bir birincil eylem bulunur. İkincil eylemler panel içine veya taşma menüsüne alınır. Dinamik işlem mesajı başlığın hemen altında, ekran okuyucularına duyurulan tek bir durum satırında gösterilir.
+
+### Çalışma kapsamı
+
+Şirket, dönem veya personel gibi ekranın geri kalanını etkileyen ana seçimler `workspace-panel` ya da `selection-bar` kalıbında gösterilir. Kapsam seçimi form içindeki sıradan bir alan gibi saklanmaz; seçimin etkilediği kayıtlar kısa bir metinle açıklanır.
+
+### Form yüzeyi
+
+Listeyle aynı panelde bulunan oluşturma veya güncelleme formu `form-surface` ile ayrılır. Böylece form alanları ile mevcut kayıtlar birbirine karışmaz. Formun kısa başlığı yapılan işlemi, yardımcı metni ise işlemin etkisini açıklar.
 
 ### Butonlar
 
