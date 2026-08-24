@@ -1,11 +1,14 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { Icon } from "../components/Icon";
+import { PageHeader } from "../components/PageHeader";
 
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
 type Permission = { code: string };
 type Me = { permissions: Permission[] };
 type AuthResponse = { accessToken: string; accessTokenExpiresAt: string };
+type Company = { id: string; code: string; name: string };
 type Camp = { id: string; companyId: string; code: string; name: string; address: string | null; isActive: boolean; version: number };
 type Room = { id: string; campId: string; code: string; name: string; floor: number | null; isActive: boolean; version: number };
 type Bed = { id: string; roomId: string; code: string; isActive: boolean; version: number };
@@ -22,8 +25,17 @@ function localDate(offsetDays = 0) {
   return new Date(d.getTime() - offset).toISOString().slice(0, 10);
 }
 
+function formatDate(value: string | null) {
+  return value ? new Date(`${value}T00:00:00`).toLocaleDateString("tr-TR") : "Açık";
+}
+
+function stayStatus(status: string) {
+  return status === "ACTIVE" ? "Devam ediyor" : status === "CLOSED" ? "Tamamlandı" : status === "CANCELLED" ? "İptal edildi" : status;
+}
+
 export default function CampPage() {
   const [me, setMe] = useState<Me | null>(null);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [camps, setCamps] = useState<Camp[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [beds, setBeds] = useState<Bed[]>([]);
@@ -38,6 +50,7 @@ export default function CampPage() {
   const [busy, setBusy] = useState(false);
   const permissions = useMemo(() => new Set(me?.permissions.map(x => x.code) ?? []), [me]);
   const selectedCamp = useMemo(() => camps.find(x => x.id === campId) ?? null, [camps, campId]);
+  const activeStays = useMemo(() => stays.filter(x => x.status === "ACTIVE"), [stays]);
 
   useEffect(() => { void initialize(); }, []);
 
@@ -45,14 +58,16 @@ export default function CampPage() {
     const current = await json<Me>("/api/v1/auth/me");
     if (!current) { window.location.replace("/login"); return; }
     setMe(current);
-    const [campRows, stayPage, employeePage] = await Promise.all([
+    const [campRows, stayPage, employeePage, companyRows] = await Promise.all([
       current.permissions.some(x => x.code === "camp.site.view") ? json<Camp[]>("/api/v1/camp/sites") : Promise.resolve(null),
       current.permissions.some(x => x.code === "camp.stay.view") ? json<StayPage>("/api/v1/camp/stays?page=1&pageSize=100") : Promise.resolve(null),
       current.permissions.some(x => x.code === "personnel.view") ? json<EmployeePage>("/api/v1/personnel/employees?status=ACTIVE&pageSize=100") : Promise.resolve(null),
+      current.permissions.some(x => x.code === "organization.company.view") ? json<Company[]>("/api/v1/organization/companies") : Promise.resolve(null),
     ]);
     setCamps(campRows ?? []);
     setStays(stayPage?.items ?? []);
     setEmployees(employeePage?.items ?? []);
+    setCompanies(companyRows ?? []);
     setMessage("Kamp, yatak ve konaklama kayıtları hazır.");
   }
 
@@ -156,36 +171,47 @@ export default function CampPage() {
   async function refresh(): Promise<string | null> { try { const response = await fetch(`${apiBase}/api/v1/auth/refresh`, { method: "POST", credentials: "include" }); if (!response.ok) return null; const body = await response.json() as AuthResponse; sessionStorage.setItem("pp_access_token", body.accessToken); return body.accessToken; } catch { return null; } }
   async function errorMessage(response: Response | null, fallback: string) { if (!response) return fallback; const body = await response.json().catch(() => null) as { error?: { message?: string } } | null; return body?.error?.message ?? fallback; }
 
-  return <main className="shell">
-    <a className="back" href="/dashboard">← Dashboard</a>
-    <section className="hero compact"><span className="eyebrow">SPRINT 6 · KAMP</span><h1>Kamp & Konaklama Merkezi</h1><p>{message}</p></section>
+  return <main className="page-shell">
+    <PageHeader eyebrow="Kamp ve konaklama" title="Konaklama operasyonu" description="Kamp kapasitesini, yerleşimleri ve gecelik maliyetleri tek çalışma alanından yönetin." status={message}/>
 
-    <section className="panel audit-panel"><div className="panel-heading"><div><span className="eyebrow dark">KAMP YAPISI</span><h2>Kamp → Oda → Yatak</h2></div></div>
-      <div className="inline-form">
-        <label className="field-label">Kamp<select value={campId} onChange={e => void selectCamp(e.target.value)}><option value="">Seçin</option>{camps.map(x => <option key={x.id} value={x.id}>{x.code} · {x.name}</option>)}</select></label>
-        <label className="field-label">Oda<select value={roomId} onChange={e => void selectRoom(e.target.value)} disabled={!campId}><option value="">Seçin</option>{rooms.map(x => <option key={x.id} value={x.id}>{x.code} · {x.name}</option>)}</select></label>
-        <label className="field-label">Yatak<select value={bedId} onChange={e => setBedId(e.target.value)} disabled={!roomId}><option value="">Seçin</option>{beds.map(x => <option key={x.id} value={x.id}>{x.code}</option>)}</select></label>
+    <section className="stat-grid" aria-label="Kamp özeti">
+      <article className="stat-card"><span className="stat-icon"><Icon name="building"/></span><span className="stat-copy"><strong>{camps.length}</strong><span>Aktif kamp</span></span></article>
+      <article className="stat-card"><span className="stat-icon"><Icon name="box"/></span><span className="stat-copy"><strong>{rooms.length}</strong><span>Seçili kamptaki oda</span></span></article>
+      <article className="stat-card"><span className="stat-icon"><Icon name="people"/></span><span className="stat-copy"><strong>{activeStays.length}</strong><span>Devam eden konaklama</span></span></article>
+      <article className="stat-card"><span className="stat-icon"><Icon name="wallet"/></span><span className="stat-copy"><strong>{rates.length}</strong><span>Geçerli fiyat dönemi</span></span></article>
+    </section>
+
+    <section className="panel workspace-panel">
+      <div className="workspace-copy"><span className="eyebrow dark">Çalışma kapsamı</span><h2>Kamp → oda → yatak seçimi</h2><p>Oda, yatak, fiyat ve yerleşim işlemleri bu seçime göre güncellenir.</p></div>
+      <div className="workspace-select inline-form">
+        <label className="field-label">Kamp<select value={campId} onChange={e => void selectCamp(e.target.value)}><option value="">Kamp seçin</option>{camps.map(x => <option key={x.id} value={x.id}>{x.code} · {x.name}</option>)}</select></label>
+        <label className="field-label">Oda<select value={roomId} onChange={e => void selectRoom(e.target.value)} disabled={!campId}><option value="">Oda seçin</option>{rooms.map(x => <option key={x.id} value={x.id}>{x.code} · {x.name}</option>)}</select></label>
+        <label className="field-label">Yatak<select value={bedId} onChange={e => setBedId(e.target.value)} disabled={!roomId}><option value="">Yatak seçin</option>{beds.map(x => <option key={x.id} value={x.id}>{x.code}</option>)}</select></label>
       </div>
     </section>
 
-    {permissions.has("camp.site.manage") ? <section className="grid">
-      <article className="panel"><h2>Kamp oluştur</h2><form onSubmit={createCamp} className="stack"><input name="companyId" placeholder="Company UUID" required/><input name="code" placeholder="Kamp kodu" required/><input name="name" placeholder="Kamp adı" required/><input name="address" placeholder="Adres"/><button className="primary-button" disabled={busy}>Kaydet</button></form></article>
-      <article className="panel"><h2>Oda oluştur</h2><form onSubmit={createRoom} className="stack"><input name="code" placeholder="Oda kodu" required/><input name="name" placeholder="Oda adı" required/><input name="floor" type="number" placeholder="Kat"/><button className="primary-button" disabled={busy || !campId}>Kaydet</button></form></article>
-      <article className="panel"><h2>Yatak oluştur</h2><form onSubmit={createBed} className="stack"><input name="code" placeholder="Yatak kodu" required/><button className="primary-button" disabled={busy || !roomId}>Kaydet</button></form></article>
-    </section> : null}
+    <div className="content-stack">
+      {permissions.has("camp.site.manage") ? <section className="panel"><div className="panel-heading"><div><span className="eyebrow dark">Kapasite tanımları</span><h2>Kamp yapısını genişletin</h2><p>Yeni kamp, seçili kampa oda veya seçili odaya yatak ekleyin.</p></div></div>
+        <div className="organization-grid">
+          <article className="form-surface"><div className="form-surface-heading"><div><strong>Yeni kamp</strong><span>Şirket kapsamına yeni konaklama alanı ekler.</span></div></div><form onSubmit={createCamp} className="stack">{companies.length ? <label className="field-label">Şirket<select name="companyId" required><option value="">Şirket seçin</option>{companies.map(x => <option key={x.id} value={x.id}>{x.code} · {x.name}</option>)}</select></label> : <label className="field-label">Şirket kimliği<input name="companyId" required/></label>}<label className="field-label">Kamp kodu<input name="code" required/></label><label className="field-label">Kamp adı<input name="name" required/></label><label className="field-label">Adres<input name="address"/></label><button className="primary-button" disabled={busy}>Kampı kaydet</button></form></article>
+          <article className="form-surface"><div className="form-surface-heading"><div><strong>Yeni oda</strong><span>{selectedCamp ? `${selectedCamp.name} kampına eklenecek.` : "Önce bir kamp seçin."}</span></div></div><form onSubmit={createRoom} className="stack"><label className="field-label">Oda kodu<input name="code" required/></label><label className="field-label">Oda adı<input name="name" required/></label><label className="field-label">Kat<input name="floor" type="number"/></label><button className="primary-button" disabled={busy || !campId}>Odayı kaydet</button></form></article>
+          <article className="form-surface"><div className="form-surface-heading"><div><strong>Yeni yatak</strong><span>{roomId ? "Seçili odaya yeni yatak ekler." : "Önce kamp ve oda seçin."}</span></div></div><form onSubmit={createBed} className="stack"><label className="field-label">Yatak kodu<input name="code" required/></label><button className="primary-button" disabled={busy || !roomId}>Yatağı kaydet</button></form></article>
+        </div>
+      </section> : null}
 
-    {permissions.has("camp.rate.view") ? <section className="panel audit-panel"><div className="panel-heading"><div><span className="eyebrow dark">FİYAT</span><h2>{selectedCamp?.name ?? "Kamp"} konaklama fiyatları</h2></div><strong>{rates.length}</strong></div>
-      {permissions.has("camp.rate.manage") ? <form className="inline-form" onSubmit={createRate}><label className="field-label">Başlangıç<input name="validFrom" type="date" defaultValue={localDate()} required/></label><label className="field-label">Bitiş [hariç]<input name="validUntilExclusive" type="date"/></label><label className="field-label">Gecelik<input name="nightlyRate" type="number" min="0.01" step="0.01" required/></label><label className="field-label">Döviz<input name="currency" defaultValue="TRY" maxLength={3} required/></label><button className="primary-button" disabled={busy || !campId}>Fiyat ekle</button></form> : null}
-      <div className="table-wrap"><table className="data-table"><thead><tr><th>Başlangıç</th><th>Bitiş [hariç]</th><th>Gecelik</th></tr></thead><tbody>{rates.length === 0 ? <tr><td colSpan={3}>Fiyat kaydı yok.</td></tr> : rates.map(x => <tr key={x.id}><td>{x.validFrom}</td><td>{x.validUntilExclusive ?? "∞"}</td><td>{x.nightlyRate.toFixed(2)} {x.currency}</td></tr>)}</tbody></table></div>
-    </section> : null}
+      {permissions.has("camp.rate.view") ? <section className="panel"><div className="panel-heading"><div><span className="eyebrow dark">Maliyet</span><h2>{selectedCamp?.name ?? "Seçili kamp"} fiyat dönemleri</h2><p>Konaklama açılırken ilgili tarihteki gecelik tutar sabitlenir.</p></div><strong>{rates.length}</strong></div>
+        {permissions.has("camp.rate.manage") ? <div className="form-surface"><div className="form-surface-heading"><div><strong>Yeni fiyat dönemi</strong><span>Bitiş tarihi boş bırakılırsa dönem süresiz devam eder.</span></div></div><form className="inline-form" onSubmit={createRate}><label className="field-label">Başlangıç<input name="validFrom" type="date" defaultValue={localDate()} required/></label><label className="field-label">Bitiş tarihi (hariç)<input name="validUntilExclusive" type="date"/></label><label className="field-label">Gecelik tutar<input name="nightlyRate" type="number" min="0.01" step="0.01" required/></label><label className="field-label">Para birimi<input name="currency" defaultValue="TRY" maxLength={3} required/></label><button className="primary-button" disabled={busy || !campId}>Fiyatı kaydet</button></form></div> : null}
+        <div className="table-wrap"><table className="data-table"><thead><tr><th>Başlangıç</th><th>Bitiş</th><th>Gecelik tutar</th></tr></thead><tbody>{rates.length === 0 ? <tr><td className="empty-row" colSpan={3}>{campId ? "Bu kamp için fiyat kaydı yok." : "Fiyatları görmek için kamp seçin."}</td></tr> : rates.map(x => <tr key={x.id}><td>{formatDate(x.validFrom)}</td><td>{x.validUntilExclusive ? formatDate(x.validUntilExclusive) : "Süresiz"}</td><td><strong>{x.nightlyRate.toLocaleString("tr-TR", { minimumFractionDigits: 2 })} {x.currency}</strong></td></tr>)}</tbody></table></div>
+      </section> : null}
 
-    {permissions.has("camp.stay.manage") ? <section className="panel audit-panel"><div className="panel-heading"><div><span className="eyebrow dark">YERLEŞİM</span><h2>Personeli yatağa ata</h2></div></div>
-      <form className="inline-form" onSubmit={createStay}><label className="field-label">Personel<select value={employeeId} onChange={e => setEmployeeId(e.target.value)} required><option value="">Seçin</option>{employees.map(x => <option key={x.id} value={x.id}>{x.employeeNo} · {x.firstName} {x.lastName}</option>)}</select></label><label className="field-label">Giriş<input name="checkInDate" type="date" defaultValue={localDate()} required/></label><label className="field-label">Planlı çıkış [hariç]<input name="checkOutDateExclusive" type="date"/></label><label className="field-label">Not<input name="note" maxLength={2000}/></label><button className="primary-button" disabled={busy || !campId || !roomId || !bedId || !employeeId}>Konaklama aç</button></form>
-      {!permissions.has("personnel.view") ? <p>Personel seçimi için mevcut sürümde ayrıca <code>personnel.view</code> yetkisi gerekir.</p> : null}
-    </section> : null}
+      {permissions.has("camp.stay.manage") ? <section className="panel"><div className="panel-heading"><div><span className="eyebrow dark">Yerleşim</span><h2>Yeni konaklama açın</h2><p>Personeli seçili yatağa yerleştirin; tarih çakışmaları otomatik kontrol edilir.</p></div></div>
+        <div className="form-surface"><form className="inline-form" onSubmit={createStay}><label className="field-label">Personel<select value={employeeId} onChange={e => setEmployeeId(e.target.value)} required><option value="">Personel seçin</option>{employees.map(x => <option key={x.id} value={x.id}>{x.employeeNo} · {x.firstName} {x.lastName}</option>)}</select></label><label className="field-label">Giriş tarihi<input name="checkInDate" type="date" defaultValue={localDate()} required/></label><label className="field-label">Planlı çıkış (hariç)<input name="checkOutDateExclusive" type="date"/></label><label className="field-label">Not<input name="note" maxLength={2000}/></label><button className="primary-button" disabled={busy || !campId || !roomId || !bedId || !employeeId}>Konaklamayı başlat</button></form></div>
+        {!permissions.has("personnel.view") ? <p className="notice">Personel listesine erişim yetkiniz olmadığı için seçim yapılamıyor.</p> : null}
+      </section> : null}
 
-    {permissions.has("camp.stay.view") ? <section className="panel audit-panel"><div className="panel-heading"><div><span className="eyebrow dark">KONAKLAMA</span><h2>Güncel & geçmiş kayıtlar</h2></div><strong>{stays.length}</strong></div>
-      <div className="table-wrap"><table className="data-table"><thead><tr><th>Personel</th><th>Kamp</th><th>Oda/Yatak</th><th>Giriş</th><th>Çıkış [hariç]</th><th>Gün</th><th>Gecelik</th><th>Maliyet</th><th>Durum</th><th>İşlem</th></tr></thead><tbody>{stays.length === 0 ? <tr><td colSpan={10}>Konaklama kaydı yok.</td></tr> : stays.map(x => <tr key={x.id}><td>{x.employeeNo} · {x.employeeName}</td><td>{x.campCode} · {x.campName}</td><td>{x.roomCode}/{x.bedCode}</td><td>{x.checkInDate}</td><td>{x.checkOutDateExclusive ?? "Açık"}</td><td>{x.nights}</td><td>{x.nightlyRateSnapshot.toFixed(2)} {x.currencySnapshot}</td><td>{x.currentOrFinalCost.toFixed(2)} {x.currencySnapshot}</td><td><strong>{x.status}</strong></td><td>{x.status === "ACTIVE" && permissions.has("camp.stay.manage") ? <div className="actions"><button className="secondary-button" onClick={() => void closeStay(x)}>Kapat</button><button className="secondary-button" onClick={() => void cancelStay(x)}>İptal</button></div> : "—"}</td></tr>)}</tbody></table></div>
-    </section> : null}
+      {permissions.has("camp.stay.view") ? <section className="panel"><div className="panel-heading"><div><span className="eyebrow dark">Konaklama kayıtları</span><h2>Güncel ve geçmiş yerleşimler</h2><p>Aktif konaklamaları kapatabilir veya hatalı kaydı iptal edebilirsiniz.</p></div><strong>{stays.length}</strong></div>
+        <div className="table-wrap"><table className="data-table"><thead><tr><th>Personel</th><th>Kamp</th><th>Oda / yatak</th><th>Giriş</th><th>Çıkış</th><th>Gece</th><th>Maliyet</th><th>Durum</th><th>İşlem</th></tr></thead><tbody>{stays.length === 0 ? <tr><td className="empty-row" colSpan={9}>Henüz konaklama kaydı yok.</td></tr> : stays.map(x => <tr key={x.id}><td><strong>{x.employeeName}</strong><small>{x.employeeNo}</small></td><td>{x.campCode} · {x.campName}</td><td>{x.roomCode} / {x.bedCode}</td><td>{formatDate(x.checkInDate)}</td><td>{formatDate(x.checkOutDateExclusive)}</td><td>{x.nights}</td><td><strong>{x.currentOrFinalCost.toLocaleString("tr-TR", { minimumFractionDigits: 2 })} {x.currencySnapshot}</strong><small>Gecelik {x.nightlyRateSnapshot.toLocaleString("tr-TR")}</small></td><td><span className={`status-badge ${x.status === "ACTIVE" ? "success" : x.status === "CANCELLED" ? "danger" : ""}`}>{stayStatus(x.status)}</span></td><td>{x.status === "ACTIVE" && permissions.has("camp.stay.manage") ? <div className="action-row"><button className="secondary-button button-success" onClick={() => void closeStay(x)}>Çıkış yap</button><button className="secondary-button button-danger" onClick={() => void cancelStay(x)}>İptal et</button></div> : "—"}</td></tr>)}</tbody></table></div>
+      </section> : null}
+    </div>
   </main>;
 }

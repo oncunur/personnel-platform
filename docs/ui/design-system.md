@@ -57,6 +57,12 @@ Her operasyon ekranı ortak `PageHeader` bileşenini ve `page-header` kalıbın�
 
 Şirket, dönem veya personel gibi ekranın geri kalanını etkileyen ana seçimler `workspace-panel` ya da `selection-bar` kalıbında gösterilir. Kapsam seçimi form içindeki sıradan bir alan gibi saklanmaz; seçimin etkilediği kayıtlar kısa bir metinle açıklanır.
 
+### Operasyon özeti
+
+Kamp, yemek, stok, araç ve idari işler gibi yoğun ekranlarda başlığın hemen ardından en fazla dört `stat-card` kullanılır. Kartlar yalnız karar vermeye yardımcı olan güncel sayıları gösterir: aktif kayıt, kapasite, yaklaşan vade veya dikkat isteyen durum. Teknik sayaçlar ve geçmiş toplamları ana özet alanını kalabalıklaştırmaz.
+
+Birbiriyle ilişkili oluşturma işlemleri iki sütunlu `organization-grid` içinde gruplanabilir. Kayıt formu ve geçmiş liste aynı paneldeyse aralarında `form-surface`; aynı panelde iki ayrı tablo varsa ikinci bölümden önce `table-section-heading` kullanılır.
+
 ### Form yüzeyi
 
 Listeyle aynı panelde bulunan oluşturma veya güncelleme formu `form-surface` ile ayrılır. Böylece form alanları ile mevcut kayıtlar birbirine karışmaz. Formun kısa başlığı yapılan işlemi, yardımcı metni ise işlemin etkisini açıklar.
