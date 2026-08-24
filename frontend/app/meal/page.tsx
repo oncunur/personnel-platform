@@ -81,21 +81,23 @@ export default function MealPage() {
   async function createRate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (!campId || !mealTypeId) return; setBusy(true);
     try {
-      const form = new FormData(event.currentTarget);
+      const formElement = event.currentTarget;
+      const form = new FormData(formElement);
       const response = await authFetch("/api/v1/meal/rates", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ campId, mealTypeId, validFrom: form.get("validFrom"), validUntilExclusive: form.get("validUntilExclusive") || null, unitPrice: Number(form.get("unitPrice")), currency: form.get("currency") }) });
       if (!response?.ok) { setMessage(await errorMessage(response, "Yemek fiyatı kaydedilemedi.")); return; }
-      event.currentTarget.reset(); setRates(await json<Rate[]>(`/api/v1/meal/rates?campId=${campId}`) ?? []); setMessage("Tarih-etkin yemek fiyatı kaydedildi.");
+      formElement.reset(); setRates(await json<Rate[]>(`/api/v1/meal/rates?campId=${campId}`) ?? []); setMessage("Tarih-etkin yemek fiyatı kaydedildi.");
     } finally { setBusy(false); }
   }
 
   async function recordConsumption(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true);
     try {
-      const form = new FormData(event.currentTarget);
+      const formElement = event.currentTarget;
+      const form = new FormData(formElement);
       const source = String(form.get("source") ?? "MANUAL");
       const response = await authFetch("/api/v1/meal/consumptions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ employeeId: form.get("employeeId"), campId: form.get("campId"), mealTypeId: form.get("mealTypeId"), consumptionDate: form.get("consumptionDate"), quantity: Number(form.get("quantity")), source, externalEventId: form.get("externalEventId") || null, note: form.get("note") || null }) });
       if (!response?.ok) { setMessage(await errorMessage(response, "Yemek tüketimi kaydedilemedi.")); return; }
-      event.currentTarget.reset(); setMessage("Yemek tüketimi kaydedildi; fiyat ve maliyet snapshot olarak sabitlendi."); await reloadConsumptions();
+      formElement.reset(); setMessage("Yemek tüketimi kaydedildi; fiyat ve maliyet snapshot olarak sabitlendi."); await reloadConsumptions();
     } finally { setBusy(false); }
   }
 
