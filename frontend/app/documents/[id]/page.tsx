@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { useActionDialog } from "../../components/ActionDialog";
 import { Icon } from "../../components/Icon";
+import { OperationDisclosure } from "../../components/OperationDisclosure";
 import { PageHeader } from "../../components/PageHeader";
 
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
@@ -128,7 +129,7 @@ export default function DocumentDetailPage() {
       <section className="security-grid">
       <article className="panel"><div className="panel-heading"><div><span className="eyebrow dark">Mevcut kayıt</span><h2>Belge bilgileri</h2><p>Belgenin kimlik, geçerlilik ve dosya ayrıntıları.</p></div></div><div className="detail-grid"><Item label="Belge no" value={document.documentNumber}/><Item label="Düzenlenme" value={formatDate(document.issueDate)}/><Item label="Geçerlilik başlangıcı" value={formatDate(document.validFrom)}/><Item label="Geçerlilik bitişi" value={formatDate(document.validUntil)}/><Item label="Dosya" value={document.fileName}/><Item label="Boyut" value={document.fileSizeBytes ? `${Math.round(document.fileSizeBytes / 1024)} KB` : null}/></div>{document.replacesDocumentId ? <div className="selected-summary"><span className="selected-summary-copy"><strong>Bu kayıt önceki bir belgenin yenilenmiş sürümüdür.</strong><small>Eski kayıt numarası: {document.replacesDocumentId.slice(0, 8)}</small></span></div> : null}</article>
 
-      {!terminal && permissions.has("documents.employee.renew") ? <article className="panel"><div className="panel-heading"><div><span className="eyebrow dark">Yeni sürüm</span><h2>Belgeyi yenile</h2><p>Yeni bilgilerle bir sürüm oluşturulur; mevcut kayıt geçmişte korunur.</p></div></div><form className="stack" onSubmit={renew}>
+      {!terminal && permissions.has("documents.employee.renew") ? <article className="panel"><OperationDisclosure title="Belgeyi yeni sürümle yenile" description="Yeni bilgilerle bir sürüm oluşturulur; mevcut kayıt geçmişte korunur."><form className="stack" onSubmit={renew}>
         <label className="field-label">Belge no<input name="documentNumber" defaultValue={document.documentNumber ?? ""}/></label>
         <label className="field-label">Düzenlenme<input name="issueDate" type="date"/></label>
         <label className="field-label">Geçerlilik başlangıcı<input name="validFrom" type="date"/></label>
@@ -137,10 +138,10 @@ export default function DocumentDetailPage() {
         <label className="field-label">Ülke kodu<input name="countryCode" maxLength={3} defaultValue="TR"/></label>
         <label className="field-label">Yeni dosya<input name="file" type="file" accept="application/pdf,image/jpeg,image/png"/></label>
         <button className="primary-button" disabled={busy}><Icon name="plus" size={17}/>Yeni sürümü oluştur</button>
-      </form></article> : null}
+      </form></OperationDisclosure></article> : null}
       </section>
 
-      <section className="panel"><div className="panel-heading"><div><span className="eyebrow dark">Sürüm ve işlem izi</span><h2>Belge geçmişi</h2><p>Belge üzerinde yapılan tüm durum ve sürüm değişiklikleri.</p></div><strong>{history.length}</strong></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Tarih</th><th>İşlem</th><th>Durum değişimi</th><th>Neden</th></tr></thead><tbody>{history.length === 0 ? <tr><td className="empty-row" colSpan={4}>Bu belge için geçmiş hareketi bulunmuyor.</td></tr> : history.map(x => <tr key={x.id}><td>{new Date(x.changedAt).toLocaleString("tr-TR")}<small>{x.changedBy}</small></td><td>{actionLabels[x.action] ?? x.action}</td><td>{x.fromStatus ? `${statusOf(x.fromStatus).label} → ${statusOf(x.toStatus).label}` : statusOf(x.toStatus).label}</td><td>{x.reason ?? "—"}</td></tr>)}</tbody></table></div></section>
+      <section className="panel"><div className="panel-heading"><div><span className="eyebrow dark">Sürüm ve işlem izi</span><h2>Belge geçmişi</h2><p>Belge üzerinde yapılan tüm durum ve sürüm değişiklikleri.</p></div><strong>{history.length}</strong></div><div className="table-wrap responsive-table-wrap" role="region" aria-label="Belge sürüm ve işlem geçmişi" tabIndex={0}><table className="data-table responsive-table"><thead><tr><th>Tarih</th><th>İşlem</th><th>Durum değişimi</th><th>Neden</th></tr></thead><tbody>{history.length === 0 ? <tr><td className="empty-row" colSpan={4}>Bu belge için geçmiş hareketi bulunmuyor.</td></tr> : history.map(x => <tr key={x.id}><td data-label="Tarih">{new Date(x.changedAt).toLocaleString("tr-TR")}<small>{x.changedBy}</small></td><td data-label="İşlem">{actionLabels[x.action] ?? x.action}</td><td data-label="Durum değişimi">{x.fromStatus ? `${statusOf(x.fromStatus).label} → ${statusOf(x.toStatus).label}` : statusOf(x.toStatus).label}</td><td data-label="Neden">{x.reason ?? "—"}</td></tr>)}</tbody></table></div></section>
     </div>
     {dialog}
   </main>;
