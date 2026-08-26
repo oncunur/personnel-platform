@@ -3,7 +3,6 @@ import "./globals.css";
 import { AppFrame } from "./components/AppFrame";
 
 export const metadata: Metadata = {
-  title: "Personel & İdari İşler Platformu",
   description: "Personel, bordro ve idari operasyonlar için kurumsal yönetim platformu",
 };
 
