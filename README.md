@@ -15,7 +15,7 @@ Personnel & Administrative Affairs platform implemented as a modular monolith.
 
 The platform now covers the Sprint 0–16 product baseline, including:
 
-- MFA, session security, role/permission and company-scope authorization
+- Configurable MFA (disabled by default), session security, role/permission and company-scope authorization
 - Organization, personnel, sensitive profile and digital personnel documents
 - Leave, attendance, shifts, daily calculation and overtime approvals
 - Camp, meal, payroll, cost reporting and ERP reconciliation
