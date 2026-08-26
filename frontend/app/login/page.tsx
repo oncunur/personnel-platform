@@ -104,6 +104,6 @@ export default function LoginPage() {
       <button className="primary-button" type="submit" disabled={submitting || code.length !== 6}>{submitting ? "Doğrulanıyor…" : mfa.enrollmentRequired ? "Kurulumu tamamla ve giriş yap" : "Doğrula ve giriş yap"}</button>
       <button className="secondary-button" type="button" onClick={restartLogin}>Farklı hesapla giriş yap</button>
     </form>}
-    <p className="auth-hint">Yetkili hesaplarda ek doğrulama zorunludur. Giriş bilgileriniz ve kurulum anahtarınız kimseyle paylaşılmamalıdır.</p>
+    <p className="auth-hint">Giriş bilgilerinizi kimseyle paylaşmayın ve ortak cihazlarda oturumunuzu açık bırakmayın.</p>
   </section></main>;
 }

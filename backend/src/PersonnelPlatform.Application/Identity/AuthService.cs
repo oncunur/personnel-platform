@@ -52,6 +52,9 @@ public sealed class AuthService(
 
     public async Task<AuthResult> CompleteMfaAsync(string challengeToken, string code, string? ipAddress, string? deviceName, CancellationToken cancellationToken)
     {
+        if (!policyOptions.MfaEnabled)
+            return AuthResult.Failure("AUTH_MFA_DISABLED", "Ek doğrulama şu anda devre dışıdır.");
+
         if (string.IsNullOrWhiteSpace(challengeToken) || challengeToken.Length > 512 || string.IsNullOrWhiteSpace(code) || code.Length > 16)
             return AuthResult.Failure("AUTH_MFA_INVALID", "MFA doğrulaması başarısız.");
 
