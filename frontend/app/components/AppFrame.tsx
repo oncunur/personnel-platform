@@ -6,6 +6,7 @@ import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { Icon, IconName } from "./Icon";
 
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
+const productTitle = "Personel & İdari İşler Platformu";
 type AuthResponse = { accessToken: string; accessTokenExpiresAt: string };
 type MeResponse = { username: string; email: string | null; permissions: { code: string }[] };
 type NavItem = { href: string; label: string; icon: IconName; prefixes: string[] };
@@ -40,6 +41,7 @@ const navGroups: NavGroup[] = [
   ]},
 ];
 const pageLabels: Record<string, string> = {
+  "/login": "Güvenli Giriş", "/api-health": "Sistem Durumu",
   "/dashboard": "Genel Bakış", "/personnel": "Personel Yönetimi", "/documents": "Özlük ve Belgeler",
   "/leave": "İzin Yönetimi", "/attendance": "Puantaj ve Vardiya", "/payroll": "Bordro ve Ücret",
   "/camp": "Kamp ve Konaklama", "/meal": "Yemek Takibi", "/assets": "Zimmet ve Stok",
@@ -133,14 +135,15 @@ export function AppFrame({ children }: { children: ReactNode }) {
   }, [activeGroupLabel]);
   const pageLabel = Object.entries(pageLabels).filter(([route]) => pathname === route || pathname.startsWith(`${route}/`))
     .sort(([a], [b]) => b.length - a.length)[0]?.[1] ?? "Platform";
+  const documentTitle = pathname === "/" ? productTitle : `${pageLabel} | ${productTitle}`;
   const initials = (me?.username ?? "K").slice(0, 2).toLocaleUpperCase("tr-TR");
 
-  if (isPublic) return <>{children}</>;
-  return <div className="app-frame">
+  if (isPublic) return <><title>{documentTitle}</title>{children}</>;
+  return <><title>{documentTitle}</title><div className="app-frame">
     <a className="skip-link" href="#main-content">Ana içeriğe geç</a>
     <aside id="app-navigation" className={`app-sidebar ${menuOpen ? "is-open" : ""}`} aria-label="Ana navigasyon">
       <div className="app-brand"><span className="app-logo" aria-hidden="true">Pİ</span><span className="app-brand-copy"><strong>Personel & İdari</strong><small>İşler Platformu</small></span><button ref={menuCloseButtonRef} className="sidebar-close" type="button" onClick={() => closeMenu(true)} aria-label="Menüyü kapat"><Icon name="close"/></button></div>
-      <nav className="app-nav">
+      <nav className="app-nav" aria-busy={!me}>
         {me ? <><label className="nav-search"><span className="nav-search-icon"><Icon name="search" size={17}/></span><span className="nav-search-label">Menüde ara</span><input type="search" value={navQuery} onChange={(event) => setNavQuery(event.target.value)} placeholder="Menüde ara…" autoComplete="off"/></label>
           {filteredGroups.length ? filteredGroups.map((group, index) => {
             const expanded = Boolean(normalizedNavQuery) || openGroups.has(group.label);
@@ -152,11 +155,11 @@ export function AppFrame({ children }: { children: ReactNode }) {
               <div className="nav-group-items" id={panelId} hidden={!expanded}>{group.items.map((item) => <Link className={`nav-link ${activeHref === item.href ? "is-active" : ""}`} href={item.href} key={item.href} aria-current={activeHref === item.href ? "page" : undefined}><span className="nav-icon"><Icon name={item.icon}/></span><span>{item.label}</span></Link>)}</div>
             </div>;
           }) : <p className="nav-empty" role="status">Bu adla eşleşen bir menü bulunamadı.</p>}
-        </> : <div className="nav-loading" aria-label="Menü yükleniyor"><span/><span/><span/><span/><span/></div>}
+        </> : <div className="nav-loading" role="status" aria-live="polite" aria-label="Menü yükleniyor"><span/><span/><span/><span/><span/></div>}
       </nav>
       <div className="app-sidebar-footer"><div className="sidebar-user"><span className="user-avatar">{initials}</span><span><strong>{me?.username ?? "Oturum yükleniyor"}</strong><small>{me?.email ?? "Personel Platformu"}</small></span></div><button className="icon-button inverse" type="button" onClick={() => void logout()} aria-label="Çıkış yap"><Icon name="logout"/></button></div>
     </aside>
     {menuOpen ? <button className="sidebar-scrim" type="button" aria-label="Menüyü kapat" onClick={() => closeMenu(true)}/> : null}
     <div className="app-main"><header className="app-topbar"><div className="topbar-context"><button ref={menuButtonRef} className="mobile-menu-button" type="button" onClick={() => setMenuOpen(true)} aria-label="Menüyü aç" aria-expanded={menuOpen} aria-controls="app-navigation"><Icon name="menu"/></button><span>Personel Platformu</span><strong>{pageLabel}</strong></div><div className="topbar-status"><span className="status-dot" aria-hidden="true"/> Güvenli oturum</div></header><div className="app-content" id="main-content" tabIndex={-1}>{children}</div></div>
-  </div>;
+  </div></>;
 }
